@@ -10,46 +10,33 @@ classdef DAQ_controller < instrumentType
    %TO CHANGE: 
    %add presets for dataChannel, maxRate (embedded),
    %continuousCollection, and differentiateSignal (embedded)
-   %Add analog option
-   
-   
-   properties (Constant)
-      defaults = struct('maxRate',1.25e6);
+
+   properties (Dependent)
+      %User editable, stored within handshake
+      continuousCollection
+      takeData
+      activeDataChannel      
+      differentiateSignal          
    end
 
-   properties
-      daqName
-      handshake
-      channelInfo
-      terminalList
-      clockPort
-      dataChannels
-      % toggleChannel
-      % signalReferenceChannel
-      % activeDataChannelName
-      % activeDataChannelNumber
-      % differentiateSignal
-      %The following only matters if signal/reference differentiation is
-      %off because if s/r differentiation is on then the continuous
-      %function MUST be used
-      % continuousCollection
-      %The following can also be accessed by
-      %h.handshake.DeviceInfo.Subsystems.ChannelNames but they are useful
-      %to easily access so they are copied here
+   properties (SetAccess = protected, GetAccess = public)
+      %Read-only for user (derived from config), stored in properties
+      manufacturer
       analogPortNames
       digitalPortNames
       counterPortNames
-      presets = struct('maxRate',[]);
-      manufacturer
+      daqName
+      handshake
+      channelInfo
+      clockPort
+      dataChannels   
    end
 
-   properties (Dependent)
-      continuousCollection
-      takeData
-      activeDataChannel
+   properties (Dependent, SetAccess = protected, GetAccess = public)
+      %Read-only for user (derived from config), stored in handshake
+      sampleRate
       toggleChannel
       signalReferenceChannel
-      differentiateSignal      
    end
    
    methods         
@@ -116,6 +103,8 @@ classdef DAQ_controller < instrumentType
 
          %Needs to be true for following functions to run
          h.connected = true;
+
+         h.identifier = 'DAQ';
          
          %Default values
          h = setDataChannel(h,1);
@@ -149,7 +138,7 @@ classdef DAQ_controller < instrumentType
             %If no data channel has been designated, or if data collection
             %has been disabled, or if no S/R channel has been designated
             %while differentiation of S/R is enabled, stop this function
-            if ~collectionInfo.takeData || isempty(collectionInfo.dataChannel) || isempty(collectionInfo.toggleChannel)...
+            if ~collectionInfo.takeData || isempty(collectionInfo.activeDataChannel) || isempty(collectionInfo.toggleChannel)...
                   || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal)
                return
             end
@@ -185,24 +174,24 @@ classdef DAQ_controller < instrumentType
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
             else%Voltage
-                %Determine where data is on
-                dataOn = unsortedData(:,collectionInfo.toggleChannel);
-                if ~collectionInfo.differentiateSignal
-                    ref = mean(unsortedData(dataOn));
-                    sig = 0;
-                else
-                    signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
-                    sig = mean(unsortedData(signalOn & dataOn));
-                    ref = mean(unsortedData(~signalOn & dataOn));
-                end
-                %Increase number of scan outputs to keep track of what the
-                %average should be rather than total value
-                handshake.UserData.nScanOutputs = handshake.UserData.nScanOutputs+1;
+               dataOn = unsortedData(:,collectionInfo.toggleChannel);
+               if ~collectionInfo.differentiateSignal
+                  %No signal/reference differentiation
+                  ref = mean(unsortedData(dataOn,collectionInfo.activeDataChannel));
+                  sig = 0;
+               else
+                  signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
+                  sig = mean(unsortedData(dataOn & signalOn,collectionInfo.activeDataChannel));
+                  ref = mean(unsortedData(dataOn & ~signalOn,collectionInfo.activeDataChannel));
+               end
+                
             end
             
             %Add to previous values for reference and signal
             handshake.UserData.reference = handshake.UserData.reference + ref;
             handshake.UserData.signal = handshake.UserData.signal + sig;
+            %for analog, similarly add in each value but keep
+            %track of number of additions so the average can be found
 
          end
 
@@ -244,9 +233,8 @@ classdef DAQ_controller < instrumentType
             if channelDesignation > numel(h.channelInfo)
                error('%d is greater than the %d channels',channelDesignation,numel(h.channelInfo))
             end
-            h.activeDataChannelNumber = channelDesignation;
-            h.handshake.UserData.dataChannel = channelDesignation;
-            h.activeDataChannelName = h.channelInfo(channelDesignation).label;
+            h.handshake.UserData.dataChannelNumber = channelDesignation;
+            h.activeDataChannel = h.channelInfo(channelDesignation).label;
             return
          end
          
@@ -258,9 +246,8 @@ classdef DAQ_controller < instrumentType
          if numel(channelNumber) ~= 1
             error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",channelDesignation)
          end
-         h.activeDataChannelName = h.channelInfo(channelNumber).label;
-         h.activeDataChannelNumber = channelNumber;
-         h.handshake.UserData.dataChannel = channelNumber;
+         h.activeDataChannel = h.channelInfo(channelNumber).label;
+         h.handshake.UserData.dataChannelNumber = channelNumber;
          switch lower(h.channelInfo(channelNumber).dataType)
             case {'v','voltage','analog'}
                dataType = 'Voltage';
@@ -302,6 +289,7 @@ classdef DAQ_controller < instrumentType
             %Set the reference and signal to 0
             h.handshake.UserData.reference = 0;
             h.handshake.UserData.signal = 0;
+            h.handshake.UserData.nPoints = 0;
             %Turn on collection
             if ~h.handshake.Running, start(h.handshake,"continuous"), end
             
@@ -309,9 +297,7 @@ classdef DAQ_controller < instrumentType
             if h.handshake.Running, stop(h.handshake), end
             resetcounters(h.handshake)
          end
-         if strcmp(activeDataChannel,a)
-            h.handshake.UserData.nScanOutputs = 0;
-         end
+
       end
       
       function varargout = readData(h)
@@ -323,7 +309,7 @@ classdef DAQ_controller < instrumentType
          else
             if h.handshake.Running,   stop(h.handshake), end
             unsortedData = read(h.handshake,"OutputFormat","Matrix");
-            varargout{1} = unsortedData(h.handshake.UserData.dataChannel);
+            varargout{1} = unsortedData(h.handshake.UserData.dataChannelNumber);
          end
       end
       
@@ -349,112 +335,96 @@ classdef DAQ_controller < instrumentType
          end
       end      
 
-      % continuousCollection
-      % takeData
-      % dataChannel
-      % toggleChannel
-      % signalReferenceChannel
-      % differentiateSignal
-
       function set.continuousCollection(h,val)
          h = setParameter(h,val,'continuousCollection'); %#ok<NASGU>
       end
       function val = get.continuousCollection(h)
-         val = setParameter(h,'continuousCollection');
+         val = getParameter(h,'continuousCollection');
       end
 
       function set.takeData(h,val)
          h = setParameter(h,val,'takeData'); %#ok<NASGU>
       end
       function val = get.takeData(h)
-         val = setParameter(h,'takeData');
-      end
-
-      function set.toggleChannel(h,val)
-         h = setParameter(h,val,'toggleChannel'); %#ok<NASGU>
-      end
-      function val = get.toggleChannel(h)
-         val = setParameter(h,'toggleChannel');
-      end
-
-      function set.signalReferenceChannel(h,val)
-         h = setParameter(h,val,'signalReferenceChannel'); %#ok<NASGU>
-      end
-      function val = get.signalReferenceChannel(h)
-         val = setParameter(h,'signalReferenceChannel');
+         val = getParameter(h,'takeData');
       end
 
       function set.differentiateSignal(h,val)
          h = setParameter(h,val,'differentiateSignal'); %#ok<NASGU>
       end
       function val = get.differentiateSignal(h)
-         val = setParameter(h,'differentiateSignal');
+         val = getParameter(h,'differentiateSignal');
       end
 
       function set.activeDataChannel(h,val)
-         h = setParameter(h,val,'activeDataChannelNumber'); %#ok<NASGU>
+         %Sets active data channel number/name based on designation given.
+         %Designation can be the channel
+         %port or channel label so long as it is unique to that channel
+
+         if ~h.connected
+            h.presets.activeDataChannel = val;
+            return
+         end
+         
+         %Label/port input
+         channels = squeeze(struct2cell(h.channelInfo));
+         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
+         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
+         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
+         if numel(channelNumber) ~= 1
+            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
+         end
+         h.activeDataChannel = h.channelInfo(channelNumber).label;
+         h.handshake.UserData.dataChannelNumber = channelNumber;
+         switch lower(h.channelInfo(channelNumber).dataType)
+            case {'v','voltage','analog'}
+               dataType = 'Voltage';
+            case {'counter','cntr','count','edge','edge count','edgecount'}
+               dataType = 'EdgeCount';
+            case {'digital','binary'}
+               dataType = 'Digital';
+         end
+         h.handshake.UserData.dataType = dataType;
       end
       function val = get.activeDataChannel(h)
-         val = setParameter(h,'differentiateSignal');
+         val = getParameter(h,'differentiateSignal');
       end
 
+      %Properties below are read-only 
+      function set.toggleChannel(h,val)
+         h = setParameter(h,val,'toggleChannel'); %#ok<NASGU>
+      end
+      function val = get.toggleChannel(h)
+         val = getParameter(h,'toggleChannel');
+      end
+
+      function set.signalReferenceChannel(h,val)
+         h = setParameter(h,val,'signalReferenceChannel'); %#ok<NASGU>
+      end
+      function val = get.signalReferenceChannel(h)
+         val = getParameter(h,'signalReferenceChannel');
+      end
+
+      function set.sampleRate(h,val)
+         if h.connected
+            h.handshake.Rate = val;
+         else
+            h.presets.sampleRate = val;
+         end
+      end
+      function val = get.sampleRate(h)
+         varName = 'sampleRate';
+         if h.connected
+            val =  h.handshake.Rate;
+         elseif isfield(h.presets,varName) && ~isempty(h.presets.(varName))
+            val = h.presets.(varName);
+         elseif isfield(h.defaults,varName) && ~isempty(h.defaults.(varName))
+            val = h.defaults.(varName);
+         else
+            val  =[];
+         end
+      end
 
    end
-   
-   % methods (Static)
-   %    function handshake = storeData(handshake,evt) %#ok<INUSD> 
-   %          %User data is 2 cell array. First cell is a 1x2 matrix for
-   %          %signal and reference. The second cell is a structure that
-   %          %contains information about the data channel, signal reference
-   %          %channel, and differentiating signal and reference as well as
-   %          %whether data should be taken at all
-   %          collectionInfo = handshake.UserData;%Shorthand
-   % 
-   %          %If no data channel has been designated, or if data collection
-   %          %has been disabled, or if no S/R channel has been designated
-   %          %while differentiation of S/R is enabled, stop this function
-   %          if ~collectionInfo.takeData || isempty(collectionInfo.dataChannel) || isempty(collectionInfo.toggleChannel)...
-   %                || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal)
-   %             return
-   %          end
-   % 
-   %          %Read off the data from the device in matrix form
-   %          unsortedData = read(handshake,handshake.ScansAvailableFcnCount,"OutputFormat","Matrix");                        
-   % 
-   %          if strcmpi(collectionInfo.dataType,'EdgeCount')
-   %             %Take difference between each data point and the prior one.
-   %             %This is what is used to actually measure count increases
-   %             assignin('base','unsortedData',unsortedData)
-   %              counterDifference = diff(unsortedData(:,collectionInfo.dataChannel));
-   % 
-   %              %Create logical vector corresponding to whether a
-   %              %difference should be counted or not
-   %              dataOn = unsortedData(2:end,collectionInfo.toggleChannel);
-   % 
-   %             if ~collectionInfo.differentiateSignal
-   %                sig = 0;
-   %                ref = sum(counterDifference(dataOn));%All data put into reference
-   %             else
-   %                %Determine whether data should be signal or reference
-   %                %like what was done with dataOn. Then put all count
-   %                %increases corresponding to the signal channel being on
-   %                %into signal, and data where the signal channel is off in
-   %                %reference
-   %                signalOn = unsortedData(2:end,collectionInfo.signalReferenceChannel);
-   %                sig = sum(counterDifference(signalOn & dataOn));
-   %                ref = sum(counterDifference(~signalOn & dataOn));
-   %             end
-   %          else%Voltage
-   %              ref = 0;
-   %              sig = 0;
-   %          end
-   % 
-   %          %Add to previous values for reference and signal
-   %          handshake.UserData.reference = handshake.UserData.reference + ref;
-   %          handshake.UserData.signal = handshake.UserData.signal + sig;
-   %          %for analog, similarly add in each value but keep
-   %          %track of number of additions so the average can be found
-   %       end
-   % end
-   
+
 end
