@@ -7,7 +7,7 @@ This is naturally inefficient to some degree as MatLab does not handle global or
 Global variables were chosen in order to greatly simplify the code handling, especially for nested or simultaneous functions, at the cost of performance.
 Future versions of the code base are being reworked to avoid using global variables through the creation of different experiment classes; this can be viewed on the Object Oriented branch.
 
-Each instrumennt has its own folder with corresponding functions.
+Each instrument has its own folder with corresponding functions.
 While most functions only use one instrument, there are some - such as PBRun - which use multiple.
 Each instrument has an innitialization function which serves to generate the parameters the insturment will use as well as forming the handshake connection with the instrument itself.
   All other functions are specific to the instrument in question.
