@@ -54,11 +54,7 @@ classdef RF_generator < instrumentType
 
    methods %User Functions
 
-      function h = connect(h,configName) 
-         if h.connected
-            warning('RF generator is already connected')
-            return
-         end
+      function h = RF_generator(configFileName)
 
          %Loads config file and checks relevant field names
          configFields = {'connectionInfo'};
@@ -66,7 +62,17 @@ classdef RF_generator < instrumentType
             'modulationToggleOn','modulationToggleOff','modulationToggleQuery','modulationWaveform',...
             'modulationWaveformQuery','modulationType','modulationTypeQuery','modulationExternalIQ'};
          numericalFields = {'frequency','amplitude'};%has units, conversion factor, and min/max
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
+         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
+      end
+
+      function h = connect(h) 
+         if h.connected
+            warning('RF generator is already connected')
+            return
+         end         
 
          switch lower(h.connectionInfo.vendor)
             case {'srs','stanford'}
@@ -90,7 +96,6 @@ classdef RF_generator < instrumentType
                end
 
                h.connectionType = 'serialport';
-               h.identifier = 'SRS RF';
 
             case {'wf','windfreak'}
                %Validates that config info has needed fields
@@ -105,7 +110,6 @@ classdef RF_generator < instrumentType
                h.handshake = serialport(sprintf('COM%d',h.connectionInfo.comPort),h.connectionInfo.baudRate);
 
                h.connectionType = 'com';
-               h.identifier = 'windfreak RF';
 
             otherwise
                error('Invalid vendor. Must be SRS or windfreak')
@@ -280,6 +284,8 @@ classdef RF_generator < instrumentType
       function failCase(attribute,currentState,setState)
          error('%s read from RF generator is %g upon %g input',attribute,currentState,setState)
       end
+  
+      
    end
 
 

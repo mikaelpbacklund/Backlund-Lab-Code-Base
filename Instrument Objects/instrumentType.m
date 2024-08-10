@@ -1,8 +1,7 @@
 classdef instrumentType < handle
    properties      
       notifications = false
-      presets
-      identifier
+      presets      
       %Below suppresses warnings from references to property that isn't
       %defined here. It is suppressed as not all functions are for all
       %instruments and there is therefore some lacking overlap
@@ -13,6 +12,7 @@ classdef instrumentType < handle
    %Read-only for user (derived from config), stored in properties
    defaults
    connected = false
+   identifier
    end
 
    properties (Hidden)
@@ -433,5 +433,25 @@ classdef instrumentType < handle
          s(indexToAdd) = valuesToAdd;         
       end
 
+      function properIdentifier = giveProperIdentifier(userIdentifier)
+         switch lower(userIdentifier)
+            case {'srs','srs_rf','srs rf','srsrf'}
+               properIdentifier = 'SRS RF';
+            case {'wf','windfreak','wind freak','wind_freak'}
+               properIdentifier = 'WF RF';
+            case {'pulse_blaster','pulse blaster','pb','pulseblaster','spincore'}
+               properIdentifier = 'Pulse Blaster';
+            case {'stage','pi','pistage','pi_stage','pi stage'}
+               properIdentifier = 'PI Stage';
+            case {'daq','data','data acquisition','data_acquisition','dataacquisition','ni','ni daq','ni_daq','nidaq'}
+               properIdentifier = 'NI DAQ';
+            case {'hamm','ham','hamamatsu','hammcam','hamcam'}
+               properIdentifier = 'Hamamatsu';
+            case {'ddl','dynamic delay line','dynamicdelayline','dynamic_delay_line'}
+               properIdentifier = 'DDL';
+            otherwise
+               properIdentifier = [];
+         end
+      end
    end
 end

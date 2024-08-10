@@ -21,7 +21,8 @@ classdef experiment
       pulseBlaster
       DAQ
       PIstage
-      RF
+      SRS_RF
+      windfreak_RF
       hamm
       DDL
       ndYAG
@@ -29,7 +30,8 @@ classdef experiment
 
    properties (SetAccess = protected, GetAccess = public)
       %Read-only
-      instrumentNames
+      instrumentClasses
+      instrumentIdentifiers
       data %Stores data for each data point within a scan including its iteration
       instrumentCells
    end
@@ -47,7 +49,7 @@ classdef experiment
          end
 
          %Increment odometer to next value
-         newOdometer = experiment_beta.incrementOdometer(h.odometer,[h.scan.nSteps]);
+         newOdometer = experiment.incrementOdometer(h.odometer,[h.scan.nSteps]);
 
          %Determine which scans need to be changed. Scans whose odometer
          %value isn't changed don't need to be set again. Often gets 1
@@ -92,27 +94,57 @@ classdef experiment
             else
                newValue = currentScan.bounds(1) + currentScan.stepSize*h.odometer(scanToChange);%Computes new value
             end
-         end
+         end 
 
-         
+         %Refresh instrument classes and identifiers
+         h = getInstrumentNames(h);
 
-         %Finds which number the current instrument corresponds to in instrumentCells
-         %REQUIRES MANUAL ADDITION FOR NON-EXACT IDENTIFIERS
-         switch lower(currentScan.instrument)
-            case lower(h.instrumentNames) %Matches name of class
-               relevantInstrument = h.instrumentCells{strcmpi(h.instrumentNames,currentScan.instrument)};
-            case {'rf','rf gen','mw','mw loop','mw gen'}
-               relevantInstrument = h.instrumentCells{strcmpi(h.instrumentNames,'RF_generator')};
-            case {'srs','srs rf','srsrf','stanford','normal rf'}
-               %Find matching identifier for srs rf
-            case {'wf','windfreak','wf rf','wfrf','windfreak rf'}
-         end
-         
+         %Check for instruments matching the given instrument class
+         relevantInstrument = strcmpi(h.instrumentClasses,currentScan.instrument);
+
          if sum(relevantInstrument) == 0
-            error('No instrument of type "%s" found',currentScan.instrument)
-         elseif sum(relevantInstrument) > 1
-            error('Multiple instruments of type "%s" found, use identifier instead of class',currentScan.instrument)
+            %Does not match one of the "actual" names of the instruments
+            %Check all the possible "common" names
+
+            switch lower(currentScan.instrument)
+               case {'rf','rfgen','rf gen','rf generator','rfgenerator'}
+                  relevantInstrument = strcmpi(h.instrumentClasses,'RF_generator');
+               case {'pi stage','pi','pi_stage','movement','x','y','z','translation','translation stage','translationstage','translation_stage'}
+                  relevantInstrument = strcmpi(h.instrumentClasses,'stage');
+               case {'pb','pulseblaster','pulse blaster','pulse','pulses','sequence','duration','pulse duration','pulse_duration','pulseduration'}
+                  relevantInstrument = strcmpi(h.instrumentClasses,'pulse_blaster');
+            end
+
+            %Still no instrument found
+            if sum(relevantInstrument) == 0
+               error('No instrument of class designated by scan has been loaded')
+            end
+                   
          end
+
+
+         if sum(relevantInstrument) > 1
+            %More than one instrument of a given class
+            %Needs identifier to differentiate
+            if ~isfield(currentScan,'identifier')
+               error('Identifier must be given since multiple instruments are loaded with the same class')
+            end
+            %Find location of instrument identifier matching given identifier
+            %Just straight comparison since identifiers come from config file and are not standard
+
+            %Check if any instruments match the given identifier
+            relevantInstrument = strcmpi(h.instrumentIdentifiers,currentScan.identifier);
+
+            if sum(relevantInstrument) == 0
+               error('No instrument with given identifier found')
+            elseif sum(relevantInstrument) > 1
+               error('Multiple instruments with given identifier found')
+            end
+            
+         end
+
+         %Sets instrument to whatever was found above
+         relevantInstrument = h.instrumentCells{relevantInstrument};
          
 
          %Does heavy lifting of actually sending commands to instrument
@@ -152,7 +184,7 @@ classdef experiment
          end
 
          %Feeds instrument info back out
-         h.instrumentCells{strcmp(h.instrumentNames,currentScan.instrument)} = relevantInstrument;
+         h.instrumentCells{strcmp(h.instrumentClasses,currentScan.instrument)} = relevantInstrument;
 
       end
 
@@ -220,7 +252,7 @@ classdef experiment
             s = [scanInfo.stepSize];
             n = cellfun(@(x)x(2)-x(1),b);
 
-            if numel(s) == 1
+            if isscalar(n)
                n = n(1) ./ s;
             elseif numel(s) == numel(b)
                n = n ./s;
@@ -257,7 +289,7 @@ classdef experiment
          %Checks instrument cells and scan settings to see if the necessary
          %connections have been made
 
-         h = getInstrumentClasses(h);
+         h = getInstrumentNames(h);
 
          switch lower(acquisitionType)
             case 'pulse sequence'
@@ -342,14 +374,20 @@ classdef experiment
          h.data.previous = h.data.current;
       end
 
-      function h = getInstrumentClasses(h)
-         %Gets the names for each instrument corresponding to their cell in
-         %the input
+      function h = getInstrumentNames(h)
+         %Gets the class names and identifiers for each instrument corresponding to their cell in instrumentCells 
          if isempty(h.instrumentCells)
-            h.instrumentNames = [];
+            h.instrumentClasses = [];
          else
-            h.instrumentNames = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
-         end         
+            h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
+         end   
+
+         %For each instrument get the "proper" identifier
+         if isempty(h.instrumentCells)
+            h.instrumentIdentifiers = [];
+         else
+            h.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),h.instrumentCells,'UniformOutput',false);
+         end 
       end
 
       function h = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
@@ -453,7 +491,7 @@ classdef experiment
 
                assignin('base',"dataVector",dataVector)
 
-               [~,maxPosition] = experiment_beta.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
+               [~,maxPosition] = experiment.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
                h.PIstage = absoluteMove(h.PIstage,spatialAxis,maxPosition);
 
                assignin('base',"maxPosition",maxPosition)
@@ -635,17 +673,17 @@ classdef experiment
          %is connected
          if nargin == 3
             acquisitionType = varargin{1};
-            if ~ismember(instrumentName,h.instrumentNames)
+            if ~ismember(instrumentName,h.instrumentClasses)
                error('%s object required to perform ''%s'' data acquisition',instrumentName,acquisitionType)
             end
-            if ~h.instrumentCells{strcmp(h.instrumentNames,instrumentName)}.connected
+            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
                error('%s must be connected to perform ''%s'' data acquisition',instrumentName,acquisitionType)
             end
          else
-            if ~ismember(instrumentName,h.instrumentNames)
+            if ~ismember(instrumentName,h.instrumentClasses)
                error('%s object required to perform scan on %s',instrumentName,instrumentName)
             end
-            if ~h.instrumentCells{strcmp(h.instrumentNames,instrumentName)}.connected
+            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
                error('%s must be connected to perform scan on %s',instrumentName,instrumentName)
             end
          end
@@ -665,13 +703,13 @@ classdef experiment
          n = 0;
 
          %Adds RF info
-         if ~isempty(h.RF)
+         if ~isempty(h.SRS_RF)
             n = n+1;
             dataInfo{n,1} = 'RF frequency';
-            dataInfo{n,2} = h.RF.frequency;
+            dataInfo{n,2} = h.SRS_RF.frequency;
             n = n+1;
             dataInfo{n,1} = 'RF amplitude';
-            dataInfo{n,2} = h.RF.amplitude;
+            dataInfo{n,2} = h.SRS_RF.amplitude;
          end
 
          %Adds pulse sequence
@@ -749,7 +787,7 @@ classdef experiment
 
                %Gets position estimate using 1D gaussian fits for each axis
                %(see function)
-               [xEst,yEst] = experiment_beta.double1DGaussian(im,params.highPass,params.gaussianRatio);
+               [xEst,yEst] = experiment.double1DGaussian(im,params.highPass,params.gaussianRatio);
 
                %Convert to microns
                xEst = xEst/params.micronToPixel;
@@ -797,7 +835,7 @@ classdef experiment
                   im = takeImage(h.hamm);
 
                   %Finds estimates for x and y based on collapsed 1-D gaussians
-                  [distanceEstimates(ii,1),distanceEstimates(ii,2)] = experiment_beta.double1DGaussian(im,params.highPass,params.gaussianRatio);
+                  [distanceEstimates(ii,1),distanceEstimates(ii,2)] = experiment.double1DGaussian(im,params.highPass,params.gaussianRatio);
                end
 
                for ii = 1:2
@@ -845,79 +883,84 @@ classdef experiment
       %Set/Get for instruments
 
       %General function for get/set of instruments
-      function objOut = findInstrument(h,instrumentClass,varargin)
-         %Gets or sets an instrument depending on the number of arguments
+      function objectMatch = findInstrument(h,identifierInput)
+         %Finds the location within instrumentCells for a given instrument
 
          %Ensures up to date list of instruments
-         h = getInstrumentClasses(h);
+         h = getInstrumentNames(h);
 
-         %Checks if instrument already exists
-         if any(strcmp(h.instrumentNames,instrumentClass))
-            if nargin == 2 %get
-               %Returns matching instrument
-               objOut = h.instrumentCells{strcmp(instrumentClass,h.instrumentNames)};
-            else %set
-               %Sets matching instrument to given val
-               h.instrumentCells{strcmp(h.instrumentNames,instrumentClass)} = val;
-            end
-         else
-            if nargin == 2 %get
-               %Cannot find desired class
-               objOut = [];
-            else %set
-               %Creates a new instrument cell with the given val
-               h.instrumentCells{end+1} = val;
-            end
+         %Obtain proper identifier for the input and compare with instruments present
+         properIdentifier = instrumentType.giveProperIdentifier(identifierInput);
+         objectMatch = strcmp(h.instrumentIdentifiers,properIdentifier);
+
+         if sum(objectMatch) > 2
+            error('More than 1 instrument with identifier %s present')
          end
-         if nargin == 3 %set
-            %Updates names list and returns experiment object
-            h = getInstrumentClasses(h);
-            objOut = h;
+    
+      end
+
+      function s = getInstrumentVal(h,instrumentProperName)
+         s = h.instrumentCells{findInstrument(h,instrumentProperName)};
+      end
+
+      function h = setInstrumentVal(h,instrumentProperName,val)
+         instrumentLocation = findInstrument(h,instrumentProperName);
+         if sum(instrumentLocation) == 0
+            h.instrumentCells{end+1} = val;
+         else
+            h.instrumentCells{instrumentLocation} = val;
          end
       end
 
       %Specific instruments. Add/Remove as needed to correspond to
       %dependent variables
       function s = get.pulseBlaster(h)
-         s = findInstrument(h,'pulse_blaster');
+         s = getInstrumentVal(h,'pulse blaster');
       end
       function h = set.pulseBlaster(h,val)
-         h = findInstrument(h,'pulse_blaster',val);
+         h = setInstrumentVal(h,'pulse blaster',val);  
       end
 
       function s = get.PIstage(h)
-         s = findInstrument(h,'stage');
+         s = getInstrumentVal(h,'stage');
       end
       function h = set.PIstage(h,val)
-         h = findInstrument(h,'stage',val);
+         h = setInstrumentVal(h,'stage',val);  
       end
 
-      function s = get.RF(h)
-         s = findInstrument(h,'RF_generator');
+      function s = get.SRS_RF(h)
+         s = getInstrumentVal(h,'srs');
       end
-      function h = set.RF(h,val)
-         h = findInstrument(h,'RF_generator',val);
+      function h = set.SRS_RF(h,val)
+         h = setInstrumentVal(h,'srs',val);        
+      end
+
+      function s = get.windfreak_RF(h)
+         s = getInstrumentVal(h,'wf');
+      end
+      function h = set.windfreak_RF(h,val)
+         h = setInstrumentVal(h,'wf',val);        
       end
 
       function s = get.DAQ(h)
-         s = findInstrument(h,'DAQ_controller');
+         s = getInstrumentVal(h,'daq');
       end
       function h = set.DAQ(h,val)
-         h = findInstrument(h,'DAQ_controller',val);
+         h = setInstrumentVal(h,'daq',val);   
       end
 
       function s = get.DDL(h)
-         s = findInstrument(h,'kinesis_piezo');
+         s = getInstrumentVal(h,'ddl');
       end
       function h = set.DDL(h,val)
-         h = findInstrument(h,'kinesis_piezo',val);
+         h = setInstrumentVal(h,'ddl',val);  
       end
 
       function s = get.hamm(h)
-         s = findInstrument(h,'cam');
+         s = getInstrumentVal(h,'hamm');
       end
       function h = set.hamm(h,val)
-         h = findInstrument(h,'cam',val);
+         h = setInstrumentVal(h,'hamm',val);  
       end
    end
 
@@ -1035,5 +1078,6 @@ classdef experiment
          end
       end
 
+      
    end
 end

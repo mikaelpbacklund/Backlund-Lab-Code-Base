@@ -46,6 +46,19 @@ classdef pulse_blaster < instrumentType
 
    methods
 
+      function h = pulse_blaster(configFileName)
+
+         %Loads config file and checks relevant field names
+         configFields = {'clockSpeed','nChannels','formalDirectionNames',...
+            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
+         commandFields = {'library','api','type','name'};%Use commands to hold dll info
+         numericalFields = {};      
+         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
+      end
+
       function h = connect(h,configName)
          if h.connected
             warning('Pulse blaster is already connected')

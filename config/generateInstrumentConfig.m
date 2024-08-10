@@ -1,12 +1,11 @@
 %Creates instrument config file
 
-%% RF Generator
+%% SRS RF Generator
 clear config
 
 config.connectionInfo.vendor = 'srs';
 config.connectionInfo.fieldToCheck = 'Vendor';
 config.connectionInfo.checkedValue = 'Stanford';
-
 
 %Commands section for what messages should be sent to the instrument
 config.commands.toggleOn = 'ENBR 1';
@@ -42,12 +41,11 @@ config.(p).minimum = -110;
 config.(p).maximum = 16.5;
 
 saveLocation = pwd;%Default is to save to current directory
-saveName = '\RF_generator_config';
+saveName = '\SRS_RF';
 save(strcat(saveLocation,saveName),'config')
 
 
 %% Pulse Blaster
-
 clear config
 
 %Using commands to store dll information
@@ -106,6 +104,7 @@ config.defaults.sendUponAddition = false;%Send sequence to pulse blaster when ru
 saveLocation = pwd;%Default is to save to current directory
 saveName = '\pulse_blaster_config';
 save(strcat(saveLocation,saveName),'config')
+
 %% NI_DAQ
 
 clear config
@@ -323,6 +322,8 @@ save(strcat(saveLocation,saveName),'config')
 
 %% Windfreak RF
 clear config
+
+config.identifier = 'WF RF';
 
 config.connectionInfo.vendor = 'windfreak';
 config.connectionInfo.comPort = 9;%Unknown com port

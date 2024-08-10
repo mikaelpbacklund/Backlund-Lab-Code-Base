@@ -39,7 +39,19 @@ classdef DAQ_controller < instrumentType
       signalReferenceChannel
    end
    
-   methods         
+   methods   
+
+      function h = DAQ_controller(configFileName)
+
+         %Loads config file and checks relevant field names
+         configFields = {'channelInfo','clockPort','manufacturer'};
+         commandFields = {};
+         numericalFields = {};%has units, conversion factor, and min/max         
+         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
+      end
       
       function h = connect(h,configName)         
          if h.connected

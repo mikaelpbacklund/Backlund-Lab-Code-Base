@@ -26,9 +26,18 @@ classdef stage < instrumentType
       %downloaded to programfiles
       function h = stage
          addpath(getenv('PI_MATLAB_DRIVER'))
+
+         %Loads config file and checks relevant field names
+         configFields = {'controllerInfo','defaults'};
+         commandFields = {};
+         numericalFields = {};      
+         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
       end
       
-      function h = connect(h,configName)
+      function h = connect(h)
          if h.connected
             warning('Stage is already connected')
             return
@@ -38,12 +47,6 @@ classdef stage < instrumentType
          %assigns them to corresponding properties
          s = checkSettings(h,fieldnames(h.defaults));
          h = instrumentType.overrideStruct(h,s);
-         
-         %Loads config file and checks relevant field names
-         configFields = {'controllerInfo','defaults'};
-         commandFields = {};
-         numericalFields = {}; 
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
 
          for currentConnectionAttempt = 1:h.maxConnectionAttempts
             h.pathObject = PI_GCS_Controller;
