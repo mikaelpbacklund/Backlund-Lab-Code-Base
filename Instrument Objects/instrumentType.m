@@ -295,12 +295,11 @@ classdef instrumentType < handle
 
          %Dependent on connection type and whether query command is given, send commands to instrument to obtain data
          switch lower(h.connectionType)
-            case 'com'
+             case {'com','visadev'}
                if nargin > 1
                   writeline(h.handshake,queryCommand)
                end
                outputInfo = readline(h.handshake);
-               assignin("base","outputInfo2",outputInfo)
             case 'serialport'
                if nargin > 1
                   fprintf(h.handshake,queryCommand);
@@ -314,7 +313,7 @@ classdef instrumentType < handle
 
          %Dependent on connection type, send command to instrument
          switch lower(h.connectionType)
-            case 'com'
+             case {'com','visadev'}
                writeline(h.handshake,commandInput)               
             case 'serialport'
                fprintf(h.handshake,commandInput);
@@ -326,7 +325,6 @@ classdef instrumentType < handle
    methods (Static)
       
       function onOff = discernOnOff(inputValue)
-          assignin("base","inputValue",inputValue)
          switch lower(string(inputValue))
             case {'1','true','yes','y','on','t'}
                onOff = 'on';
@@ -427,6 +425,14 @@ classdef instrumentType < handle
          %Moves entire structure to insert new values
          if strcmp(insertOrReplace,'insert') && ~isempty(s) && indexToAdd <= numel(s)            
             s(indexToAdd+1:end+1) = s(indexToAdd:end);
+         end
+
+         assignin("base","indexToAdd",indexToAdd)
+         assignin("base","valuesToAdd",valuesToAdd)
+         assignin("base","s",s)
+
+         if isempty(s)
+             s = valuesToAdd;
          end
 
          %Adds new value

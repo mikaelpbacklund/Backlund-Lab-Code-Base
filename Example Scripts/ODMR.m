@@ -134,7 +134,7 @@ for ii = 1:nIterations
          ex = plotData(ex,c,plotName{1});
       end
       refData = cell2mat(cellfun(@(x)x(1),ex.data.current,'UniformOutput',false));
-      ex = plotData(ex,refData,'reference');      
+      ex = plotData(ex,refData,'reference');
    end
 
    %Between each iteration, check for user input whether to continue scan

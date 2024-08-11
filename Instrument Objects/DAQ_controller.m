@@ -19,7 +19,7 @@ classdef DAQ_controller < instrumentType
       differentiateSignal          
    end
 
-   properties (SetAccess = protected, GetAccess = public)
+   properties (SetAccess = {?DAQ_controller ?instrumentType}, GetAccess = public)
       %Read-only for user (derived from config), stored in properties
       manufacturer
       analogPortNames
@@ -32,16 +32,22 @@ classdef DAQ_controller < instrumentType
       dataChannels   
    end
 
-   properties (Dependent, SetAccess = protected, GetAccess = public)
+   properties (Dependent, SetAccess = {?DAQ_controller ?instrumentType}, GetAccess = public)
       %Read-only for user (derived from config), stored in handshake
       sampleRate
       toggleChannel
       signalReferenceChannel
+      dataPointsTaken
+      dataAcquirementMethod
    end
    
    methods   
 
       function h = DAQ_controller(configFileName)
+
+          if nargin < 1
+              error('Config file name required as input')
+          end
 
          %Loads config file and checks relevant field names
          configFields = {'channelInfo','clockPort','manufacturer'};
@@ -53,7 +59,7 @@ classdef DAQ_controller < instrumentType
          h.identifier = configFileName;
       end
       
-      function h = connect(h,configName)         
+      function h = connect(h)         
          if h.connected
             warning('DAQ is already connected')
             return
@@ -65,12 +71,6 @@ classdef DAQ_controller < instrumentType
          %it can pretty safely be ignored
          %https://www.mathworks.com/matlabcentral/answers/457222-why-do-i-receive-a-warning-about-a-value-indexed-with-no-subscripts
          warning('off','MATLAB:subscripting:noSubscriptsSpecified');
-         
-         %Loads config file and checks relevant field names
-         configFields = {'channelInfo','clockPort','manufacturer'};
-         commandFields = {};
-         numericalFields = {};%has units, conversion factor, and min/max         
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
          
          %Checks if config channel labels are valid
          channels = squeeze(struct2cell(h.channelInfo));
@@ -111,7 +111,7 @@ classdef DAQ_controller < instrumentType
          
          %Creates the connection with the DAQ itself
          h.handshake = daq(h.manufacturer);
-         h.handshake.Rate = checkSettings(h,'maxRate');
+         h.handshake.Rate = h.sampleRate;
 
          %Needs to be true for following functions to run
          h.connected = true;
@@ -122,10 +122,9 @@ classdef DAQ_controller < instrumentType
          h = setDataChannel(h,1);
          h = setContinuousCollection(h,'on');
          h = setSignalDifferentiation(h,'on');
-         h.handshake.UserData.takeData = true;
-         h.handshake.UserData.toggleChannel = h.toggleChannel;
-         h.handshake.UserData.signalReferenceChannel = h.signalReferenceChannel;
-         
+         h.takeData = false;
+         h.toggleChannel = h.defaults.toggleChannel;
+         h.signalReferenceChannel = h.defaults.signalReferenceChannel;         
 
          %Sets the function that is triggered whenever the DAQ has the
          %amount of scans set by ScansAvailableFcnCount. This is how data
@@ -187,14 +186,19 @@ classdef DAQ_controller < instrumentType
                end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);
-               if ~collectionInfo.differentiateSignal
-                  %No signal/reference differentiation
-                  ref = mean(unsortedData(dataOn,collectionInfo.activeDataChannel));
-                  sig = 0;
+               if any(dataOn)
+                   if ~collectionInfo.differentiateSignal
+                       %No signal/reference differentiation
+                       ref = sum(unsortedData(dataOn,collectionInfo.activeDataChannel));
+                       sig = 0;
+                   else
+                       signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
+                       sig = sum(unsortedData(dataOn & signalOn,collectionInfo.activeDataChannel));
+                       ref = sum(unsortedData(dataOn & ~signalOn,collectionInfo.activeDataChannel));
+                   end
                else
-                  signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
-                  sig = mean(unsortedData(dataOn & signalOn,collectionInfo.activeDataChannel));
-                  ref = mean(unsortedData(dataOn & ~signalOn,collectionInfo.activeDataChannel));
+                   sig = 0;
+                   ref = 0;
                end
                 
             end
@@ -202,8 +206,12 @@ classdef DAQ_controller < instrumentType
             %Add to previous values for reference and signal
             handshake.UserData.reference = handshake.UserData.reference + ref;
             handshake.UserData.signal = handshake.UserData.signal + sig;
-            %for analog, similarly add in each value but keep
-            %track of number of additions so the average can be found
+
+            if ref ~= 0 %only relevant if data was obtained
+            %Increase number of data points taken. Used primarily for
+            %analog to find average voltage
+            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
+            end
 
          end
 
@@ -283,7 +291,7 @@ classdef DAQ_controller < instrumentType
       end
 
       function h = setContinuousCollection(h,onOff)
-         %Sets continous collection on or off
+         %Sets continuous collection on or off
          checkConnection(h)
          
          h.continuousCollection = instrumentType.discernOnOff(onOff);
@@ -386,7 +394,6 @@ classdef DAQ_controller < instrumentType
          if numel(channelNumber) ~= 1
             error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
          end
-         h.activeDataChannel = h.channelInfo(channelNumber).label;
          h.handshake.UserData.dataChannelNumber = channelNumber;
          switch lower(h.channelInfo(channelNumber).dataType)
             case {'v','voltage','analog'}
@@ -399,31 +406,18 @@ classdef DAQ_controller < instrumentType
          h.handshake.UserData.dataType = dataType;
       end
       function val = get.activeDataChannel(h)
-         val = getParameter(h,'differentiateSignal');
+         val = h.channelInfo(getParameter(h,'dataChannelNumber')).label;
       end
 
       %Properties below are read-only 
-      function set.toggleChannel(h,val)
-         h = setParameter(h,val,'toggleChannel'); %#ok<NASGU>
-      end
       function val = get.toggleChannel(h)
          val = getParameter(h,'toggleChannel');
       end
 
-      function set.signalReferenceChannel(h,val)
-         h = setParameter(h,val,'signalReferenceChannel'); %#ok<NASGU>
-      end
       function val = get.signalReferenceChannel(h)
          val = getParameter(h,'signalReferenceChannel');
       end
 
-      function set.sampleRate(h,val)
-         if h.connected
-            h.handshake.Rate = val;
-         else
-            h.presets.sampleRate = val;
-         end
-      end
       function val = get.sampleRate(h)
          varName = 'sampleRate';
          if h.connected
@@ -436,6 +430,14 @@ classdef DAQ_controller < instrumentType
             val  =[];
          end
       end
+
+      function val = get.dataPointsTaken(h)
+         val = getParameter(h,'nPoints');
+      end
+
+      function val = get.dataAcquirementMethod(h)
+         val = getParameter(h,'dataType');
+      end      
 
    end
 

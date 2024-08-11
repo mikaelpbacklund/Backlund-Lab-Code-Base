@@ -25,6 +25,11 @@ classdef stage < instrumentType
       %Methods from PI can be found in their software package that must be
       %downloaded to programfiles
       function h = stage
+
+          if nargin < 1
+              error('Config file name required as input')
+          end
+          
          addpath(getenv('PI_MATLAB_DRIVER'))
 
          %Loads config file and checks relevant field names

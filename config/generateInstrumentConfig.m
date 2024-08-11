@@ -138,9 +138,11 @@ config.defaults.continuousCollection = false;
 config.defaults.takeData = false;
 config.defaults.activeDataChannel = 'Data counter';
 config.defaults.differentiateSignal = false;
+config.defaults.toggleChannel = 'Toggle';
+config.defaults.signalReferenceChannel = 'Signal/Reference';
 
 saveLocation = pwd;%Default is to save to current directory
-saveName = '\NI_DAQ_config';
+saveName = '\NI_DAQ';
 save(strcat(saveLocation,saveName),'config')
 
 %% Stage

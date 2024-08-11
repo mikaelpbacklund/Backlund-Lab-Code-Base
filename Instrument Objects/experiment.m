@@ -96,56 +96,8 @@ classdef experiment
             end
          end 
 
-         %Refresh instrument classes and identifiers
-         h = getInstrumentNames(h);
-
-         %Check for instruments matching the given instrument class
-         relevantInstrument = strcmpi(h.instrumentClasses,currentScan.instrument);
-
-         if sum(relevantInstrument) == 0
-            %Does not match one of the "actual" names of the instruments
-            %Check all the possible "common" names
-
-            switch lower(currentScan.instrument)
-               case {'rf','rfgen','rf gen','rf generator','rfgenerator'}
-                  relevantInstrument = strcmpi(h.instrumentClasses,'RF_generator');
-               case {'pi stage','pi','pi_stage','movement','x','y','z','translation','translation stage','translationstage','translation_stage'}
-                  relevantInstrument = strcmpi(h.instrumentClasses,'stage');
-               case {'pb','pulseblaster','pulse blaster','pulse','pulses','sequence','duration','pulse duration','pulse_duration','pulseduration'}
-                  relevantInstrument = strcmpi(h.instrumentClasses,'pulse_blaster');
-            end
-
-            %Still no instrument found
-            if sum(relevantInstrument) == 0
-               error('No instrument of class designated by scan has been loaded')
-            end
-                   
-         end
-
-
-         if sum(relevantInstrument) > 1
-            %More than one instrument of a given class
-            %Needs identifier to differentiate
-            if ~isfield(currentScan,'identifier')
-               error('Identifier must be given since multiple instruments are loaded with the same class')
-            end
-            %Find location of instrument identifier matching given identifier
-            %Just straight comparison since identifiers come from config file and are not standard
-
-            %Check if any instruments match the given identifier
-            relevantInstrument = strcmpi(h.instrumentIdentifiers,currentScan.identifier);
-
-            if sum(relevantInstrument) == 0
-               error('No instrument with given identifier found')
-            elseif sum(relevantInstrument) > 1
-               error('Multiple instruments with given identifier found')
-            end
-            
-         end
-
          %Sets instrument to whatever was found above
-         relevantInstrument = h.instrumentCells{relevantInstrument};
-         
+         relevantInstrument = h.instrumentCells{findInstrument(h,currentScan.identifier)};         
 
          %Does heavy lifting of actually sending commands to instrument
          switch class(relevantInstrument)
@@ -531,9 +483,16 @@ classdef experiment
 
                pause(h.forcedCollectionPauseTime)
 
+               if h.DAQ.dataPointsTaken == 0
+                   error('No data points taken')
+               end
+
                if strcmp(h.DAQ.differentiateSignal,'on')
                   dataOut{1}(1) = h.DAQ.handshake.UserData.reference;
                   dataOut{1}(2) = h.DAQ.handshake.UserData.signal;
+                  if strcmp(h.DAQ.dataAquirementMethod,'Voltage')
+                      dataOut{1}(1:2) = dataOut{1}(1:2) ./ h.DAQ.dataPointsTaken;
+                  end
                else
                   %Takes data and puts it in the current iteration spot for this
                   %data point
@@ -899,8 +858,9 @@ classdef experiment
     
       end
 
-      function s = getInstrumentVal(h,instrumentProperName)
-         s = h.instrumentCells{findInstrument(h,instrumentProperName)};
+      function s = getInstrumentVal(h,instrumentName)
+          properIdentifier = instrumentType.giveProperIdentifier(instrumentName);
+         s = h.instrumentCells{findInstrument(h,properIdentifier)};
       end
 
       function h = setInstrumentVal(h,instrumentProperName,val)

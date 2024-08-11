@@ -56,6 +56,10 @@ classdef RF_generator < instrumentType
 
       function h = RF_generator(configFileName)
 
+          if nargin < 1
+              error('Config file name required as input')
+          end
+
          %Loads config file and checks relevant field names
          configFields = {'connectionInfo'};
          commandFields = {'toggleOn','toggleOff','toggleQuery','amplitude','amplitudeQuery','frequency','frequencyQuery'...
@@ -88,14 +92,8 @@ classdef RF_generator < instrumentType
                    assignin("base","connectionError",connectionError)
                    error('Unable to identify RF generator.')
                end
-               try
-               fopen(h.handshake);
-               catch connectionError
-                   assignin("base","connectionError",connectionError)
-                   error('Unable to form connection to RF generator.')
-               end
 
-               h.connectionType = 'serialport';
+               h.connectionType = 'visadev';
 
             case {'wf','windfreak'}
                %Validates that config info has needed fields

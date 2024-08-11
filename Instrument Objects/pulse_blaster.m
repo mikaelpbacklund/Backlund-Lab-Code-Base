@@ -10,7 +10,7 @@ classdef pulse_blaster < instrumentType
       sendUponAddition%Send sequence to pulse blaster when running addPulse
    end
 
-   properties (SetAccess = protected, GetAccess = public)
+   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
       %Read-only for user, derived from config or functions     
       commands
       clockSpeed%MHz
@@ -22,12 +22,13 @@ classdef pulse_blaster < instrumentType
       plots
       adjustedSequence
       sequenceSentToPulseBlaster%The last recorded sequence sent to the pulse blaster
-      userSequenceDuration
-      userSequenceDataDuration
-      adjustedSequenceDuration
-      adjustedSequenceDataDuration
-      sentSequenceDuration
-      sentSequenceDataDuration
+      sequenceDurations
+%       userSequenceDuration
+%       userSequenceDataDuration
+%       adjustedSequenceDuration
+%       adjustedSequenceDataDuration
+%       sentSequenceDuration
+%       sentSequenceDataDuration
       %userSequence (below) is a special case here. I originally wanted it
       %to be not read-only. Unfortunately, there are multiple ways to
       %represent which channels are on (base 10, binary, and names) so it
@@ -48,6 +49,10 @@ classdef pulse_blaster < instrumentType
 
       function h = pulse_blaster(configFileName)
 
+          if nargin < 1
+              error('Config file name required as input')
+          end
+
          %Loads config file and checks relevant field names
          configFields = {'clockSpeed','nChannels','formalDirectionNames',...
             'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
@@ -59,21 +64,17 @@ classdef pulse_blaster < instrumentType
          h.identifier = configFileName;
       end
 
-      function h = connect(h,configName)
+      function h = connect(h)
          if h.connected
             warning('Pulse blaster is already connected')
             return
          end
 
-         configFields = {'clockSpeed','nChannels','formalDirectionNames',...
-            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
-         commandFields = {'library','api','type','name'};%Use commands to hold dll info
-         numericalFields = {};
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
-
-         warning('off','MATLAB:loadlibrary:FunctionNotFound') %Produces warning for pb_get_rounded_value not being in library
-         loadlibrary(h.commands.library, h.commands.api, 'addheader',h.commands.type);
-         warning('on','MATLAB:loadlibrary:FunctionNotFound')
+         if ~libisloaded(h.commands.name)
+             warning('off','MATLAB:loadlibrary:FunctionNotFound') %Produces warning for pb_get_rounded_value not being in library
+             loadlibrary(h.commands.library, h.commands.api, 'addheader',h.commands.type);
+             warning('on','MATLAB:loadlibrary:FunctionNotFound')
+         end
 
          [~] = calllib(h.commands.name,'pb_init');
          calllib(h.commands.name,'pb_core_clock',h.clockSpeed);
@@ -157,7 +158,8 @@ classdef pulse_blaster < instrumentType
          h.adjustedSequence = h.userSequence;
 
          if isempty(h.userSequence)%No sequence
-            h = calculateDuration(h);
+            h = calculateDuration(h,'user');
+            h = calculateDuration(h,'adjusted');
             return
          end
 
@@ -196,8 +198,8 @@ classdef pulse_blaster < instrumentType
          h.adjustedSequence(end+1) = pulseInfo;
 
          %Calculates durations for the user and adjusted sequence
-         [h.userSequenceDuration,h.userSequenceDataDuration] = calculateDuration(h,'user');
-         [h.adjustedSequenceDuration,h.adjustedSequenceDataDuration] = calculateDuration(h,'adjusted');
+         h = calculateDuration(h,'user');
+         h = calculateDuration(h,'adjusted');
       end
 
       function h = sendToInstrument(h)
@@ -206,9 +208,7 @@ classdef pulse_blaster < instrumentType
          %Saves the current adjusted sequence as the sequence that has
          %been sent to the pulse blaster
          h.sequenceSentToPulseBlaster = h.adjustedSequence;
-         h.sentSequenceDuration = h.adjustedSequenceDuration;
-         h.sentSequenceDataDuration = h.adjustedSequenceDataDuration;
-
+         h = calculateDuration(h,'sent');
 
          [~] = calllib(h.commands.name,'pb_start_programming',0);%Unsure what 0 does***
 
@@ -310,7 +310,7 @@ classdef pulse_blaster < instrumentType
          h = adjustSequence(h);
       end
 
-      function [totalDuration,dataDuration] = calculateDuration(h,sequenceType)
+      function h = calculateDuration(h,sequenceType)
          %Calculates the total time of the user sequence as well as the
          %time spent on data collection in the user sequence. Also does
          %this for the final sequence after adding the total loop that
@@ -333,6 +333,14 @@ classdef pulse_blaster < instrumentType
                sequence = h.sequenceSentToPulseBlaster;
             otherwise
                error('totalOrData input (arg 2) must be "data" or "total"')
+         end
+
+         if isempty(sequence)
+             h.sequenceDurations.(sequenceType).totalNanoseconds = 0;
+             h.sequenceDurations.(sequenceType).totalSeconds = 0;
+             h.sequenceDurations.(sequenceType).dataNanoseconds = 0;
+             h.sequenceDurations.(sequenceType).dataFraction = 0;
+             return
          end
 
          %Gets the name of the channel with an acceptable name "data"
@@ -436,12 +444,17 @@ classdef pulse_blaster < instrumentType
                   totalDuration = totalDuration + chunkDuration;
                   dataDuration = dataDuration + chunkDuration*dataRatio;
                end
-            end
+            end            
 
          else
             totalDuration = sum(durationValues);
             dataDuration = sum(durationValues(dataOn));
          end
+
+         h.sequenceDurations.(sequenceType).totalNanoseconds = totalDuration;
+         h.sequenceDurations.(sequenceType).totalSeconds = totalDuration * 1e-9;
+         h.sequenceDurations.(sequenceType).dataNanoseconds = dataDuration;
+         h.sequenceDurations.(sequenceType).dataFraction = dataDuration/totalDuration;
 
       end
 
@@ -729,6 +742,11 @@ classdef pulse_blaster < instrumentType
       % 
       % end
 
+      function h = deleteSequence(h)
+          h.userSequence = [];
+          h = adjustSequence(h);
+      end
+      
       function val = get.nChannels(h)
          val = numel(h.formalChannelNames);
       end
