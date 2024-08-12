@@ -1,15 +1,5 @@
 %Default ODMR script example
 
-%% User Inputs
-RFamplitude = 10;
-scanBounds = [2.5 3];
-scanStepSize = .005; %Step size for RF frequency
-scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-nIterations = 1;
-iterationTimeoutDuration = 5;
-
-%% Backend
-
 %This warning *should* be suppressed in the DAQ code but isn't for an unknown reason. This is not related to my code but
 %rather the data acquisition toolbox code which I obviously can't change
 warning('off','MATLAB:subscripting:noSubscriptsSpecified');
@@ -20,28 +10,30 @@ if ~exist('ex','var')
 end
 
 %If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
-if isempty(ex.pulseBlaster)
+% if isempty(ex.pulseBlaster)
    ex.pulseBlaster = pulse_blaster('PB');
    ex.pulseBlaster = connect(ex.pulseBlaster);
-end
+% end
 
 %If there is no RF_generator object, create a new one with the config file "SRS_RF"
 %This is the "normal" RF generator that our lab uses, other specialty RF generators have their own configs
-if isempty(ex.SRS_RF)
+% if isempty(ex.SRS_RF)
    ex.SRS_RF = RF_generator('SRS_RF');
    ex.SRS_RF = connect(ex.SRS_RF);
-end
+% end
 
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
-if isempty(ex.DAQ)
+% if isempty(ex.DAQ)
    ex.DAQ = DAQ_controller('NI_DAQ');
    ex.DAQ = connect(ex.DAQ);
-end
+% end
+
+%%
 
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = RFamplitude;
+ex.SRS_RF.amplitude = 10;
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
@@ -102,11 +94,11 @@ ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
 %Deletes any pre-existing scan
 ex.scan = [];
 
-scan.bounds = scanBounds; %RF frequency bounds
-scan.stepSize = scanStepSize; %Step size for RF frequency
+scan.bounds = [2.5 3]; %RF frequency bounds
+scan.stepSize = .005; %Step size for RF frequency
 scan.parameter = 'frequency'; %Scan frequency parameter
 scan.identifier = 'SRS RF'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
-scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
+scan.notes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 
 %Add the current scan
 ex = addScans(ex,scan);
@@ -118,12 +110,13 @@ ex.forcedCollectionPauseTime = .05;
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
-% fprintf('Number of steps in scan: %d\n',ex.scan.nSteps)
+fprintf('Number of steps in scan: %d\n',ex.scan.nSteps)
+
+%Total number of times the scan will be run
+nIterations = 1;
 
 %Resets current data. [0,0] is for reference and contrast counts
 ex = resetAllData(ex,[0,0]);
-
-%% Running Scan
 
 for ii = 1:nIterations
    
@@ -148,7 +141,7 @@ for ii = 1:nIterations
    %Between each iteration, check for user input whether to continue scan
    %5 second timeout
    if ii ~= nIterations
-       if ~checkContinue(iterationTimeoutDuration)
+       if ~checkContinue(5)
            break
        end
    end

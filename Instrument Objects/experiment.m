@@ -105,7 +105,9 @@ classdef experiment
             case 'RF_generator'
                switch lower(currentScan.parameter)
                   case 'frequency'
-                     relevantInstrument = setFrequency(relevantInstrument,newValue);
+                     relevantInstrument.frequency = newValue;
+                   case 'amplitude'
+                      relevantInstrument.amplitude = newValue;
                end
 
             case 'pulse_blaster'
@@ -136,7 +138,7 @@ classdef experiment
          end
 
          %Feeds instrument info back out
-         h.instrumentCells{strcmp(h.instrumentClasses,currentScan.instrument)} = relevantInstrument;
+         h.instrumentCells{strcmp(h.instrumentClasses,currentScan.identifier)} = relevantInstrument;
 
       end
 
@@ -153,11 +155,11 @@ classdef experiment
          %If you are using a manual scan, much of the scan addition process
          %is different
          if h.useManualSteps
-            mustContainField(scanInfo,{'parameter','instrument'})
-            if any(cellfun(@isempty,{scanInfo.instrument})) || any(cellfun(@isempty,{scanInfo.parameter}))
+            mustContainField(scanInfo,{'bounds','parameter'})
+            if any(cellfun(@isempty,{scanInfo.identifier})) || any(cellfun(@isempty,{scanInfo.parameter}))
                error('All fields must contain non-empty values for each scan')
             end
-            scanInfo = mustContainField(scanInfo,'notes',[scanInfo.instrument ' ' scanInfo.parameter]);
+            scanInfo = mustContainField(scanInfo,'notes',[scanInfo.identifier ' ' scanInfo.parameter]);
 
             %Computes bounds and number of steps for each scan dimension
             n = cellfun(@numel,h.manualSteps);
@@ -174,16 +176,16 @@ classdef experiment
          end
 
          %Scan must have bounds, parameter, and instrument name
-         mustContainField(scanInfo,{'bounds','parameter','instrument'})
+         mustContainField(scanInfo,{'bounds','parameter'})
 
          %Checks for any empty values
-         if any(cellfun(@isempty,{scanInfo.bounds})) || any(cellfun(@isempty,{scanInfo.instrument})) || any(cellfun(@isempty,{scanInfo.parameter}))
+         if any(cellfun(@isempty,{scanInfo.bounds})) || any(cellfun(@isempty,{scanInfo.identifier})) || any(cellfun(@isempty,{scanInfo.parameter}))
             error('All fields must contain non-empty values for each scan')
          end
 
          %Scan can optionally have notes field. If it does not, default is
          %derived from instrument and parameter names
-         scanInfo = mustContainField(scanInfo,'notes',{[scanInfo.instrument ' ' scanInfo.parameter]});
+         scanInfo = mustContainField(scanInfo,'notes',{[scanInfo.identifier ' ' scanInfo.parameter]});
 
          if ~isfield(scanInfo,'stepSize') && ~isfield(scanInfo,'nSteps')
             error('Scan must contain either stepSize or nSteps field')
@@ -241,6 +243,8 @@ classdef experiment
          %Checks instrument cells and scan settings to see if the necessary
          %connections have been made
 
+         return %**********very temporary
+
          h = getInstrumentNames(h);
 
          switch lower(acquisitionType)
@@ -257,7 +261,7 @@ classdef experiment
             return
          end
 
-         for ii = {h.scan.instrument}
+         for ii = {h.scan.identifier}
             checkInstrument(h,ii{1})
          end
       end
@@ -860,7 +864,12 @@ classdef experiment
 
       function s = getInstrumentVal(h,instrumentName)
           properIdentifier = instrumentType.giveProperIdentifier(instrumentName);
-         s = h.instrumentCells{findInstrument(h,properIdentifier)};
+          instrumentLocation = findInstrument(h,properIdentifier);
+          if ~any(instrumentLocation)
+              s = [];
+          else
+            s = h.instrumentCells{instrumentLocation};
+          end
       end
 
       function h = setInstrumentVal(h,instrumentProperName,val)

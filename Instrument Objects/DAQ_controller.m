@@ -145,6 +145,8 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
+
+            disp('test')
             
             %If no data channel has been designated, or if data collection
             %has been disabled, or if no S/R channel has been designated
@@ -410,14 +412,27 @@ classdef DAQ_controller < instrumentType
       end
 
       %Properties below are read-only 
+      function set.toggleChannel(h,val)
+         h = setParameter(h,val,'toggleChannel'); %#ok<NASGU>
+      end
       function val = get.toggleChannel(h)
          val = getParameter(h,'toggleChannel');
       end
 
+      function set.signalReferenceChannel(h,val)
+         h = setParameter(h,val,'signalReferenceChannel'); %#ok<NASGU>
+      end
       function val = get.signalReferenceChannel(h)
          val = getParameter(h,'signalReferenceChannel');
       end
 
+      function set.sampleRate(h,val)
+         if h.connected
+            h.handshake.Rate = val;
+         else
+            h.presets.sampleRate = val;
+         end
+      end
       function val = get.sampleRate(h)
          varName = 'sampleRate';
          if h.connected

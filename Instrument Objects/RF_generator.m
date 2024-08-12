@@ -117,6 +117,9 @@ classdef RF_generator < instrumentType
          h = queryFrequency(h);
          h = queryAmplitude(h);
          h = queryToggle(h);
+         h = queryModulationToggle(h);
+         h = queryModulationWaveform(h);
+         h = queryModulationType(h);
       end
 
       function h = queryFrequency(h)

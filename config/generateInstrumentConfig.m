@@ -119,11 +119,11 @@ config.channelInfo(2).port = 'ai0';
 config.channelInfo(2).label = 'Data analog';
 
 config.channelInfo(3).dataType = 'Digital';
-config.channelInfo(3).port = 'port0/line0';
+config.channelInfo(3).port = 'port0/line1';
 config.channelInfo(3).label = 'Toggle';%Toggle must be included
 
 config.channelInfo(4).dataType = 'Digital';
-config.channelInfo(4).port = 'port0/line1';
+config.channelInfo(4).port = 'port0/line2';
 config.channelInfo(4).label = 'Signal/Reference';%Signal and/or reference must be included
 
 %Port the clock is connected to
