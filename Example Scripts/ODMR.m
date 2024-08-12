@@ -2,10 +2,10 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.5 3];
+scanBounds = [2.8 2.9];
 scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-nIterations = 1;
+nIterations = 3;
 iterationTimeoutDuration = 5;
 
 %% Backend
@@ -47,10 +47,10 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'counter';
+ex.DAQ.activeDataChannel = 'analog';
 
 %Sets loops for entire sequence to "on" and for 300. Deletes previous sequence if any existed
-ex.pulseBlaster.nTotalLoops = 300;
+ex.pulseBlaster.nTotalLoops = 600;
 ex.pulseBlaster.useTotalLoop = true;
 ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
 
@@ -120,10 +120,13 @@ ex = validateExperimentalConfiguration(ex,'pulse sequence');
 %Sends information to command window
 % fprintf('Number of steps in scan: %d\n',ex.scan.nSteps)
 
-%Resets current data. [0,0] is for reference and contrast counts
-ex = resetAllData(ex,[0,0]);
+
+
 
 %% Running Scan
+
+%Resets current data. [0,0] is for reference and contrast counts
+ex = resetAllData(ex,[0,0]);
 
 for ii = 1:nIterations
    
@@ -136,19 +139,21 @@ for ii = 1:nIterations
       ex = takeNextDataPoint(ex,'pulse sequence');      
 
       %Creates plots
-      plotTypes = {'average','new','old'};
+      plotTypes = {'average','new'};%'old' also viable
       for plotName = plotTypes
-         c = findContrast(ex,plotName{1});
+         c = findContrast(ex,[],plotName{1});
          ex = plotData(ex,c,plotName{1});
       end
-      refData = cell2mat(cellfun(@(x)x(1),ex.data.current,'UniformOutput',false));
+      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+      refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
       ex = plotData(ex,refData,'reference');
    end
 
    %Between each iteration, check for user input whether to continue scan
    %5 second timeout
    if ii ~= nIterations
-       if ~checkContinue(iterationTimeoutDuration)
+       cont = checkContinue(iterationTimeoutDuration);
+       if ~cont
            break
        end
    end

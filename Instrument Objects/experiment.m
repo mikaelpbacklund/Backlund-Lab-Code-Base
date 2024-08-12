@@ -30,7 +30,6 @@ classdef experiment
 
    properties (SetAccess = protected, GetAccess = public)
       %Read-only
-      instrumentClasses
       instrumentIdentifiers
       data %Stores data for each data point within a scan including its iteration
       instrumentCells
@@ -92,7 +91,7 @@ classdef experiment
                   newValue = newValue(h.odometer(scanToChange));
                end
             else
-               newValue = currentScan.bounds(1) + currentScan.stepSize*h.odometer(scanToChange);%Computes new value
+               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
             end
          end 
 
@@ -126,7 +125,7 @@ classdef experiment
                               newValue = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
                            end
                         else
-                           newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*h.odometer(scanToChange);
+                           newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange)-1);
                         end
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue);
                      end
@@ -138,7 +137,7 @@ classdef experiment
          end
 
          %Feeds instrument info back out
-         h.instrumentCells{strcmp(h.instrumentClasses,currentScan.identifier)} = relevantInstrument;
+         h.instrumentCells{strcmp(h.instrumentIdentifiers,currentScan.identifier)} = relevantInstrument;
 
       end
 
@@ -296,6 +295,7 @@ classdef experiment
       function h = resetScan(h)
          %Sets the scan to the starting value for each dimension of the
          %scan
+         h = getInstrumentNames(h);
          h.odometer = ones(1,numel(h.scan));
          for ii = 1:numel(h.odometer)
             h = setInstrument(h,ii);
@@ -331,13 +331,6 @@ classdef experiment
       end
 
       function h = getInstrumentNames(h)
-         %Gets the class names and identifiers for each instrument corresponding to their cell in instrumentCells 
-         if isempty(h.instrumentCells)
-            h.instrumentClasses = [];
-         else
-            h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
-         end   
-
          %For each instrument get the "proper" identifier
          if isempty(h.instrumentCells)
             h.instrumentIdentifiers = [];
@@ -470,31 +463,46 @@ classdef experiment
       function [h,dataOut] = getData(h,acquisitionType)
          switch lower(acquisitionType)
             case 'pulse sequence'
-               %Reset DAQ in preparation for measurement
-               h.DAQ = resetDAQ(h.DAQ);
 
-               %Start sequence
-               runSequence(h.pulseBlaster)
+                nFailedCollections = 0;
 
-               %Wait until pulse blaster says it is done running
-               while pbRunning(h.pulseBlaster)
-                  pause(.001)
-               end
+                while true
+                    %Reset DAQ in preparation for measurement
+                    h.DAQ = resetDAQ(h.DAQ);
+                    h.DAQ.takeData = true;
 
-               %Stop sequence. This allows pulse blaster to run the same
-               %sequence again by calling the runSequence function
-               stopSequence(h.pulseBlaster)
+                    %Start sequence
+                    runSequence(h.pulseBlaster)
 
-               pause(h.forcedCollectionPauseTime)
+                    %Wait until pulse blaster says it is done running
+                    while pbRunning(h.pulseBlaster)
+                        pause(.001)
+                    end
 
-               if h.DAQ.dataPointsTaken == 0
-                   error('No data points taken')
-               end
+                    %Stop sequence. This allows pulse blaster to run the same
+                    %sequence again by calling the runSequence function
+                    stopSequence(h.pulseBlaster)
+
+                    pause(h.forcedCollectionPauseTime)
+
+                    h.DAQ.takeData = false;
+                    if h.DAQ.dataPointsTaken ~= 0
+                        break
+                    end
+
+                    nFailedCollections = nFailedCollections + 1;
+                    if nFailedCollections > 2
+                        error('No data points taken 3 times, aborting collection attempts.')
+                    else
+                        warning('No data points taken. Retrying collection.')
+                    end
+
+                end             
 
                if strcmp(h.DAQ.differentiateSignal,'on')
                   dataOut{1}(1) = h.DAQ.handshake.UserData.reference;
                   dataOut{1}(2) = h.DAQ.handshake.UserData.signal;
-                  if strcmp(h.DAQ.dataAquirementMethod,'Voltage')
+                  if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
                       dataOut{1}(1:2) = dataOut{1}(1:2) ./ h.DAQ.dataPointsTaken;
                   end
                else
@@ -629,6 +637,12 @@ classdef experiment
 
          %Apply contrast function to the chosen data
          c = cellfun(contrastFunction,chosenData);
+
+         if any(~isnan(c))
+            c(isnan(c)) = mean(c(~isnan(c)));
+         else
+             c(1:end) = 0;
+         end
       end
 
       function checkInstrument(h,instrumentName,varargin)

@@ -117,9 +117,9 @@ classdef RF_generator < instrumentType
          h = queryFrequency(h);
          h = queryAmplitude(h);
          h = queryToggle(h);
-         h = queryModulationToggle(h);
-         h = queryModulationWaveform(h);
-         h = queryModulationType(h);
+%          h = queryModulationToggle(h);
+%          h = queryModulationWaveform(h);
+%          h = queryModulationType(h);
       end
 
       function h = queryFrequency(h)
@@ -168,75 +168,47 @@ classdef RF_generator < instrumentType
          h = writeToggleProtocol(h,setState,modToggleCmds);
       end
 
-      function h = queryModulationWaveform(h)
+      function [h,modWaveform] = queryModulationWaveform(h)
          writeString(h,h.commands.modulationWaveformQuery)
          waveNumber = readString(h);
          switch waveNumber(1)
             case '0'
-               h.modulationWaveform = 'sine';
+               modWaveform = 'sine';
             case '1'
-               h.modulationWaveform = 'ramp';
+               modWaveform = 'ramp';
             case '2'
-               h.modulationWaveform = 'triangle';
+               modWaveform = 'triangle';
             case '3'
-               h.modulationWaveform = 'square';
+               modWaveform = 'square';
             case '4'
-               h.modulationWaveform = 'noise';
+               modWaveform = 'noise';
             case '5'
-               h.modulationWaveform = 'external';
+               modWaveform = 'external';
          end
       end
 
-      function h = setModulationWaveform(h,setState)
-         h = queryModulationWaveform(h);
-         if strcmpi(h.modulationWaveform,setState)
-            printOut(h,sprintf('Modulation waveform already %s',setState))
-            return
-         end
-
-         switch lower(setState)
-            case 'sine'
-               n = 0;
-            case 'ramp'
-               n = 1;
-            case 'triangle'
-               n = 2;
-            case 'square'
-               n = 3;
-            case 'noise'
-               n = 4;
-            case 'external'
-               n = 5;
-            otherwise
-               error('Invalid waveform type. Must be sine, ramp, triangle, square, noise, or external')
-         end
-         h = writeNumber(h,'modulationWaveform',n);
-         h.modulationWaveform = setState;
-      end
-
-      function h = queryModulationType(h)
+      function [h,modType] = queryModulationType(h)
          writeString(h,h.commands.modulationTypeQuery)
          modType = readString(h);
          switch modType(1)
-            case '0'
-               h.modulationType = 'amplitude';
-            case '6'
-               h.modulationType = 'I/Q';
-            otherwise
-               h.modulationType = 'unknown';
+             case '0'
+                 modType = 'amplitude';
+             case '6'
+                 modType = 'I/Q';
+             otherwise
+                 modType = 'unknown';
          end
       end
 
-      function h = setModulationType(h,setState)
-         h = queryModulationType(h);
-         if strcmpi(setState,'iq')
-            setState = 'I/Q';
+      function [h,modType] = setModulationType(h,modType)
+         if strcmpi(modType,'iq')
+            modType = 'I/Q';
          end
-         if strcmpi(h.modulationType,setState)
-            printOut(h,sprintf('Modulation type already %s',setState))
+         if strcmpi(h.modulationType,modType)
+            printOut(h,sprintf('Modulation type already %s',modType))
             return
          end
-         switch lower(setState)
+         switch lower(modType)
             case 'i/q'
                h = writeNumber(h,'modulationType',6);
                writeString(h,h.commands.modulationExternalIQ)
@@ -245,7 +217,6 @@ classdef RF_generator < instrumentType
             otherwise
                error('Invalid waveform type. Must be I/Q, or amplitude')
          end
-         h.modulationType = setState;
       end
 
    end
@@ -268,15 +239,37 @@ classdef RF_generator < instrumentType
       end
 
       function set.modulationEnabled(h,val)
-         h = modulationToggle(h,val); %#ok<NASGU>
+         h = modulationToggle(h,val); 
       end
 
       function set.modulationType(h,val)
-         h = setModulationType(h,val); %#ok<NASGU>
+          h = setModulationType(h,val); 
+         h.modulationType = val;
       end
 
       function set.modulationWaveform(h,val)
-         h = setModulationWaveform(h,val); %#ok<NASGU>
+         if strcmpi(h.modulationWaveform,val)
+            printOut(h,sprintf('Modulation waveform already %s',val))
+            return
+         end
+         switch lower(val)
+            case 'sine'
+               n = 0;
+            case 'ramp'
+               n = 1;
+            case 'triangle'
+               n = 2;
+            case 'square'
+               n = 3;
+            case 'noise'
+               n = 4;
+            case 'external'
+               n = 5;
+            otherwise
+               error('Invalid waveform type. Must be sine, ramp, triangle, square, noise, or external')
+         end
+         h = writeNumber(h,'modulationWaveform',n);
+         h.modulationWaveform = val;
       end
 
    end

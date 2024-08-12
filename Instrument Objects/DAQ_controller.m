@@ -128,7 +128,7 @@ classdef DAQ_controller < instrumentType
 
          %Sets the function that is triggered whenever the DAQ has the
          %amount of scans set by ScansAvailableFcnCount. This is how data
-         %is read of the DAQ
+         %is read off the DAQ
          h.handshake.ScansAvailableFcn = @storeData;
          
          %Add each channel based on config info
@@ -145,13 +145,11 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
-
-            disp('test')
             
             %If no data channel has been designated, or if data collection
             %has been disabled, or if no S/R channel has been designated
             %while differentiation of S/R is enabled, stop this function
-            if ~collectionInfo.takeData || isempty(collectionInfo.activeDataChannel) || isempty(collectionInfo.toggleChannel)...
+            if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
                   || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal)
                return
             end
@@ -159,10 +157,11 @@ classdef DAQ_controller < instrumentType
             %Read off the data from the device in matrix form
             unsortedData = read(handshake,handshake.ScansAvailableFcnCount,"OutputFormat","Matrix"); 
             
+            
             if strcmpi(collectionInfo.dataType,'EdgeCount')
                %Take difference between each data point and the prior one.
                %This is what is used to actually measure count increases
-                counterDifference = diff(unsortedData(:,collectionInfo.activeDataChannel));
+                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));
                 
                 %Create logical vector corresponding to whether a
                 %difference should be counted or not
@@ -178,30 +177,28 @@ classdef DAQ_controller < instrumentType
                   %into signal, and data where the signal channel is off in
                   %reference
                   signalOn = unsortedData(2:end,collectionInfo.signalReferenceChannel);
-                  if any(dataOn)
-                    assignin('base','unsortedData',unsortedData)
-                    assignin('base','dataOn',dataOn)
-                    assignin('base','signalOn',signalOn)
-                  end
                   sig = sum(counterDifference(signalOn & dataOn));
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);
+               assignin('base','unsortedData',unsortedData)
+               assignin('base','dataOn',dataOn)
                if any(dataOn)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
-                       ref = sum(unsortedData(dataOn,collectionInfo.activeDataChannel));
+                       ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
                        sig = 0;
                    else
                        signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
-                       sig = sum(unsortedData(dataOn & signalOn,collectionInfo.activeDataChannel));
-                       ref = sum(unsortedData(dataOn & ~signalOn,collectionInfo.activeDataChannel));
+                       sig = sum(unsortedData(dataOn & signalOn,collectionInfo.dataChannelNumber));
+                       ref = sum(unsortedData(dataOn & ~signalOn,collectionInfo.dataChannelNumber));
                    end
                else
                    sig = 0;
                    ref = 0;
                end
+               
                 
             end
             
@@ -307,7 +304,7 @@ classdef DAQ_controller < instrumentType
          
          %If the DAQ is continuously gathering data (signal vs reference is
          %enabled AND/OR continuous is hard set) 
-         if strcmp(h.continuousCollection,'on') || h.handshake.UserData.differentiateSignal
+         if strcmp(h.continuousCollection,'on') || strcmp(instrumentType.discernOnOff(h.handshake.UserData.differentiateSignal),'on')
             %Set the reference and signal to 0
             h.handshake.UserData.reference = 0;
             h.handshake.UserData.signal = 0;
@@ -413,14 +410,40 @@ classdef DAQ_controller < instrumentType
 
       %Properties below are read-only 
       function set.toggleChannel(h,val)
-         h = setParameter(h,val,'toggleChannel'); %#ok<NASGU>
+         if ~h.connected
+            h.presets.toggleChannel = val;
+            return
+         end
+         
+         %Label/port input
+         channels = squeeze(struct2cell(h.channelInfo));
+         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
+         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
+         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
+         if numel(channelNumber) ~= 1
+            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
+         end
+         h.handshake.UserData.toggleChannel = channelNumber;
       end
       function val = get.toggleChannel(h)
          val = getParameter(h,'toggleChannel');
       end
 
       function set.signalReferenceChannel(h,val)
-         h = setParameter(h,val,'signalReferenceChannel'); %#ok<NASGU>
+         if ~h.connected
+            h.presets.signalReferenceChannel = val;
+            return
+         end
+         
+         %Label/port input
+         channels = squeeze(struct2cell(h.channelInfo));
+         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
+         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
+         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
+         if numel(channelNumber) ~= 1
+            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
+         end
+         h.handshake.UserData.signalReferenceChannel = channelNumber;
       end
       function val = get.signalReferenceChannel(h)
          val = getParameter(h,'signalReferenceChannel');
