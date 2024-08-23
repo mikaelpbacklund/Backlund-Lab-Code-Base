@@ -2,9 +2,10 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [1 10];
-scanStepSize = .1; %Step size for RF frequency
-scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
+% scanBounds = [0.025 .5];
+scanBounds{1} = [2500 2540];
+scanStepSize = 2; 
+scanNotes = 'Data point test'; %Notes describing scan (will appear in titles for plots)
 nIterations = 1;
 iterationTimeoutDuration = 5;
 
@@ -104,23 +105,21 @@ ex.scan = [];
 
 scan.bounds = scanBounds; %RF frequency bounds
 scan.stepSize = scanStepSize; %Step size for RF frequency
-scan.parameter = 'amplitude'; %Scan frequency parameter
-scan.identifier = 'SRS RF'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
+scan.parameter = 'duration'; %Scan frequency parameter
+scan.identifier = 'Pulse Blaster'; 
 scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
-
+scan.address = 1;
 %Add the current scan
 ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = .5;
+ex.forcedCollectionPauseTime = .15;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
 % fprintf('Number of steps in scan: %d\n',ex.scan.nSteps)
-
-
 
 
 %% Running Scan

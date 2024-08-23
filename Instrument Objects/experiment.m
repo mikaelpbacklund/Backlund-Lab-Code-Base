@@ -12,6 +12,10 @@ classdef experiment
       forcedCollectionPauseTime = .1;%To fully compensate for DAQ and pulse blaster and prevent periodic changes in data collected
    end
 
+   properties (Hidden)
+       debugging
+   end
+
    properties (Dependent)
       %Specific instruments that are stored within instrumentCells
       %These are purely for the user's benefit to make code more readable,
@@ -65,7 +69,7 @@ classdef experiment
          h.odometer = newOdometer;
 
          %Actually takes the data using selected acquisition type
-         [h,dataOut] = getData(h,acquisitionType);
+         [h,dataOut,nPoints] = getData(h,acquisitionType);
 
          %Adds previous iteration to all prior iterations for all cells in
          %this data point
@@ -77,6 +81,7 @@ classdef experiment
          %Takes data and puts it in the current iteration spot for this
          %data point
          h.data.current{h.odometer} = dataOut;
+         h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;
       end
 
       function h = setInstrument(h,scanToChange)
@@ -95,6 +100,16 @@ classdef experiment
             end
          end 
 
+         if strcmp(currentScan.identifier,'forcedCollectionPauseTime')
+             h.forcedCollectionPauseTime = newValue;
+%              if mod(h.odometer,2) == 1
+%                  h.SRS_RF.amplitude = 10;
+%              else
+%                  h.SRS_RF.amplitude = 9;
+%              end
+             return
+         end
+
          %Sets instrument to whatever was found above
          relevantInstrument = h.instrumentCells{findInstrument(h,currentScan.identifier)};         
 
@@ -105,6 +120,7 @@ classdef experiment
                switch lower(currentScan.parameter)
                   case 'frequency'
                      relevantInstrument.frequency = newValue;
+                     pause(.1)
                    case 'amplitude'
                       relevantInstrument.amplitude = newValue;
                end
@@ -300,7 +316,7 @@ classdef experiment
          for ii = 1:numel(h.odometer)
             h = setInstrument(h,ii);
          end
-         h.odometer(end) = 0;
+         h.odometer(end) = 0;         
       end
 
       function h = resetAllData(h,resetValue)
@@ -328,6 +344,9 @@ classdef experiment
 
          %Copy to "previous" as format is the same
          h.data.previous = h.data.current;
+
+         h.data.nPoints = h.data.iteration';
+         h.data.failedPoints = h.data.iteration';
       end
 
       function h = getInstrumentNames(h)
@@ -460,7 +479,8 @@ classdef experiment
 
       end
 
-      function [h,dataOut] = getData(h,acquisitionType)
+      function [h,dataOut,nPointsTaken] = getData(h,acquisitionType)
+          nPointsTaken = 0;%default to 0
          switch lower(acquisitionType)
             case 'pulse sequence'
 
@@ -470,6 +490,8 @@ classdef experiment
                     %Reset DAQ in preparation for measurement
                     h.DAQ = resetDAQ(h.DAQ);
                     h.DAQ.takeData = true;
+
+%                     pause(1)
 
                     %Start sequence
                     runSequence(h.pulseBlaster)
@@ -485,16 +507,26 @@ classdef experiment
 
                     pause(h.forcedCollectionPauseTime)
 
-                    h.DAQ.takeData = false;
-                    if h.DAQ.dataPointsTaken ~= 0
+                    % Add something for outliers (more than 3 std devs
+                    % away) ***********
+
+                    h.DAQ.takeData = false;                    
+                    
+                    if h.DAQ.dataPointsTaken ~= 0 
+                        nPointsTaken = h.DAQ.dataPointsTaken;
+%                         if h.odometer ~= 0
+                            h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nFailedCollections;
+%                         end                        
                         break
                     end
 
                     nFailedCollections = nFailedCollections + 1;
-                    if nFailedCollections > 2
-                        error('No data points taken 3 times, aborting collection attempts.')
+                    if nFailedCollections > 4
+                        h.DAQ.takeData = false;
+                        error('No data points taken 5 times, aborting collection attempts.')
                     else
-                        warning('No data points taken. Retrying collection.')
+                        warning('No data points taken. Retrying collection (%d).',nFailedCollections)
+%                         pause(.1)
                     end
 
                 end             
@@ -553,12 +585,39 @@ classdef experiment
             end
             if numel(dataIn) ~= h.scan.nSteps
                error(strcat('plotData function only works for 1D data when the number',...
-                  'of data points in the scan matches the number of data points given in argument 2'))
+                  ' of data points in the scan matches the number of data points given in argument 2'))
             end
 
-            %x axis isn't the same. Assumed to be different plot entirely
+            if isa(h.scan.bounds,'cell') %REALLY BAD FIX HERE******
+                %x axis isn't the same. Assumed to be different plot entirely
+            if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds{1})) || ...
+                  (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
+               replot = true;
+            end
+
+            if replot
+               %Creates x axis from manual steps or from scan settings
+               if h.useManualSteps
+                  xAxis = h.manualSteps;
+               else
+                  xAxis = h.scan.bounds{1}(1):h.scan.stepSize:h.scan.bounds{1}(2);
+               end
+
+               %Creates the actual plot as a line
+               h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,dataIn);
+
+               %Add x and, optionally, y labels
+               xlabel(h.plots.(plotName).axes,h.scan.parameter)
+               if nargin > 3
+                  ylabel(h.plots.(plotName).axes,varargin{1})
+               end
+            else
+               h.plots.(plotName).dataDisplay.YData = dataIn;
+            end
+            else
+                %x axis isn't the same. Assumed to be different plot entirely
             if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds)) || ...
-                  (h.manualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
+                  (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
                replot = true;
             end
 
@@ -581,6 +640,9 @@ classdef experiment
             else
                h.plots.(plotName).dataDisplay.YData = dataIn;
             end
+            end
+
+            
 
          else %image
 
@@ -594,21 +656,23 @@ classdef experiment
                h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,dataIn);
                h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
                h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
-            end
-         end
-
-         %For both 1D and 2D
-         if replot
-            %Sets the plot title to include the given plotName and any scan
-            %notes
-            if ~isempty(h.scan) && ~isempty(h.scan.notes) && ~strcmp(h.scan.notes,'')
-               title(h.plots.(plotName).axes,strcat(plotTitle,' (',h.scan.notes,')'))
             else
-               title(h.plots.(plotName).axes,plotTitle)
+                h.plots.(plotName).dataDisplay.CData = dataIn;
             end
-         else
-            h.plots.(plotName).dataDisplay.CData = dataIn;
+
+            
          end
+%          if replot
+%             %Sets the plot title to include the given plotName and any scan
+%             %notes
+%             if ~isempty(h.scan) && ~isempty(h.scan.notes) && ~strcmp(h.scan.notes,'')
+%                title(h.plots.(plotName).axes,strcat(plotTitle,' (',h.scan.notes,')'))
+%             else
+%                title(h.plots.(plotName).axes,plotTitle)
+%             end
+%          else
+%             h.plots.(plotName).dataDisplay.CData = dataIn;
+%          end
 
       end
 

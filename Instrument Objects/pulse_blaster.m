@@ -295,7 +295,7 @@ classdef pulse_blaster < instrumentType
                end
 
          end
-         h = calculateDuration(h);
+         h = calculateDuration(h,'user');
 
       end
 

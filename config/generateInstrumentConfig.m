@@ -126,6 +126,10 @@ config.channelInfo(4).dataType = 'Digital';
 config.channelInfo(4).port = 'port0/line2';
 config.channelInfo(4).label = 'Signal/Reference';%Signal and/or reference must be included
 
+config.channelInfo(5).dataType = 'Digital';
+config.channelInfo(5).port = 'port0/line3';
+config.channelInfo(5).label = 'Testing';%Signal and/or reference must be included
+
 %Port the clock is connected to
 config.clockPort = 'PFI12';
 

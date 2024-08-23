@@ -139,6 +139,7 @@ classdef DAQ_controller < instrumentType
          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
          
          function handshake = storeData(handshake,evt) %#ok<INUSD> 
+
             %User data is 2 cell array. First cell is a 1x2 matrix for
             %signal and reference. The second cell is a structure that
             %contains information about the data channel, signal reference
@@ -183,7 +184,6 @@ classdef DAQ_controller < instrumentType
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);
                assignin('base','unsortedData',unsortedData)
-               assignin('base','dataOn',dataOn)
                if any(dataOn)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
