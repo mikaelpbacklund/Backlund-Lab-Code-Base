@@ -1,12 +1,14 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = -25;
+RFamplitude = 10;
 scanBounds = [2.86 2.9];
 scanStepSize = .0005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-nIterations = 10;
-timeoutDuration = 7;
+nLoops =1000;
+nIterations = 2;
+timeoutDuration = 10;
+forcedDelayTime = .125;
 
 %% Backend
 
@@ -50,7 +52,7 @@ ex.DAQ.differentiateSignal = 'on';
 ex.DAQ.activeDataChannel = 'analog';
 
 %Sets loops for entire sequence to "on" and for 300. Deletes previous sequence if any existed
-ex.pulseBlaster.nTotalLoops = 1000;
+ex.pulseBlaster.nTotalLoops = nLoops;
 ex.pulseBlaster.useTotalLoop = true;
 ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
 
@@ -112,20 +114,23 @@ scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = .2;
+ex.forcedCollectionPauseTime = forcedDelayTime;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime,nIterations,.05)
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
 
 cont = checkContinue(timeoutDuration*2);
 if ~cont
     return
 end
 
+expectedDataPoints = ex.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+expectedDataPoints = (expectedDataPoints/1e9) * ex.DAQ.sampleRate;
 
+scanTimer = tic;
 %% Running Scan
 
 %Resets current data. [0,0] is for reference and contrast counts
@@ -150,8 +155,11 @@ for ii = 1:nIterations
       currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
-      ex = plotData(ex,refData,'new reference');
-%       ex = plotData(ex,ex.data.nPoints(:,ii),'n points');
+%       ex = plotData(ex,refData,'new reference');
+      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+      nPoints(nPoints == 0) = 1;
+      ex = plotData(ex,nPoints,'n points');
+      ex = plotData(ex,ex.data.failedPoints,'n failed points');
 %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
 %       ex = plotData(ex,refData,'previous reference');
    end
@@ -165,6 +173,6 @@ for ii = 1:nIterations
        end
    end
 end
-
+toc(scanTimer)
 stop(ex.DAQ.handshake)
 

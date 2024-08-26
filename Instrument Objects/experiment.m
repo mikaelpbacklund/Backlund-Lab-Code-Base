@@ -484,14 +484,15 @@ classdef experiment
          switch lower(acquisitionType)
             case 'pulse sequence'
 
-                nFailedCollections = 0;
+                nPauseIncreases = 0;
+                originalPauseTime = h.forcedCollectionPauseTime;
 
                 while true
                     %Reset DAQ in preparation for measurement
                     h.DAQ = resetDAQ(h.DAQ);
                     h.DAQ.takeData = true;
 
-%                     pause(1)
+                    pause(h.forcedCollectionPauseTime/2)
 
                     %Start sequence
                     runSequence(h.pulseBlaster)
@@ -511,65 +512,70 @@ classdef experiment
                     % away) ***********
 
                     h.DAQ.takeData = false;                    
+                    nPointsTaken = h.DAQ.dataPointsTaken;
+                    expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                    expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
                     
-                    if h.DAQ.dataPointsTaken ~= 0 
-                        nPointsTaken = h.DAQ.dataPointsTaken;
-%                         if h.odometer ~= 0
-                            h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nFailedCollections;
-%                         end                        
+                    if nPointsTaken > expectedDataPoints*.9999 && nPointsTaken < expectedDataPoints *1.0001
+                        h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                        h.forcedCollectionPauseTime = originalPauseTime;
                         break
-                    end
-
-                    nFailedCollections = nFailedCollections + 1;
-                    if nFailedCollections > 4
-                        h.DAQ.takeData = false;
-                        error('No data points taken 5 times, aborting collection attempts.')
+                    elseif nPauseIncreases < 4%SHOULD BE A PROPERTY OF EXPERIMENT******
+                        nPauseIncreases = nPauseIncreases + 1;
+                        warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                            (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
+                        h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
+                        pause(.1)%For next data point to come in before discarding the read
+                        %Discards any data that might have "carried
+                        %over" from the previous data point
+                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
                     else
-                        warning('No data points taken. Retrying collection (%d).',nFailedCollections)
-%                         pause(.1)
+                        h.forcedCollectionPauseTime = originalPauseTime;
+                        error('Failed %d times to obtain correct number of data points',nPauseIncreases)
+
                     end
 
-                end             
+                end
 
-               if strcmp(h.DAQ.differentiateSignal,'on')
-                  dataOut{1}(1) = h.DAQ.handshake.UserData.reference;
-                  dataOut{1}(2) = h.DAQ.handshake.UserData.signal;
-                  if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
-                      dataOut{1}(1:2) = dataOut{1}(1:2) ./ h.DAQ.dataPointsTaken;
-                  end
-               else
-                  %Takes data and puts it in the current iteration spot for this
-                  %data point
-                  dataOut{1} = readData(h.DAQ);
-               end
+                if strcmp(h.DAQ.differentiateSignal,'on')
+                    dataOut{1}(1) = h.DAQ.handshake.UserData.reference;
+                    dataOut{1}(2) = h.DAQ.handshake.UserData.signal;
+                    if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
+                        dataOut{1}(1:2) = dataOut{1}(1:2) ./ h.DAQ.dataPointsTaken;
+                    end
+                else
+                    %Takes data and puts it in the current iteration spot for this
+                    %data point
+                    dataOut{1} = readData(h.DAQ);
+                end
 
-            case 'scmos'
-               %Takes image using the camera and the current settings
-               [dataOut,frameStacks] = takeImage(h.hamm);
+             case 'scmos'
+                 %Takes image using the camera and the current settings
+                 [dataOut,frameStacks] = takeImage(h.hamm);
 
-               %Adds frame stacks to data output
-               for ii = 1:numel(frameStacks)
-                  dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
-               end
+                 %Adds frame stacks to data output
+                 for ii = 1:numel(frameStacks)
+                     dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
+                 end
          end
       end
 
       function h = plotData(h,dataIn,plotName,varargin)
-         %4th argument is y axis label for 1D plot
+          %4th argument is y axis label for 1D plot
 
-         %Prevents errors in variable name by swapping space with
-         %underscore
-         plotTitle = plotName;
-         plotName(plotName==' ') = '_';
+          %Prevents errors in variable name by swapping space with
+          %underscore
+          plotTitle = plotName;
+          plotName(plotName==' ') = '_';
 
-         %Creates a figure if one does not already exist
-         if ~isfield(h.plots,plotName) ||  ~isfield(h.plots.(plotName),'figure') || ~ishandle(h.plots.(plotName).figure)
-            h.plots.(plotName).figure = figure('Name',plotTitle,'NumberTitle','off');
-         end
+          %Creates a figure if one does not already exist
+          if ~isfield(h.plots,plotName) ||  ~isfield(h.plots.(plotName),'figure') || ~ishandle(h.plots.(plotName).figure)
+              h.plots.(plotName).figure = figure('Name',plotTitle,'NumberTitle','off');
+          end
 
-         %Creates axes if one does not already exist
-         if ~isfield(h.plots.(plotName),'axes') || ~isvalid(h.plots.(plotName).axes)
-            h.plots.(plotName).axes = axes(h.plots.(plotName).figure);
+          %Creates axes if one does not already exist
+          if ~isfield(h.plots.(plotName),'axes') || ~isvalid(h.plots.(plotName).axes)
+              h.plots.(plotName).axes = axes(h.plots.(plotName).figure);
          end
 
          %If there is already some kind of data displayed (line or image)
