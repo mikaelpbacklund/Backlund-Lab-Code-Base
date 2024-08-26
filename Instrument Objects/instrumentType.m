@@ -149,7 +149,7 @@ classdef instrumentType < handle
             if isfield(h.(attribute),'tolerance') %Not everything has tolerance
                attributeInfo.tolerance = h.attInfoStr.('tolerance');
             else
-               attributeInfo.tolerance = setState*.001;
+               attributeInfo.tolerance = abs(setState)*.0001;
             end            
          end
          
@@ -178,9 +178,10 @@ classdef instrumentType < handle
          [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
          
          %Checks if new reading matches input value
-         if numericalData > numericalInput + attributeInfo.tolerance || numericalData < numericalInput - attributeInfo.tolerance
+         if numericalData > numericalInput + attributeInfo.tolerance || numericalData < numericalInput - attributeInfo.tolerance 
             assignin('base','numericalInput',numericalInput)
             assignin('base','numericalData',numericalData)
+            assignin("base","tolerance",attributeInfo.tolerance)
              h.failCase(attribute,numericalInput,numericalData);            
          else
             updatedVal = numericalData/attributeInfo.conversionFactor;
