@@ -32,6 +32,7 @@ config.(p).conversionFactor = 1e3;%MHz (instrument) to GHz (user)
 config.(p).units = 'GHz';
 config.(p).minimum = .00095;
 config.(p).maximum = 4;
+config.(p).tolerance = .00001;
 
 attributeName = 'amplitude';
 p = strcat(attributeName,'Info');

@@ -146,17 +146,22 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
+            scansAvailable = handshake.NumScansAvailable;
+            if scansAvailable > handshake.ScansAvailableFcnCount * 100
+                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
+                return
+            end
             
             %If no data channel has been designated, or if data collection
             %has been disabled, or if no S/R channel has been designated
             %while differentiation of S/R is enabled, stop this function
             if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
-                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal)
+                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable == 0
                return
             end
             
             %Read off the data from the device in matrix form
-            unsortedData = read(handshake,handshake.ScansAvailableFcnCount,"OutputFormat","Matrix"); 
+            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
             
             
             if strcmpi(collectionInfo.dataType,'EdgeCount')

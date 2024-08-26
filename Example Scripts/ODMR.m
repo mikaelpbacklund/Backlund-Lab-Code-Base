@@ -1,12 +1,12 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = 10;
-scanBounds = [1 10];
-scanStepSize = .1; %Step size for RF frequency
+RFamplitude = -25;
+scanBounds = [2.86 2.9];
+scanStepSize = .0005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-nIterations = 1;
-iterationTimeoutDuration = 5;
+nIterations = 10;
+timeoutDuration = 7;
 
 %% Backend
 
@@ -50,7 +50,7 @@ ex.DAQ.differentiateSignal = 'on';
 ex.DAQ.activeDataChannel = 'analog';
 
 %Sets loops for entire sequence to "on" and for 300. Deletes previous sequence if any existed
-ex.pulseBlaster.nTotalLoops = 300;
+ex.pulseBlaster.nTotalLoops = 1000;
 ex.pulseBlaster.useTotalLoop = true;
 ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
 
@@ -104,7 +104,7 @@ ex.scan = [];
 
 scan.bounds = scanBounds; %RF frequency bounds
 scan.stepSize = scanStepSize; %Step size for RF frequency
-scan.parameter = 'amplitude'; %Scan frequency parameter
+scan.parameter = 'frequency'; %Scan frequency parameter
 scan.identifier = 'SRS RF'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
 scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 
@@ -112,15 +112,18 @@ scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = .5;
+ex.forcedCollectionPauseTime = .2;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
-% fprintf('Number of steps in scan: %d\n',ex.scan.nSteps)
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime,nIterations,.05)
 
-
+cont = checkContinue(timeoutDuration*2);
+if ~cont
+    return
+end
 
 
 %% Running Scan
@@ -148,7 +151,7 @@ for ii = 1:nIterations
       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
       ex = plotData(ex,refData,'new reference');
-      ex = plotData(ex,ex.data.nPoints(:,ii),'n points');
+%       ex = plotData(ex,ex.data.nPoints(:,ii),'n points');
 %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
 %       ex = plotData(ex,refData,'previous reference');
    end
@@ -156,7 +159,7 @@ for ii = 1:nIterations
    %Between each iteration, check for user input whether to continue scan
    %5 second timeout
    if ii ~= nIterations
-       cont = checkContinue(iterationTimeoutDuration);
+       cont = checkContinue(timeoutDuration);
        if ~cont
            break
        end
