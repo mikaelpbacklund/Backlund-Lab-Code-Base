@@ -19,40 +19,7 @@ classdef RF_generator < instrumentType
       connectionInfo
    end
 
-   methods %Internal Functions
-
-      function [h,numericalData] = readNumber(h,attributeQuery)
-          [h,numericalData] = readInstrument(h,attributeQuery);
-         numericalData = str2double(numericalData); 
-      end
-
-      function h = writeNumber(h,attribute,numericalInput)
-         inputCommand = sprintf(h.commands.(attribute),numericalInput);
-         h = writeInstrument(h,inputCommand);
-         pause(.01)%Wait for RF generator to adjust
-      end
-
-      function [h,toggleStatus] = readToggle(h,attributeQuery)
-         [h,toggleStatus] = readInstrument(h,attributeQuery);
-      end
-
-      function h = writeToggle(h,toggleCommand) 
-         h = writeInstrument(h,toggleCommand);
-         pause(.01)%Wait for RF generator to adjust
-      end
-
-      function [h,stringOut] = readString(h)
-         [h,stringOut] = readInstrument(h);
-      end
-
-      function writeString(h,stringInput)
-         writeInstrument(h,stringInput);
-         pause(.01)%Wait for RF generator to adjust
-      end
-
-   end
-
-   methods %User Functions
+      methods %Misc
 
       function h = RF_generator(configFileName)
 
@@ -122,13 +89,51 @@ classdef RF_generator < instrumentType
 %          h = queryModulationType(h);
       end
 
-      function h = queryFrequency(h)
-         [h,newVal] = writeNumberProtocol(h,'frequency','query');
-         h.frequency = newVal;
+      function h = toggle(h,setState)
+         h.enabled = setState;
       end
 
-      function h = setFrequency(h,inputFrequency)
-         [h,newVal] = writeNumberProtocol(h,'frequency',inputFrequency);
+      function h = modulationToggle(h,setState)
+         h.modulationEnabled = setState;
+      end
+   end
+
+   methods %Internal Functions
+
+      function [h,numericalData] = readNumber(h,attributeQuery)
+          [h,numericalData] = readInstrument(h,attributeQuery);
+         numericalData = str2double(numericalData); 
+      end
+
+      function h = writeNumber(h,attribute,numericalInput)
+         inputCommand = sprintf(h.commands.(attribute),numericalInput);
+         h = writeInstrument(h,inputCommand);
+         pause(.01)%Wait for RF generator to adjust
+      end
+
+      function [h,toggleStatus] = readToggle(h,attributeQuery)
+         [h,toggleStatus] = readInstrument(h,attributeQuery);
+      end
+
+      function h = writeToggle(h,toggleCommand) 
+         h = writeInstrument(h,toggleCommand);
+         pause(.01)%Wait for RF generator to adjust
+      end
+
+      function [h,stringOut] = readString(h)
+         [h,stringOut] = readInstrument(h);
+      end
+
+      function writeString(h,stringInput)
+         writeInstrument(h,stringInput);
+         pause(.01)%Wait for RF generator to adjust
+      end
+
+   end
+
+   methods %Instrument Queries
+      function h = queryFrequency(h)
+         [h,newVal] = writeNumberProtocol(h,'frequency','query');
          h.frequency = newVal;
       end
 
@@ -137,17 +142,9 @@ classdef RF_generator < instrumentType
          h.amplitude = newVal;
       end
 
-      function h = setAmplitude(h,inputAmplitude)
-         h = writeNumberProtocol(h,'amplitude',inputAmplitude);
-      end
-
       function h = queryToggle(h)
          [h,newVal] = writeToggleProtocol(h,'query');
          h.enabled = newVal;
-      end
-
-      function h = toggle(h,setState)
-         h = writeToggleProtocol(h,setState);
       end
 
       function h = queryModulationToggle(h)
@@ -157,15 +154,6 @@ classdef RF_generator < instrumentType
          modToggleCmds.query = h.commands.modulationToggleQuery;
          modToggleCmds.toggleName = 'modulationEnabled';
          h = writeToggleProtocol(h,'query',modToggleCmds);
-      end
-
-      function h = modulationToggle(h,setState)
-         %Custom input command rather than default naming convention
-         modToggleCmds.toggleOn = h.commands.modulationToggleOn;
-         modToggleCmds.toggleOff = h.commands.modulationToggleOff;
-         modToggleCmds.query = h.commands.modulationToggleQuery;
-         modToggleCmds.toggleName = 'modulationEnabled';
-         h = writeToggleProtocol(h,setState,modToggleCmds);
       end
 
       function [h,modWaveform] = queryModulationWaveform(h)
@@ -200,25 +188,6 @@ classdef RF_generator < instrumentType
          end
       end
 
-      function [h,modType] = setModulationType(h,modType)
-         if strcmpi(modType,'iq')
-            modType = 'I/Q';
-         end
-         if strcmpi(h.modulationType,modType)
-            printOut(h,sprintf('Modulation type already %s',modType))
-            return
-         end
-         switch lower(modType)
-            case 'i/q'
-               h = writeNumber(h,'modulationType',6);
-               writeString(h,h.commands.modulationExternalIQ)
-            case 'amplitude'
-               h = writeNumber(h,'modulationType',0);
-            otherwise
-               error('Invalid waveform type. Must be I/Q, or amplitude')
-         end
-      end
-
    end
 
    methods %Variable Set Functions
@@ -239,11 +208,31 @@ classdef RF_generator < instrumentType
       end
 
       function set.modulationEnabled(h,val)
-         h = modulationToggle(h,val); 
+         modToggleCmds.toggleOn = h.commands.modulationToggleOn; %#ok<*MCSUP>
+         modToggleCmds.toggleOff = h.commands.modulationToggleOff;
+         modToggleCmds.query = h.commands.modulationToggleQuery;
+         modToggleCmds.toggleName = 'modulationEnabled';
+         [h,foundState] = writeToggleProtocol(h,val,modToggleCmds); 
+         h.modulationEnabled = foundState;
       end
 
       function set.modulationType(h,val)
-          h = setModulationType(h,val); 
+         %Can theoretically resend modulation type already present by using "improper" name
+         %i.e. 'i/q' when it is currently set to 'iq'. This is so minor I am not fixing it
+         if strcmpi(h.modulationType,val)
+            printOut(h,sprintf('Modulation type already %s',modType))
+            return
+         end
+
+         switch lower(val)
+            case {'iq','i/q'}
+               h = writeNumber(h,'modulationType',6);
+               writeString(h,h.commands.modulationExternalIQ)             
+            case 'amplitude'
+               h = writeNumber(h,'modulationType',0);
+            otherwise
+               error('Invalid waveform type. Must be I/Q, or amplitude')
+         end      
          h.modulationType = val;
       end
 
@@ -253,13 +242,13 @@ classdef RF_generator < instrumentType
             return
          end
          switch lower(val)
-            case 'sine'
+            case {'sine','sin'}
                n = 0;
             case 'ramp'
                n = 1;
             case 'triangle'
                n = 2;
-            case 'square'
+            case {'square','box'}
                n = 3;
             case 'noise'
                n = 4;
@@ -278,8 +267,7 @@ classdef RF_generator < instrumentType
       function failCase(attribute,currentState,setState)
          error('%s read from RF generator is %g upon %g input',attribute,currentState,setState)
       end
-  
-      
+       
    end
 
 
