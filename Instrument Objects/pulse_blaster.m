@@ -150,6 +150,14 @@ classdef pulse_blaster < instrumentType
 
       end
 
+      function [h] = condensedAddPulse(h,activeChannels,duration,notes)
+         %Single line version of add pulse for "normal" pulses
+         pulseInfo.activeChannels = activeChannels;
+         pulseInfo.duration = duration;
+         pulseInfo.notes = notes;
+         h = addPulse(h,pulseInfo);
+      end
+
       function h = adjustSequence(h)
          %Adjusts sequence to include total loop (if enabled) as well as
          %necessary stop pulse
