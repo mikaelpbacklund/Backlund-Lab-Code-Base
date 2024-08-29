@@ -1,12 +1,28 @@
 %Example Spin Echo using template
 
-%Parameters
-rfFrequency = 2.87;
-piTime = 60;
-startTauDuration = 200;
-endTauDuration = 1100;
-tauStepSize = 50;
+%% User Settings
+params.RFResonanceFrequency = 2.87;
+params.piTime = 60;
+params.tauStart = 200;
+params.tauEnd = 1100;
+params.tauStepSize = 50;
+%All parameters below this are optional in that they will revert to defaults if not specified
+params.tauNSteps = [];%will override step size
+params.timePerDataPoint = 1;%seconds
+params.collectionDuration = 1000;
+params.collectionBufferDuration = 1000;
+params.intermissionBufferDuration = 2500;
+params.repolarizationDuration = 7000;
+params.extraRF =  6;
+params.AOM_DAQCompensation = 400;
+params.IQPreBufferDuration = 10;
+params.IQPostBufferDuration = 30;
+
 nIterations = 1;
+RFAmplitude = 10;
+dataType = 'analog';
+timeoutDuration = 10;
+forcedDelayTime = .125;
 
 %% Setup
 
@@ -38,87 +54,85 @@ end
 %RF settings
 ex.RF.enabled = 'on';
 ex.RF.modulationEnabled = 'off';
-ex.RF.amplitude = 10;
+ex.RF.amplitude = RFAmplitude;
+ex.RF.frequency = params.RFResonanceFrequency;
 
 %DAQ settings
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'counter';
+ex.DAQ.activeDataChannel = dataType;
 
-%Get parameters and defaults
-[~,~,params] = SpinEcho([],[]);
+%Load empty parameter structure from template
+[~,~,sentParams] = SpinEcho([],[]);
 
-%Finds the location of matching parameter then sets it according to inputs at beginning of script
-parameterLocation = contains(lower(params(:,1)),'frequency');
-params{parameterLocation,2} = rfFrequency;
-
-parameterLocation = contains(lower(params(:,1)),'π');
-params{parameterLocation,2} = piTime;
-
-parameterLocation = contains(lower(params(:,1)),'start');
-params{parameterLocation,2} = startTauDuration;
-
-parameterLocation = contains(lower(params(:,1)),'end');
-params{parameterLocation,2} = endTauDuration;
-
-parameterLocation = contains(lower(params(:,1)),'steps');
-params{parameterLocation,2} = tauStepSize;
+%Replaces values in sentParams with values in params if they aren't empty
+for paramName = fieldnames(sentParams)'
+   if ~isempty(params.(paramName{1}))
+      sentParams.(paramName{1}) = params.(paramName{1});
+   end
+end
 
 %Executes spin echo template, giving back edited pulse blaster object and information for the scan
-[ex.pulseBlaster,scanInfo] = SpinEcho(ex.pulseBlaster,params);
+[ex.pulseBlaster,scanInfo] = SpinEcho(ex.pulseBlaster,sentParams);
 
 ex = addScans(ex,scanInfo);
 
-%Sets RF frequency. Could have been done with initial paramter at top of script, but this is a demonstration of the
-%template
-ex.RF.frequency = scanInfo.RFfrequency;
-
-%Type of stage optimization
-optSequence.consecutive = true;
-
-%Assignment of stage optimization sequence
-optSequence.axes = {'x','y','z'};
-optSequence.steps = {-1:.1:1,-1:.1:1,-2:.2:2};
+%Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
+ex.forcedCollectionPauseTime = forcedDelayTime;
 
 %Prepares experiment to run from scratch
 ex = resetAllData(ex);
 
-%% Data collection and display
+%Checks if the current configuration is valid. This will give an error if not
+ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
-for ii = 1:nIterations
-   
-   %Prepares scan for a fresh start while keeping data from previous
-   %iterations
-   [ex,instrumentCells] = resetScan(ex,instrumentCells);
-   
-   %Runs initial optimization. Optimization goes to highest value based on
-   %output of pulse sequence; the stage movements are determined by
-   %optSequence and RF is turned off
-   [ex,instrumentCells] = stageOptimization(ex,instrumentCells,'max value','pulse sequence',optSequence,'off');
-   lastOptTime = datetime;
-   
-   %While the odometer is not at its max value
-   while all(ex.odometer == [ex.scan.nSteps])
-      
-      if datetime-lastOptTime > duration(0,5,0)%Check if last optimization was over 5 mins ago
-         %Runs stage optimization
-         [ex,instrumentCells] = stageOptimization(ex,instrumentCells,'max value','pulse sequence',optSequence,'off');
-         
-         %Sets new time for last optimization
-         lastOptTime = datetime;
-      end
-      
-      [ex,instrumentCells] = takeNextDataPoint(ex,instrumentCells,'pulse sequence');
-      
-      %Display the data for the current iteration, the previous iterations,
-      %and the average of all
-      ex = displayData(ex,'current');
-      ex = displayData(ex,'previous');
-      ex = displayData(ex,'average');
-   end
-   
+%Sends information to command window
+%First is the number of steps, second is the full time per data point, third is the number of iterations,
+%fourth is a fudge factor for any additional time from various sources (heuristically found)
+timerPerDataPoint = ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5;
+scanStartInfo(ex.scan.nSteps,timePerDataPoint,nIterations,.28)
+
+cont = checkContinue(timeoutDuration*2);
+if ~cont
+   return
 end
 
+%% Run scan, and collect and display data
 
+%Prepares experiment to run from scratch
+%[0,0] is the value that all initial values for the data will take
+%Two values are used because we are storing ref and sig
+ex = resetAllData(ex,[0 0]);
 
+for ii = 1:nIterations
 
+   %Prepares scan for a fresh start while keeping data from previous
+   %iterations
+   [ex,instr] = resetScan(ex,instr);
+
+   %While the odometer is not at its max value
+   while ~all(ex.odometer == [ex.scan.nSteps])
+
+      [ex,instr] = takeNextDataPoint(ex,instr,'pulse sequence');
+
+      %Plot the average and new contrast for each data point
+      plotTypes = {'average','new'};%'old' also viable
+      for plotName = plotTypes
+         c = findContrast(ex,[],plotName{1});
+         ex = plotData(ex,c,plotName{1});
+      end
+   end
+
+   if ii ~= nIterations
+      cont = checkContinue(timeoutDuration);
+      if ~cont
+         break
+      end
+   end
+
+end
+
+%Stops continuous collection from DAQ
+stop(instr{2}.handshake)
+
+fprintf('Scan complete\n')

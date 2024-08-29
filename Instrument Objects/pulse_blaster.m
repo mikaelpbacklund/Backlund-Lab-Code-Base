@@ -100,6 +100,8 @@ classdef pulse_blaster < instrumentType
          %Syncs numericalOutput, channelsBinary, and activeChannels. Puts
          %everything into the correct format
          if isfield(pulseInfo,'activeChannels')
+            %Removes empty entries in active channels
+            pulseInfo.activeChannels(cellfun(@isempty,(pulseInfo.activeChannels))) = [];
             [pulseInfo.numericalOutput,pulseInfo.channelsBinary] = interpretPulseNames(h,pulseInfo.activeChannels);
          elseif isfield(pulseInfo,'channelsBinary')
             pulseInfo.numericalOutput = bin2dec(fliplr(pulseInfo.channelsBinary));

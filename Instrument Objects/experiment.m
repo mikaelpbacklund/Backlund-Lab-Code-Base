@@ -1,7 +1,7 @@
 classdef experiment
    %To do:
    %Multi-dimensional scans
-   %Scan multiple spatial axes at once like pulse addresses?
+   %Scan multiple variables at once (e.g. x and y spatial axes or RF frequency and pulse duration)
 
    properties
       scan %Structure containing info specific to each scan within the broader operation

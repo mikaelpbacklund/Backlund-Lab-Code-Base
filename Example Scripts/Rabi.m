@@ -2,7 +2,7 @@
 
 %% User Inputs
 scanBounds = [10 250];%ns
-scanStepSize = 4; 
+scanStepSize = 4;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
 nIterations = 5;
 RFFrequency = 2.26;
@@ -11,7 +11,7 @@ timeoutDuration = 10;
 forcedDelayTime = .125;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
-aomCompensation = 400; 
+aomCompensation = 400;
 RFReduction = 0;
 
 %Lesser used settings
@@ -70,7 +70,7 @@ parameters.RFReduction = RFReduction;
 
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
-%Gets scan information 
+%Gets scan information
 [ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
 
 %Adds scan to experiment based on template output
@@ -87,7 +87,7 @@ scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds
 
 cont = checkContinue(timeoutDuration*2);
 if ~cont
-    return
+   return
 end
 
 %% Run scan, and collect and display data
@@ -98,42 +98,34 @@ end
 ex = resetAllData(ex,[0 0]);
 
 for ii = 1:nIterations
-   
+
    %Prepares scan for a fresh start while keeping data from previous
    %iterations
    [ex,instr] = resetScan(ex,instr);
-   
+
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
-      [ex,instr] = takeNextDataPoint(ex,instr,'pulse sequence');      
+      [ex,instr] = takeNextDataPoint(ex,instr,'pulse sequence');
 
       %Plot the average and new contrast for each data point
       plotTypes = {'average','new'};%'old' also viable
       for plotName = plotTypes
          c = findContrast(ex,[],plotName{1});
          ex = plotData(ex,c,plotName{1});
-      end      
+      end
    end
 
    if ii ~= nIterations
       cont = checkContinue(timeoutDuration);
       if ~cont
-          break
+         break
       end
-  end
-   
+   end
+
 end
 
 %Stops continuous collection from DAQ
 stop(instr{2}.handshake)
 
 fprintf('Scan complete\n')
-
-
-
-
-
-
-
-
