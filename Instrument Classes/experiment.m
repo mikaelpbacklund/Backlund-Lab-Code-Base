@@ -70,19 +70,15 @@ classdef experiment
          h.odometer = newOdometer;
 
          %Actually takes the data using selected acquisition type
-         [h,dataOut,nPoints] = getData(h,acquisitionType);
-
-         %Adds previous iteration to all prior iterations for all cells in
-         %this data point
-         h.data.previous{h.odometer} = cellfun(@(x,y)x+y,h.data.previous{h.odometer},h.data.current{h.odometer},'UniformOutput',false);
-
-         %Increments number of data points taken by 1
-         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
+         [h,dataOut,nPoints] = getData(h,acquisitionType);   
 
          %Takes data and puts it in the current iteration spot for this
          %data point
-         h.data.current{h.odometer} = dataOut;
+         h.data.values{h.odometer,h.data.iteration(h.odometer)} = dataOut;
          h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;
+
+         %Increments number of data points taken by 1
+         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
       end
 
       function h = setInstrument(h,scanToChange)
@@ -144,7 +140,6 @@ classdef experiment
                         else
                            newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
                         end
-                        h.data.paramVal(h.odometer+1) = newValue;
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
@@ -216,6 +211,9 @@ classdef experiment
 %          if any(cellfun(@isempty,{scanInfo.stepSize}))
 %             error('All fields must contain non-empty values for each scan')
 %          end
+         % if any(cellfun(@isempty,{scanInfo.stepSize}))
+         %    error('All fields must contain non-empty values for each scan')
+         % end
 
          b = [scanInfo.bounds];
          if ~isa(b,'cell'),     b = {b};      end
@@ -284,11 +282,12 @@ classdef experiment
          end
       end
 
-      function dataAverage = findDataAverage(h,varargin)
-         %Finds average of current and previous iterations for given cell in
+      function dataMatrix = createDataMatrixWithIterations(h,varargin)
+         %Finds matrix of current and previous iterations for given cell in
          %given data point. 2nd argument is data point (default to odometer
          %reading)
          %Does not support multiple data points
+         %Final dimension will be the "iteration" dimension
 
          %2nd argument is cell corresponding to the specific data point
          %within the scan
@@ -298,16 +297,20 @@ classdef experiment
             dataPoint = h.odometer;
          end
 
-         %If there have been no iterations, you would get a divide by 0
-         %error, instead this function returns 0s matching the dimensions
-         %of each cell
-         if h.data.iteration(dataPoint) == 0
-            dataAverage = cellfun(@(x)zeros(size(x)),h.data.current{dataPoint});
-         else
-            %Creates cell array with averaged values based on the recorded
-            %iteration and current/previous data
-            dataAverage = cellfun(@(x,y)x+y,h.data.current{dataPoint},h.data.previous{dataPoint},'UniformOutput',false);
-            dataAverage = cellfun(@(x)x./h.data.iteration(dataPoint),dataAverage,'UniformOutput',false);
+         %Gets the data for all iterations of the current point according to the odometer or optional input
+         currentDataPoint = squeeze(h.data.values{dataPoint,:});         
+
+         %Creates structure for complex field assignment using subsasgn
+         %Every dimension will be ":" (all) except for the final one which will be incremented
+         s.type = '()';
+         s.subs = cell(1,ndims(currentDataPoint{1}));
+         [s.subs{:}] = deal(':');
+
+         for i = 1:numel(currentDataPoint)       
+            s.subs{end} = i+1; %Increment final dimension by 1
+
+            %Assign data to the new matrix
+            dataMatrix = subsasgn(currentDataPoint{i},s);            
          end
       end
 
@@ -336,17 +339,14 @@ classdef experiment
          h.data.iteration = squeeze(zeros(1,h.scan.nSteps(1)));
 
          %Makes cell array of equivalent size to above
-         h.data.current = num2cell(h.data.iteration);
+         h.data.values = num2cell(h.data.iteration);
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
-         %h.data.current{:} = resetValue;
+         %h.data.values{:} = resetValue;
          %The above doesn't work due to internal matlab shenanigans but
          %using the deal function is quite helpful
-         [h.data.current{:}] = deal(resetValue);
-
-         %Copy to "previous" as format is the same
-         h.data.previous = h.data.current;
+         [h.data.values{:}] = deal(resetValue);
 
          h.data.nPoints = h.data.iteration';
          h.data.failedPoints = h.data.iteration';
@@ -523,7 +523,7 @@ classdef experiment
                         h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
                         h.forcedCollectionPauseTime = originalPauseTime;
                         break
-                    elseif nPauseIncreases < 9%SHOULD BE A PROPERTY OF EXPERIMENT******
+                    elseif nPauseIncreases < 4%SHOULD BE A PROPERTY OF EXPERIMENT******
                         nPauseIncreases = nPauseIncreases + 1;
                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
@@ -535,17 +535,17 @@ classdef experiment
                     else
                         h.forcedCollectionPauseTime = originalPauseTime;
                         stop(h.DAQ.handshake)
-                        error('Failed %d times to obtain correct number of data points',nPauseIncreases+1)
+                        error('Failed %d times to obtain correct number of data points',nPauseIncreases)
 
                     end
 
                 end
 
                 if strcmp(h.DAQ.differentiateSignal,'on')
-                    dataOut{1}(1) = h.DAQ.handshake.UserData.reference;
-                    dataOut{1}(2) = h.DAQ.handshake.UserData.signal;
+                    dataOut(1) = h.DAQ.handshake.UserData.reference;
+                    dataOut(2) = h.DAQ.handshake.UserData.signal;
                     if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
-                        dataOut{1}(1:2) = dataOut{1}(1:2) ./ h.DAQ.dataPointsTaken;
+                        dataOut(1:2) = dataOut(1:2) ./ h.DAQ.dataPointsTaken;
                     end
                 else
                     %Takes data and puts it in the current iteration spot for this
@@ -555,12 +555,12 @@ classdef experiment
 
              case 'scmos'
                  %Takes image using the camera and the current settings
-                 [dataOut,frameStacks] = takeImage(h.hamm);
+                 [dataOut,frameStacks] = takeImage(h.hamm); %#ok<ASGLU>
 
-                 %Adds frame stacks to data output
-                 for ii = 1:numel(frameStacks)
-                     dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
-                 end
+                 % %Adds frame stacks to data output
+                 % for ii = 1:numel(frameStacks)
+                 %     dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
+                 % end
          end
       end
 
@@ -689,6 +689,7 @@ classdef experiment
       function c = findContrast(h,contrastFunction,iterationType)
          %Obtains the contrast
          %Only works for 1x1 cell for each data point
+         %****Not updated for new data storage
 
          %Defaults to contrast of reference - signal / reference
          if isempty(contrastFunction)
@@ -699,6 +700,9 @@ classdef experiment
          %number of iterations if relevant
          switch lower(iterationType)
             case {'new','current','recent'}
+               %Permutes data such that the first dimension is the "iteration" dimension
+               chosenData = permute(h.data.values,[ndims(h.data.values),1:ndims(h.data.values)-1]);
+               chosenData = chosenData(h.data.iteration)
                chosenData = cellfun(@(x)x{1},h.data.current,'UniformOutput',false);
             case {'previous','prior','old'}
                chosenData = cellfun(@(x)x{1},h.data.previous,'UniformOutput',false);
@@ -927,6 +931,37 @@ classdef experiment
          h.hamm.outputFrameStack = oldInfo.outputFrameStack;
          h.hamm.exposureTime = oldInfo.exposureTime;
 
+      end
+
+      function [h,outlierArray] = findDataOutliers(h,varargin)
+         %Second input is for what parameter to test (default number of data points)
+         %Third input is number of standard deviations away from mean to be considered an outlier (default 3)
+         %Fourth is for manual input for dataset
+         %Assumes final dimension is the "iteration" dimension
+
+         if nargin < 2 || isempty(varargin{1})
+            outlierParameter = 'npoints';
+         end
+
+         if nargin < 3 ||  isempty(varargin{2})
+            outlierThreshold = 3;
+         end
+
+         switch (outlierParameter)
+            case 'npoints'
+               dataset = h.data.nPoints;
+            case 'contrast'
+               dataset = cellfun(@(x)(x(1)-x(2))/x(1),h.data.values,'UniformOutput',false);
+            case 'reference'
+               dataset = cellfun(@(x)x(1),h.data.values,'UniformOutput',false);
+         end
+
+         if nargin > 3 && ~isempty(varargin{3})
+            dataset = varargin{3};
+         end
+
+         outlierArray = isoutlier(dataset,"mean","ThresholdFactor",outlierThreshold,ndims(dataset));
+         
       end
    end
 

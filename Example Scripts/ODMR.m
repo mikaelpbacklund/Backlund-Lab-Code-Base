@@ -2,14 +2,13 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2 2.1];
-scanStepSize = .001; %Step size for RF frequency
+scanBounds = [2.86 2.9];
+scanStepSize = .0005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 1;
+nIterations = 2;
 timeoutDuration = 10;
 forcedDelayTime = .125;
-nDataPointDeviationTolerance = .0001;
 
 %% Backend
 
@@ -131,25 +130,38 @@ for ii = 1:nIterations
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
-      ex = takeNextDataPoint(ex,'pulse sequence');      
+      ex = takeNextDataPoint(ex,'pulse sequence');            
+
+      %Bad usage of this just to get it going. Should be replacing individual data points
+      %Only works for 1D
+      avgFig = figure(1);
+      avgaxes = axes(avgFig); %#ok<LAXES>
+
+      con = zeros(1,ex.scan.nSteps);
+
+      for i = 1:ex.scan.nSteps
+         data = mean(createDataMatrixWithIterations(h,i),2);
+         con(i) = (data(1)-data(2))/data(1);
+      end
+
+      plot(avgaxes,ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2),con)
 
       %Creates plots
-      
-      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
-      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
-      newRefData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
-      prevRefData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
-      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
-      nPoints(nPoints == 0) = 1;
-      plotTypes = {'average','new'};%'old' also viable
-      for plotName = plotTypes
-         c = findContrast(ex,[],plotName{1});
-         ex = plotData(ex,c,plotName{1});
-      end
+%       plotTypes = {'average','new'};%'old' also viable
+%       for plotName = plotTypes
+%          c = findContrast(ex,[],plotName{1});
+%          ex = plotData(ex,c,plotName{1});
+%       end
+%       currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+%       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+%       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'new reference');
+%       nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+%       nPoints(nPoints == 0) = 1;
 %       ex = plotData(ex,nPoints,'n points');
 %       ex = plotData(ex,ex.data.failedPoints,'n failed points');
-      ex = plotData(ex,newRefData,'new reference');
-%       ex = plotData(ex,prevRefData,'previous reference');
+% %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'previous reference');
    end
 
    %Between each iteration, check for user input whether to continue scan

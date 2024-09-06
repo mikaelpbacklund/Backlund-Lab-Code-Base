@@ -139,7 +139,6 @@ classdef DAQ_controller < instrumentType
          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
          
          function handshake = storeData(handshake,evt) %#ok<INUSD> 
-             try
 
             %User data is 2 cell array. First cell is a 1x2 matrix for
             %signal and reference. The second cell is a structure that
@@ -147,11 +146,9 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
-            scansAvailable = handshake.NumScansAvailable-1;
-            if scansAvailable > handshake.ScansRequiredFcnCount *100
-                fprintf('Discarding extra data points\n')
-                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix");
-                fprintf('Discarded successfully\n')
+            scansAvailable = handshake.NumScansAvailable - 1;
+            if scansAvailable > handshake.ScansAvailableFcnCount * 100
+                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
                 return
             end
             
@@ -217,13 +214,8 @@ classdef DAQ_controller < instrumentType
             if ref ~= 0 %only relevant if data was obtained
             %Increase number of data points taken. Used primarily for
             %analog to find average voltage
-            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
+            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn)/2;
             end
-             catch e
-                 warning('Error in data collection. See .handshake.errorInfo for more information')
-                 handshake.UserData.errorInfo = e;
-                 handshake.UserData.savedNScans = scansAvailable;
-             end
 
          end
 
