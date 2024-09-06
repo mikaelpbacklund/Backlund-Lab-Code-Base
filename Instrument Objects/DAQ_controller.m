@@ -139,6 +139,7 @@ classdef DAQ_controller < instrumentType
          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
          
          function handshake = storeData(handshake,evt) %#ok<INUSD> 
+             try
 
             %User data is 2 cell array. First cell is a 1x2 matrix for
             %signal and reference. The second cell is a structure that
@@ -146,9 +147,11 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
-            scansAvailable = handshake.NumScansAvailable;
-            if scansAvailable > handshake.ScansAvailableFcnCount * 100
-                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
+            scansAvailable = handshake.NumScansAvailable-1;
+            if scansAvailable > handshake.ScansRequiredFcnCount *100
+                fprintf('Discarding extra data points\n')
+                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix");
+                fprintf('Discarded successfully\n')
                 return
             end
             
@@ -156,7 +159,7 @@ classdef DAQ_controller < instrumentType
             %has been disabled, or if no S/R channel has been designated
             %while differentiation of S/R is enabled, stop this function
             if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
-                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable == 0
+                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable < 1
                return
             end
             
@@ -216,6 +219,11 @@ classdef DAQ_controller < instrumentType
             %analog to find average voltage
             handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
             end
+             catch e
+                 warning('Error in data collection. See .handshake.errorInfo for more information')
+                 handshake.UserData.errorInfo = e;
+                 handshake.UserData.savedNScans = scansAvailable;
+             end
 
          end
 

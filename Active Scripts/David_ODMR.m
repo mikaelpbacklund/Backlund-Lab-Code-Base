@@ -3,7 +3,7 @@
 %% User Inputs
 RFamplitude = 10;
 scanBounds = [2.86 2.9];
-scanStepSize = .0005; %Step size for RF frequency
+scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 2;
@@ -80,7 +80,7 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 
 %Changes number of loops to match desired time for each data point
-ex.pulseBlaster.nTotalLoops = sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds;
+ex.pulseBlaster.nTotalLoops = floor(sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
 
 %Sends the currently saved pulse sequence to the pulse blaster instrument itself
 ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
@@ -130,21 +130,22 @@ for ii = 1:nIterations
       ex = takeNextDataPoint(ex,'pulse sequence');      
 
       %Creates plots
+      
+      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+      newRefData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
+      prevRefData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+      nPoints(nPoints == 0) = 1;
       plotTypes = {'average','new'};%'old' also viable
       for plotName = plotTypes
          c = findContrast(ex,[],plotName{1});
          ex = plotData(ex,c,plotName{1});
       end
-      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
-      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
-      refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
-%       ex = plotData(ex,refData,'new reference');
-      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
-      nPoints(nPoints == 0) = 1;
-      ex = plotData(ex,nPoints,'n points');
-      ex = plotData(ex,ex.data.failedPoints,'n failed points');
-%       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
-%       ex = plotData(ex,refData,'previous reference');
+%       ex = plotData(ex,nPoints,'n points');
+%       ex = plotData(ex,ex.data.failedPoints,'n failed points');
+      ex = plotData(ex,newRefData,'new reference');
+%       ex = plotData(ex,prevRefData,'previous reference');
    end
 
    %Between each iteration, check for user input whether to continue scan

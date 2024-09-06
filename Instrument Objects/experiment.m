@@ -10,6 +10,7 @@ classdef experiment
       manualSteps
       useManualSteps = false;%Use steps entered by user rather than evenly spaced
       forcedCollectionPauseTime = .1;%To fully compensate for DAQ and pulse blaster and prevent periodic changes in data collected
+      nPointsTolerance = .01
    end
 
    properties (Hidden)
@@ -141,8 +142,9 @@ classdef experiment
                               newValue = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
                            end
                         else
-                           newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange)-1);
+                           newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
                         end
+                        h.data.paramVal(h.odometer+1) = newValue;
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
@@ -210,9 +212,10 @@ classdef experiment
          %Most operations I wish to perform need strange workarounds
          %like assigning a variable before taking each element or
          %needing a for loop to assign every element in a field
-         if any(cellfun(@isempty,{scanInfo.stepSize}))
-            error('All fields must contain non-empty values for each scan')
-         end
+         %Note on note: I don't remember what I was doing here****
+%          if any(cellfun(@isempty,{scanInfo.stepSize}))
+%             error('All fields must contain non-empty values for each scan')
+%          end
 
          b = [scanInfo.bounds];
          if ~isa(b,'cell'),     b = {b};      end
@@ -516,11 +519,11 @@ classdef experiment
                     expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
                     expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
                     
-                    if nPointsTaken > expectedDataPoints*.9999 && nPointsTaken < expectedDataPoints *1.0001
+                    if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) && nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
                         h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
                         h.forcedCollectionPauseTime = originalPauseTime;
                         break
-                    elseif nPauseIncreases < 4%SHOULD BE A PROPERTY OF EXPERIMENT******
+                    elseif nPauseIncreases < 9%SHOULD BE A PROPERTY OF EXPERIMENT******
                         nPauseIncreases = nPauseIncreases + 1;
                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
@@ -531,7 +534,8 @@ classdef experiment
                         [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
                     else
                         h.forcedCollectionPauseTime = originalPauseTime;
-                        error('Failed %d times to obtain correct number of data points',nPauseIncreases)
+                        stop(h.DAQ.handshake)
+                        error('Failed %d times to obtain correct number of data points',nPauseIncreases+1)
 
                     end
 

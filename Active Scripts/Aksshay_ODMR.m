@@ -1,12 +1,12 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = 10;
-scanBounds = [2 2.1];
-scanStepSize = .001; %Step size for RF frequency
+RFamplitude = -25;
+scanBounds = [2.86 2.9];
+scanStepSize = .0005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 1;
+sequenceTimePerDataPoint = 2;%Before factoring in forced delay and other pauses
+nIterations = 25;
 timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
