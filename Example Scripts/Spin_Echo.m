@@ -17,7 +17,6 @@ params.extraRF =  6;
 params.AOM_DAQCompensation = 400;
 params.IQPreBufferDuration = 10;
 params.IQPostBufferDuration = 30;
-
 nIterations = 1;
 RFAmplitude = 10;
 dataType = 'analog';

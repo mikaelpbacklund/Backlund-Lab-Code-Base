@@ -5,10 +5,10 @@ scanBounds = [10 250];%ns
 scanStepSize = 4;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
 nIterations = 5;
-RFFrequency = 2.26;
+RFFrequency = 2.87;
 sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 timeoutDuration = 10;
-forcedDelayTime = .125;
+forcedDelayTime = .15;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
 aomCompensation = 400;
@@ -18,6 +18,7 @@ RFReduction = 0;
 RFAmplitude = 10;
 dataType = 'analog';
 scanNSteps = [];%Will override step size if set
+nDataPointDeviationTolerance = .001;
 
 %% Loading Instruments
 %See ODMR example script for instrument loading information
@@ -73,11 +74,17 @@ parameters.RFReduction = RFReduction;
 %Gets scan information
 [ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
 
+%Deletes any pre-existing scan
+ex.scan = [];
+
 %Adds scan to experiment based on template output
 ex.addScans(ex,scanInfo);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = forcedDelayTime;
+
+%Changes tolerance from .01 default to user setting
+ex.nPointsTolerance = nDataPointDeviationTolerance;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');

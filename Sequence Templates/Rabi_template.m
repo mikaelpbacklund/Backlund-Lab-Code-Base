@@ -41,7 +41,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
 %% Sequence Creation
@@ -63,7 +63,7 @@ h = condensedAddPulse(h,{'AOM','Data','Signal'},p.collectionDuration,'Signal Dat
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = p.timePerDataPoint/h.sequenceDurations.user.totalSeconds;
+h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);

@@ -80,7 +80,7 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 
 %Changes number of loops to match desired time for each data point
-ex.pulseBlaster.nTotalLoops = sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds;
+ex.pulseBlaster.nTotalLoops = floor(sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
 
 %Sends the currently saved pulse sequence to the pulse blaster instrument itself
 ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
@@ -99,6 +99,9 @@ ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = forcedDelayTime;
+
+%Changes tolerance from .01 default to user setting
+ex.nPointsTolerance = nDataPointDeviationTolerance;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
@@ -127,24 +130,38 @@ for ii = 1:nIterations
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
-      ex = takeNextDataPoint(ex,'pulse sequence');      
+      ex = takeNextDataPoint(ex,'pulse sequence');            
+
+      %Bad usage of this just to get it going. Should be replacing individual data points
+      %Only works for 1D
+      avgFig = figure(1);
+      avgaxes = axes(avgFig); %#ok<LAXES>
+
+      con = zeros(1,ex.scan.nSteps);
+
+      for i = 1:ex.scan.nSteps
+         data = mean(createDataMatrixWithIterations(h,i),2);
+         con(i) = (data(1)-data(2))/data(1);
+      end
+
+      plot(avgaxes,ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2),con)
 
       %Creates plots
-      plotTypes = {'average','new'};%'old' also viable
-      for plotName = plotTypes
-         c = findContrast(ex,[],plotName{1});
-         ex = plotData(ex,c,plotName{1});
-      end
-      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
-      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
-      refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
-%       ex = plotData(ex,refData,'new reference');
-      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
-      nPoints(nPoints == 0) = 1;
-      ex = plotData(ex,nPoints,'n points');
-      ex = plotData(ex,ex.data.failedPoints,'n failed points');
-%       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
-%       ex = plotData(ex,refData,'previous reference');
+%       plotTypes = {'average','new'};%'old' also viable
+%       for plotName = plotTypes
+%          c = findContrast(ex,[],plotName{1});
+%          ex = plotData(ex,c,plotName{1});
+%       end
+%       currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+%       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+%       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'new reference');
+%       nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+%       nPoints(nPoints == 0) = 1;
+%       ex = plotData(ex,nPoints,'n points');
+%       ex = plotData(ex,ex.data.failedPoints,'n failed points');
+% %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'previous reference');
    end
 
    %Between each iteration, check for user input whether to continue scan
