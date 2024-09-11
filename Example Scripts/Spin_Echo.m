@@ -137,6 +137,7 @@ for ii = 1:nIterations
           averageAxes = axes(averageFig); %#ok<*LAXES>           
           iterationFig = figure(2);
           iterationAxes = axes(iterationFig); 
+          %FIX X AXIS FOR p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF)
           xax = ex.scan.bounds{1}(1):ex.scan.stepSize:ex.scan.bounds{1}(2);
           avgPlot = plot(averageAxes,xax,avgData);          
           iterationPlot = plot(iterationAxes,xax,iterationData);

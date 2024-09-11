@@ -6,7 +6,8 @@ function [varargout] = XYn_m_template(h,p)
 
 parameterFieldNames = ["RFResonanceFrequency","piTime","tauStart","tauEnd","tauNSteps","tauStepSize",...
    "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration"];
+   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration",...
+   "setsXYN","nXY"];
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
@@ -17,6 +18,8 @@ if isempty(h)
    parameterStructure.tauEnd = [];
    parameterStructure.tauNSteps = [];
    parameterStructure.tauStepSize = [];
+   parameterStructure.setsXYN = [];
+   parameterStructure.nXY = 8;%default number of XY pulses per set   
    parameterStructure.timePerDataPoint = 1;
    parameterStructure.collectionDuration = 1000;
    parameterStructure.collectionBufferDuration = 1000;
@@ -53,11 +56,13 @@ end
 IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
-exportedTauEnd = p.tauEnd - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauStart = p.tauStart - (sum(IQBuffers)+p.piTime+p.extraRF);
+exportedTauEnd = p.tauEnd - (sum(IQBuffers)+p.piTime+p.extraRF);
+exportedTauByTwoStart = (p.tauStart/2) - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauByTwoEnd = (p.tauEnd/2) - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
 
-%Error check for τ duration
-if min([exportedTauStart,exportedTauEnd]) <= 0
+%Error check for τ/2 duration (τ/2 always shorter than τ)
+if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
    error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extra RF)')
 end
 
@@ -82,33 +87,28 @@ for rs = 1:2 %singal half and reference half
    %π/2 to create superposition
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
 
-   %Add start loop pulse with nLoops of mSets
+   %Scanned (τ/2) between π/2 and π pulses
+   h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
 
-   for n = 1:p.nXY/2
-      h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
-
-      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-
-      h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-
-      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-
-      h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
+   for m = 1:p.setsXYN
+      for n = 1:p.nXY/2
+         if mod(n,4) == 1 || mod(n,4) == 2 %odd set
+            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+         else %even set
+            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+         end
+      end
    end
 
-   for n = 1:p.nXY/4
-      h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
-
-      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-
-      h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-
-      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-
-      h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
-   end
-
-   %Add end loop pulse
+   %modify final tau to tau/2
+   h = modifyPulse(h,numel(h.userSequence),'duration',49);
+   h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2');
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
@@ -118,8 +118,8 @@ for rs = 1:2 %singal half and reference half
       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Signal data collection');
    end
-   
 end
+
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
@@ -137,12 +137,13 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = [p.tauStart p.tauEnd];
+   scanInfo.bounds{ii} = [exportedTauStart exportedTauEnd];
 end
+scanInfo.bounds{1,end} = [exportedTauByTwoStart exportedTauByTwoEnd];
 scanInfo.nSteps = p.tauNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('Rabi (RF: %.3f GHz)',p.RFResonanceFrequency);
+scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(piTime),p.RFResonanceFrequency);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %% Outputs

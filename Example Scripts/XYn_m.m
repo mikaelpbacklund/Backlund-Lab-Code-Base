@@ -1,262 +1,169 @@
-%Lowest τ duration must be greater than double the sum of before and after IQ
-%buffer and (3/4) * pi duration
-%e.g. if IQ buffers are [20 40] and pi duration is 80
-%(20+40+(3/4)*80)*2 = 240 minimum (120 minimum for τ/2)
-%Initial τ/2 pulses have a pi/2 and pi on either side and still have full
-%IQ buffers
+%Example Spin Echo using template
 
-%Behaves best when pi duration is divisible by 4, otherwise the tau/2 pulse
-%has a fractional duration which is rounded to give to the pulse blaster
+%% User Settings
+params.nXY = 8;
+params.setsXYN = 1;
+params.RFResonanceFrequency = 2.0465;
+params.piTime = 95;
+params.tauStart = 3000;
+params.tauEnd = 12000;
+params.tauStepSize = 500;
+%All parameters below this are optional in that they will revert to defaults if not specified
+params.tauNSteps = [];%will override step size
+params.timePerDataPoint = 10;%seconds
+params.collectionDuration = 800;
+params.collectionBufferDuration = 1000;
+params.intermissionBufferDuration = 2500;
+params.repolarizationDuration = 7000;
+params.extraRF =  6;
+params.AOM_DAQCompensation = 400;
+params.IQPreBufferDuration = 10;
+params.IQPostBufferDuration = 30;
+nIterations = 100;
+RFAmplitude = 10;
+dataType = 'analog';
+timeoutDuration = 10;
+forcedDelayTime = .25;
+nDataPointDeviationTolerance = .0002;
 
-%% Begin User Edit
-%Settings
-RFFrequency = 2.87;
-piDuration = 50;
-scanStartDuration = 400;
-scanEndDuration = 600;
-scanNSteps = 0;%Overrides step size. Set to 0 to use step size
-scanStepSize = 10;
-nIterations = 1;
-scanTitle = 'Spin Echo';
-nXY = 8;%n in XYn-r
-rSets = 4;%r in XYn-r
+%% Setup
 
-%System settings
-IQBuffer = [55 11];%Before and after IQ buffer. Cannot be larger than scan start
-dataCollectionDuration = 1000;
-blankBufferDuration = 2500;
-dataCollectionBufferDuration = 1000;
-repolarizationDuration = 7000;
-aomCompensation = -10;
+warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 
-%% Stop User Edits
-%% Load instruments (see ODMR script for explanation)
-if ~exist('instr','var')
-    % instr{1} = RF_generator;
-    % instr{1} = connect(instr{1},'RF_generator_config');
-    % instr{1} = toggle(instr{1},'on');
-    % instr{1} = modulationToggle(instr{1},'on');
-    % instr{1} = setAmplitude(instr{1},10);
-    % instr{1} = setFrequency(instr{1},RFFrequency);
-    % instr{2} = DAQ_controller;
-    % instr{2} = connect(instr{2},'NI_DAQ_config');
-    % instr{2} = setSignalDifferentiation(instr{2},'on');
-    % instr{2} = setDataChannel(instr{2},'counter');
-    instr{3} = pulse_blaster;
-    instr{3} = connect(instr{3},'pulse_blaster_config');
+if ~exist('ex','var'),  ex = experiment; end
+
+if isempty(ex.pulseBlaster)
+   ex.pulseBlaster = pulse_blaster('PB');
+   ex.pulseBlaster = connect(ex.pulseBlaster);
 end
-if ~exist('ex','var')
-   ex = experiment;
+if isempty(ex.SRS_RF)
+   ex.SRS_RF = RF_generator('SRS_RF');
+   ex.SRS_RF = connect(ex.SRS_RF);
 end
-% ex = validExperimentalConfiguration(ex,instr,'pulse sequence');
-
-%% Create pulse sequence
-%instr{3} is the pulse blaster
-
-%% Begin User Edit
-
-instr{3}.nTotalLoops = 2e5;%Number of times entire sequence is repeated
-instr{3}.userSequence = [];%Deletes whatever the current sequence is
-
-clear pulseInfo 
-for ii = 1:2
-pulseInfo.activeChannels = {'RF'};
-pulseInfo.duration = piDuration/2;
-pulseInfo.notes = 'Initial π/2 x';
-instr{3} = finalizePulse(instr{3},pulseInfo,ii);
-
-%Tau/2 here compensates for the end loop being tau/2 to give a whole tau
-%for everything except the first and last
-pulseInfo.activeChannels = {};
-pulseInfo.duration = 49;
-pulseInfo.notes = 'τ/2 beginning of XYn loop (not within it)';
-pulseInfo.contextInfo = rSets;
-pulseInfo.directionType = 'loop';
-instr{3} = finalizePulse(instr{3},pulseInfo,ii);
-clear pulseInfo 
-
-for jj = 1:nXY
-    locationInSequence = mod(jj,8);
-    if locationInSequence == 0
-        locationInSequence = 8;
-    end
-    switch locationInSequence
-        case {1,3,6,8}
-            pulseInfo.activeChannels = {'RF'};
-            pulseInfo.notes = sprintf('π x (%i)',locationInSequence);
-        case {2,4,5,7}
-            pulseInfo.activeChannels = {'RF','I'};
-            pulseInfo.notes = sprintf('π y (%i)',locationInSequence);
-    end
-    pulseInfo.duration = piDuration;
-    instr{3} = finalizePulse(instr{3},pulseInfo,ii);
-
-    if jj == nXY
-        pulseInfo.directionType = 'end loop';
-        pulseInfo.duration = 49;
-        pulseInfo.notes = 'τ/2 end of XYn loop';
-    else
-        pulseInfo.activeChannels = {};
-        pulseInfo.duration = 99;
-        pulseInfo.notes = 'τ';
-    end    
-    pulseInfo.activeChannels = {};
-    instr{3} = finalizePulse(instr{3},pulseInfo,ii);
-    clear pulseInfo
+if isempty(ex.DAQ)
+   ex.DAQ = DAQ_controller('NI_DAQ');
+   ex.DAQ = connect(ex.DAQ);
 end
 
-if ii == 1
-    pulseInfo.notes = 'Closing π/2 x';
-    pulseInfo.activeChannels = {'RF'};
-else
-    pulseInfo.notes = 'Closing π/2 -x';
-    pulseInfo.activeChannels = {'RF','I','Q'};
+%Sends RF settings
+ex.SRS_RF.enabled = 'on';
+ex.SRS_RF.modulationEnabled = 'on';
+ex.SRS_RF.modulationType = 'iq';
+ex.SRS_RF.amplitude = RFAmplitude;
+ex.SRS_RF.frequency = params.RFResonanceFrequency;
+
+%Sends DAQ settings
+ex.DAQ.takeData = false;
+ex.DAQ.differentiateSignal = 'on';
+ex.DAQ.activeDataChannel = dataType;
+
+%Load empty parameter structure from template
+[sentParams,~] = SpinEcho_template([],[]);
+
+%Replaces values in sentParams with values in params if they aren't empty
+for paramName = fieldnames(sentParams)'
+   if ~isempty(params.(paramName{1}))
+      sentParams.(paramName{1}) = params.(paramName{1});
+   end
 end
-pulseInfo.duration = piDuration/2;
-instr{3} = finalizePulse(instr{3},pulseInfo,ii);
 
-if ii == 1
-    pulseInfo.notes = 'Reference data collection';
-else
-    pulseInfo.notes = 'Signal data collection';
-end
-pulseInfo.activeChannels = {'AOM','Data'};
-pulseInfo.duration = dataCollectionDuration;
-instr{3} = finalizePulse(instr{3},pulseInfo,ii);
+%Executes spin echo template, giving back edited pulse blaster object and information for the scan
+[ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
 
-
-end
-
-%% Stop User Edit
-
-%The following addBuffer functions should more or less be done for every
-%script. They add (in order): I/Q buffer for ensuring total coverage of RF
-%signal, a blank buffer between signal and reference to ensure complete
-%separation, a repolarization pulse after data collection, a data
-%collection buffer after the last RF pulse but before the laser is turned
-%on to ensure all RF pulses have gone off before data is collected, and a
-%AOM/DAQ compensation pulse which accounts for the discrepancy between when
-%each instrument turns on when given a pulse by the pulse blaster
-instr{3} = addBuffer(instr{3},findPulses(instr{3},'activeChannels',{'RF'},'contains'),IQBuffer,{'I','Q','Signal'},'I/Q buffer');
-
-instr{3} = addBuffer(instr{3},findPulses(instr{3},'activeChannels',{'Data'},'contains'),...
-        blankBufferDuration,{'Signal'},'Blank buffer','after');
-
-instr{3} = addBuffer(instr{3},findPulses(instr{3},'activeChannels',{'Data'},'contains'),...
-        repolarizationDuration,{'AOM','Signal'},'Repolarization','after');
-
-instr{3} = addBuffer(instr{3},findPulses(instr{3},'activeChannels',{'Data'},'contains'),...
-        dataCollectionBufferDuration,{'Signal'},'Data collection buffer','before');
-
-if aomCompensation > 0
-    channelsOn = {'AOM','Signal'};
-else
-    channelsOn = {'Data','Signal'};    
-end
-instr{3} = addBuffer(instr{3},findPulses(instr{3},'activeChannels',{'Data'},'contains'),...
-    abs(aomCompensation),channelsOn,'AOM/DAQ delay compensation','before');
-
-%Sends the current pulse sequence to the pulse blaster. Largely irrelevant
-%as this happens at every data point in the scan, but for good practice it
-%is here
-instr{3} = sendToInstrument(instr{3});
-
-%% Create scan
-%% Begin specific to this script
-scan = [];
+%Deletes any pre-existing scan
 ex.scan = [];
 
-%Set scan address to any pulses containing τ
-scan.address = findPulses(instr{3},'notes','τ','contains');
+%Adds scan to experiment based on template output
+ex = addScans(ex,scanInfo);
 
-tau2Addresses = findPulses(instr{3},'notes','τ/2','contains');
-tau2Addresses = find(ismember(scan.address,tau2Addresses));
+%Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
+ex.forcedCollectionPauseTime = forcedDelayTime;
 
-%Due to looping, buffer and RF durations are subtracted manually
-tauDuration = [scanStartDuration scanEndDuration];
-tauDuration = tauDuration - piDuration - sum(IQBuffer);
-tau2Duration =  [scanStartDuration scanEndDuration] ./ 2;
-tau2Duration = tau2Duration - (3/4)*piDuration - sum(IQBuffer);
-tau2Duration = round(tau2Duration);
+%Changes tolerance from .01 default to user setting
+ex.nPointsTolerance = nDataPointDeviationTolerance;
 
-%Set the bounds for all pulse addresses' durations to adjusted tau start and end
-for ii = 1:numel(scan.address)
-    scan.bounds{ii} = [tauDuration(1) tauDuration(2)];
+%Checks if the current configuration is valid. This will give an error if not
+ex = validateExperimentalConfiguration(ex,'pulse sequence');
+
+%Sends information to command window
+%First is the number of steps, second is the full time per data point, third is the number of iterations,
+%fourth is a fudge factor for any additional time from various sources (heuristically found)
+timerPerDataPoint = ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5;
+scanStartInfo(ex.scan.nSteps,params.timePerDataPoint,nIterations,.28)
+
+cont = checkContinue(timeoutDuration*2);
+if ~cont
+   return
 end
-
-%Overwrite τ/2 durations 
-for ii = 1:numel(tau2Addresses)
-    scan.bounds{tau2Addresses(ii)} = [tau2Duration(1) tau2Duration(2)];
-end
-
-%% End specific to this script
-
-%Sets number of steps and corresponding step size
-if scanNSteps ~= 0 %Priority to number of steps
-   scan.nSteps = scanNSteps;
-elseif scanStepSize ~= 0
-   scan.stepSize = scanStepSize;
-else
-   error('τ n steps or step size required')
-end
-
-%Give remaining information about the scan
-scan.parameter = 'duration';
-scan.instrument = 'pulse_blaster';
-scan.notes = scanTitle;
-
-ex = addScans(ex,scan);
-
-% ex = validExperimentalConfiguration(ex,instr,'pulse sequence');
-
-fprintf('Number of steps in scan: %d\n',ex.scan.nSteps(1))
 
 %% Run scan, and collect and display data
 
+try
 %Prepares experiment to run from scratch
 %[0,0] is the value that all initial values for the data will take
 %Two values are used because we are storing ref and sig
 ex = resetAllData(ex,[0 0]);
 
+avgData = zeros([ex.scan.nSteps 1]);
+
 for ii = 1:nIterations
-   
+
    %Prepares scan for a fresh start while keeping data from previous
    %iterations
-   [ex,instr] = resetScan(ex,instr);
-   
+   ex = resetScan(ex);
+
+   iterationData = zeros([ex.scan.nSteps 1]);
+
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
-      [ex,instr] = takeNextDataPoint(ex,instr,'pulse sequence');      
+      ex = takeNextDataPoint(ex,'pulse sequence');
 
-      %Plot the average contrast for each data point
-      c = findContrast(ex,'average');
-      ex = make1DPlot(ex,c,'average');      
+      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      avgData(ex.odometer) = currentData;
+      currentData = ex.data.values{ex.odometer,end};
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      iterationData(ex.odometer) = currentData;
+
+      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
+          %Bad usage of this just to get it going. Should be replacing individual data points
+          %Only works for 1D
+          if exist("averageFig",'var') && ishandle(averageFig)
+            close(averageFig)
+          end
+          if exist("iterationFig",'var') && ishandle(iterationFig)
+            close(iterationFig)
+          end
+          averageFig = figure(1);
+          averageAxes = axes(averageFig); %#ok<*LAXES>           
+          iterationFig = figure(2);
+          iterationAxes = axes(iterationFig); 
+          %FIX X AXIS FOR p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF)
+          xax = ex.scan.bounds{2}(1):ex.scan.stepSize(2):ex.scan.bounds{2}(2);
+          avgPlot = plot(averageAxes,xax,avgData);          
+          iterationPlot = plot(iterationAxes,xax,iterationData);
+          title(averageAxes,'Average')
+          title(iterationAxes,'Current')
+      else
+          avgPlot.YData = avgData;
+          iterationPlot.YData = iterationData;
+      end
+
    end
 
    if ii ~= nIterations
-       continueIterations = input('Continue? true or false\n');
-       if ~continueIterations
-           break
-       end
+      cont = checkContinue(timeoutDuration);
+      if ~cont
+         break
+      end
    end
-   
+
 end
-
-%Stops continuous collection from DAQ
-stop(instr{2}.handshake)
-
-function h = finalizePulse(h,pulseInfo,ii)
-%Quick function to save lines when adding pulses
-if ii == 2
-    pulseInfo.activeChannels{end+1} = 'Signal';
+fprintf('Scan complete\n')
+catch ME   
+    stop(ex.DAQ.handshake)
+    rethrow(ME)
 end
-h = addPulse(h,pulseInfo);
-end
-
-
-
-
-
-
+stop(ex.DAQ.handshake)
 
