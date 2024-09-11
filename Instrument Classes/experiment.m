@@ -70,15 +70,15 @@ classdef experiment
          h.odometer = newOdometer;
 
          %Actually takes the data using selected acquisition type
-         [h,dataOut,nPoints] = getData(h,acquisitionType);   
+         [h,dataOut,nPoints] = getData(h,acquisitionType);
+
+         %Increments number of data points taken by 1
+         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
 
          %Takes data and puts it in the current iteration spot for this
          %data point
          h.data.values{h.odometer,h.data.iteration(h.odometer)} = dataOut;
-         h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;
-
-         %Increments number of data points taken by 1
-         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
+         h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;         
       end
 
       function h = setInstrument(h,scanToChange)
@@ -296,21 +296,48 @@ classdef experiment
          else
             dataPoint = h.odometer;
          end
+     
+         if h.data.iteration(dataPoint) == 0
+             dataMatrix = nan;
+             return
+         end
 
          %Gets the data for all iterations of the current point according to the odometer or optional input
-         currentDataPoint = squeeze(h.data.values{dataPoint,:});         
+         currentData = h.data.values(dataPoint,:);
 
-         %Creates structure for complex field assignment using subsasgn
-         %Every dimension will be ":" (all) except for the final one which will be incremented
+         %Deletes all the data points that are empty
+         currentData(isempty(currentData)) = [];
+
+         %Used to find dimensionality
+         comparisonMatrix = squeeze(currentData{1});
+
+         if any(size(comparisonMatrix) == 1) %Only happens for a vector
+
+             %Creates 2 dimensional matrix where first dimension is of size
+             %of data vector while second dimension is of number of
+             %iterations
+             dataMatrix = zeros([numel(comparisonMatrix) numel(currentData)]);
+
+             
+             for i = 1:numel(currentData)
+                 dataMatrix(:,i) = currentData{i};
+             end
+             return
+         end
+
          s.type = '()';
-         s.subs = cell(1,ndims(currentDataPoint{1}));
-         [s.subs{:}] = deal(':');
+         s.subs = cell(1,ndims(comparisonMatrix)+1);
 
-         for i = 1:numel(currentDataPoint)       
-            s.subs{end} = i+1; %Increment final dimension by 1
+         %Creates n+1 dimensional array where n is the number of dimensions
+         %of the data without iterations
+         %All dimensions but the last are the same size as their corresponding
+         %data and the last is the size of the number of iterations
+         dataMatrix = zeros([size(comparisonMatrix) numel(currentData)]);
 
-            %Assign data to the new matrix
-            dataMatrix = subsasgn(currentDataPoint{i},s);            
+         %Converts the "cell" dimension into an additional matrix dimension
+         for i = 1:numel(currentData)%For each cell
+             s.subs{end} = i;
+             dataMatrix = subsasgn(dataMatrix,s,currentData{i});
          end
       end
 
@@ -329,17 +356,17 @@ classdef experiment
          %Resets all stored data within the experiment object
 
          %If the reset value isn't a cell, make it a 1x1 cell
-         if ~isa(resetValue,'cell')
-            a{1} = resetValue;
-            resetValue = a;
-         end
+%          if ~isa(resetValue,'cell')
+%             a{1} = resetValue;
+%             resetValue = a;
+%          end
 
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
          h.data.iteration = squeeze(zeros(1,h.scan.nSteps(1)));
 
          %Makes cell array of equivalent size to above
-         h.data.values = num2cell(h.data.iteration);
+         h.data.values = num2cell(h.data.iteration)';%***** check '
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -489,6 +516,9 @@ classdef experiment
 
                 nPauseIncreases = 0;
                 originalPauseTime = h.forcedCollectionPauseTime;
+                %For slightly changing sequence to get better results
+                bufferPulses = findPulses(h.pulseBlaster,'active channels','data','contains') - 1;
+                bufferDuration = h.pulseBlaster.userSequence(bufferPulses(1)).duration;
 
                 while true
                     %Reset DAQ in preparation for measurement
@@ -521,17 +551,26 @@ classdef experiment
                     
                     if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) && nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
                         h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
-                        h.forcedCollectionPauseTime = originalPauseTime;
+                        if nPauseIncreases ~= 0
+                            h.forcedCollectionPauseTime = originalPauseTime;   
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration);
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration);
+                            h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                        end
                         break
-                    elseif nPauseIncreases < 4%SHOULD BE A PROPERTY OF EXPERIMENT******
+                    elseif nPauseIncreases < 9%SHOULD BE A PROPERTY OF EXPERIMENT******
                         nPauseIncreases = nPauseIncreases + 1;
                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
                         h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
+                        %Usually hits aom/daq compensation but thats fine                        
+                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases));
+                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration + (2*nPauseIncreases));
+                        h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                         pause(.1)%For next data point to come in before discarding the read
                         %Discards any data that might have "carried
                         %over" from the previous data point
-                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+%                         [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
                     else
                         h.forcedCollectionPauseTime = originalPauseTime;
                         stop(h.DAQ.handshake)

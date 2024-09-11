@@ -15,7 +15,7 @@ if isempty(h)
    parameterStructure.tauNSteps = [];
    parameterStructure.tauStepSize = [];
    parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 1000;
+   parameterStructure.collectionDuration = 800;%Matches sample rate
    parameterStructure.collectionBufferDuration = 1000;
    parameterStructure.repolarizationDuration = 7000;
    parameterStructure.intermissionBufferDuration = 2500;

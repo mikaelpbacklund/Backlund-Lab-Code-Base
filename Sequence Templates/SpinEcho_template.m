@@ -95,7 +95,7 @@ for rs = 1:2 %singal half and reference half
       h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
    else
-      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
+      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 -x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Signal data collection');
    end
 
@@ -105,7 +105,7 @@ end
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = p.timePerDataPoint/h.sequenceDurations.user.totalSeconds;
+h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);

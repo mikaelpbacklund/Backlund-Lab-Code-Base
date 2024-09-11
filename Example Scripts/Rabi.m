@@ -1,14 +1,18 @@
 %Runs a simple Rabi sequence with no τ compensation or stage optimization
 
+%Highly recommended to use a "time per data point" of at least 3 seconds
+%Lower than this is sensitive to jitters in number of points collected,
+%resulting in failed and/or erroneous points
+
 %% User Inputs
-scanBounds = [10 250];%ns
-scanStepSize = 4;
+scanBounds = [10 500];%ns
+scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 5;
-RFFrequency = 2.87;
+nIterations = 20;
+RFFrequency = 2.0465;
 sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-timeoutDuration = 10;
-forcedDelayTime = .15;
+timeoutDuration = 20;
+forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
 aomCompensation = 400;
@@ -18,7 +22,9 @@ RFReduction = 0;
 RFAmplitude = 10;
 dataType = 'analog';
 scanNSteps = [];%Will override step size if set
-nDataPointDeviationTolerance = .001;
+nDataPointDeviationTolerance = .0001;
+collectionDuration = (1/1.25)*1000;
+collectionBufferDuration = 1000;
 
 %% Loading Instruments
 %See ODMR example script for instrument loading information
@@ -62,6 +68,8 @@ parameters.tauStart = scanBounds(1);
 parameters.tauEnd = scanBounds(2);
 parameters.timePerDataPoint = sequenceTimePerDataPoint;
 parameters.AOM_DAQCompensation = aomCompensation;
+parameters.collectionBufferDuration = collectionBufferDuration;
+parameters.collectionDuration = collectionDuration;
 if ~isempty(scanNSteps) %Use number of steps if set otherwise use step size
    parameters.tauNSteps = scanNSteps;
 else
@@ -78,7 +86,7 @@ parameters.RFReduction = RFReduction;
 ex.scan = [];
 
 %Adds scan to experiment based on template output
-ex.addScans(ex,scanInfo);
+ex = addScans(ex,scanInfo);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = forcedDelayTime;
@@ -99,40 +107,76 @@ end
 
 %% Run scan, and collect and display data
 
+try
+
 %Prepares experiment to run from scratch
 %[0,0] is the value that all initial values for the data will take
 %Two values are used because we are storing ref and sig
 ex = resetAllData(ex,[0 0]);
 
+avgData = zeros([ex.scan.nSteps 1]);
+
 for ii = 1:nIterations
 
    %Prepares scan for a fresh start while keeping data from previous
    %iterations
-   [ex,instr] = resetScan(ex,instr);
+   ex = resetScan(ex);
+
+   iterationData = zeros([ex.scan.nSteps 1]);
 
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
-      [ex,instr] = takeNextDataPoint(ex,instr,'pulse sequence');
+      ex = takeNextDataPoint(ex,'pulse sequence');
 
-      %Plot the average and new contrast for each data point
-      plotTypes = {'average','new'};%'old' also viable
-      for plotName = plotTypes
-         c = findContrast(ex,[],plotName{1});
-         ex = plotData(ex,c,plotName{1});
+      %The problem is that the odometer is 1 but the data point is 2?
+
+      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      avgData(ex.odometer) = currentData;
+      currentData = ex.data.values{ex.odometer,end};
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      iterationData(ex.odometer) = currentData;
+
+      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
+          %Bad usage of this just to get it going. Should be replacing individual data points
+          %Only works for 1D
+          if exist("averageFig",'var') && ishandle(averageFig)
+            close(averageFig)
+          end
+          if exist("iterationFig",'var') && ishandle(iterationFig)
+            close(iterationFig)
+          end
+%           if exist("nPointsFig",'var') && ishandle(nPointsFig)
+%             close(nPointsFig)
+%           end
+          averageFig = figure(1);
+          averageAxes = axes(averageFig); %#ok<*LAXES> 
+          iterationFig = figure(2);
+          iterationAxes = axes(iterationFig); 
+%           nPointsFig = figure(3);
+%           nPointsAxes = axes(nPointsFig); 
+          xax = ex.scan.bounds{1}(1):ex.scan.stepSize:ex.scan.bounds{1}(2);
+          avgPlot = plot(averageAxes,xax,avgData);
+          iterationPlot = plot(iterationAxes,xax,iterationData);
+%           nPointsPlot = plot(nPointsAxes,xax,ex.data.nPoints);
+      else
+          avgPlot.YData = avgData;
+          iterationPlot.YData = iterationData;
+%           nPointsPlot.YData = ex.data.nPoints(:,ii);
       end
    end
 
    if ii ~= nIterations
-      cont = checkContinue(timeoutDuration);
-      if ~cont
-         break
-      end
+       cont = checkContinue(timeoutDuration);
+       if ~cont
+           break
+       end
    end
-
 end
-
-%Stops continuous collection from DAQ
-stop(instr{2}.handshake)
-
 fprintf('Scan complete\n')
+catch ME   
+    stop(ex.DAQ.handshake)
+    rethrow(ME)
+end
+stop(ex.DAQ.handshake)

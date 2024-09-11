@@ -146,6 +146,9 @@ classdef DAQ_controller < instrumentType
             %channel, and differentiating signal and reference as well as
             %whether data should be taken at all
             collectionInfo = handshake.UserData;%Shorthand
+            %Reduce number of scans available by 1 to recover from indexing
+            %errors caused by NI code. I cannot fix this at the source so
+            %it is necessary to fix the symptoms instead
             scansAvailable = handshake.NumScansAvailable - 1;
             if scansAvailable > handshake.ScansAvailableFcnCount * 100
                 [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
@@ -187,9 +190,9 @@ classdef DAQ_controller < instrumentType
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
             else%Voltage
-               dataOn = unsortedData(:,collectionInfo.toggleChannel);
-               assignin('base','unsortedData',unsortedData)
+               dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)
+                   assignin('base','unsortedData',unsortedData)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
                        ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
@@ -214,7 +217,7 @@ classdef DAQ_controller < instrumentType
             if ref ~= 0 %only relevant if data was obtained
             %Increase number of data points taken. Used primarily for
             %analog to find average voltage
-            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn)/2;
+            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
             end
 
          end

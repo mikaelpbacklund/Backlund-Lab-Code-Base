@@ -2,13 +2,14 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.86 2.9];
-scanStepSize = .0005; %Step size for RF frequency
+scanBounds = [2 2.2];
+scanStepSize = .0025; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 2;
+nIterations = 1;
 timeoutDuration = 10;
 forcedDelayTime = .125;
+nDataPointDeviationTolerance = .0001;
 
 %% Backend
 
@@ -118,33 +119,56 @@ expectedDataPoints = ex.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
 expectedDataPoints = (expectedDataPoints/1e9) * ex.DAQ.sampleRate;
 
 %% Running Scan
-
+try
 %Resets current data. [0,0] is for reference and contrast counts
 ex = resetAllData(ex,[0,0]);
+
+avgData = zeros([ex.scan.nSteps 1]);
 
 for ii = 1:nIterations
    
    %Reset current scan each iteration
    ex = resetScan(ex);
+
+   iterationData = zeros([ex.scan.nSteps 1]);
    
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
-      ex = takeNextDataPoint(ex,'pulse sequence');            
-
-      %Bad usage of this just to get it going. Should be replacing individual data points
-      %Only works for 1D
-      avgFig = figure(1);
-      avgaxes = axes(avgFig); %#ok<LAXES>
+      ex = takeNextDataPoint(ex,'pulse sequence');          
 
       con = zeros(1,ex.scan.nSteps);
 
-      for i = 1:ex.scan.nSteps
-         data = mean(createDataMatrixWithIterations(h,i),2);
-         con(i) = (data(1)-data(2))/data(1);
-      end
+      %The problem is that the odometer is 1 but the data point is 2?
 
-      plot(avgaxes,ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2),con)
+      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      avgData(ex.odometer) = currentData;
+      currentData = ex.data.values{ex.odometer,end};
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      iterationData(ex.odometer) = currentData;
+
+      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
+          %Bad usage of this just to get it going. Should be replacing individual data points
+          %Only works for 1D
+          if exist("averageFig",'var') && ishandle(averageFig)
+            close(averageFig)
+          end
+          if exist("iterationFig",'var') && ishandle(iterationFig)
+            close(iterationFig)
+          end
+          averageFig = figure(1);
+          averageAxes = axes(averageFig); %#ok<LAXES>
+          iterationFig = figure(2);
+          iterationAxes = axes(iterationFig); %#ok<LAXES>
+          xax = ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2);
+          avgPlot = plot(averageAxes,xax,avgData);
+          iterationPlot = plot(iterationAxes,xax,iterationData);
+      else
+          avgPlot.YData = avgData;
+          iterationPlot.YData = iterationData;
+      end
+      
 
       %Creates plots
 %       plotTypes = {'average','new'};%'old' also viable
@@ -173,6 +197,11 @@ for ii = 1:nIterations
        end
    end
 end
-stop(ex.DAQ.handshake)
 fprintf('Scan complete\n')
+catch ME   
+    stop(ex.DAQ.handshake)
+    rethrow(ME)
+end
+stop(ex.DAQ.handshake)
+
 

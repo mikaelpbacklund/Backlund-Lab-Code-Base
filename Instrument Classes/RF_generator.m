@@ -220,7 +220,7 @@ classdef RF_generator < instrumentType
          %Can theoretically resend modulation type already present by using "improper" name
          %i.e. 'i/q' when it is currently set to 'iq'. This is so minor I am not fixing it
          if strcmpi(h.modulationType,val)
-            printOut(h,sprintf('Modulation type already %s',modType))
+            printOut(h,sprintf('Modulation type already %s',h.modulationType))
             return
          end
 

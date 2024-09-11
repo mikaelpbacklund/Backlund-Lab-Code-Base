@@ -575,7 +575,7 @@ classdef pulse_blaster < instrumentType
                %If the duration equals the signifier, output that pulse
                %number
                pulseNumbers = find(cellfun(@(x)x==pulseSignifier,{h.userSequence.duration}));
-            case {'activechannels','channels','active','names','name'}
+             case {'activechannels','channels','active','names','name','active channels'}
                %Checks user notes to see if signifier corresponds to them
                if nargin ~= 4
                   error('findPulses must have a 4th argument that is "contains" or "matches" if activeChannels category is used')
