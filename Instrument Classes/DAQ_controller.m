@@ -139,7 +139,7 @@ classdef DAQ_controller < instrumentType
          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
          
          function handshake = storeData(handshake,evt) %#ok<INUSD> 
-
+             % warnError = warning('error', 'MATLAB:DELETE:Permission');%Turns warning into error such that it can be caught
              try
             %User data is 2 cell array. First cell is a 1x2 matrix for
             %signal and reference. The second cell is a structure that
@@ -228,6 +228,8 @@ classdef DAQ_controller < instrumentType
                  end
                  rethrow(ME)
              end
+
+             % warning(warnError);%Returns warning to not being error
 
          end
 

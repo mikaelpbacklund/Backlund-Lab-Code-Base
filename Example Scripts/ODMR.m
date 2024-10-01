@@ -124,7 +124,7 @@ expectedDataPoints = (expectedDataPoints/1e9) * ex.DAQ.sampleRate;
 
 %% Running Scan
 try
-%Resets current data. [0,0] is for reference and contrast counts
+%Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
 
 avgData = zeros([ex.scan.nSteps 1]);

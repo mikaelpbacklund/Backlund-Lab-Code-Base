@@ -27,7 +27,7 @@ dataDuration = h.userSequence(dataLocations(1)).duration;
 %Negative number indicates DAQ pulse must be sent first
 if AOM_DAQCompensation > 0
     %       Adds pulse with AOM on to account for lag between AOM and DAQ
-    h = addBuffer(h,findPulses(h,'activeChannels',{'Data'},'contains'),AOM_DAQCompensation,{'AOM','Signal'},'DAQ delay compensation','before');
+    h = addBuffer(h,findPulses(h,'activeChannels',{'Data'},'contains'),AOM_DAQCompensation,{'AOM','Signal'},'AOM/DAQ delay compensation','before');
 
     %       Shortens the repolarization time in accordance with the added time above
     repolarization = repolarization - AOM_DAQCompensation;

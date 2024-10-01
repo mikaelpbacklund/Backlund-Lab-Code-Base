@@ -1003,6 +1003,7 @@ classdef experiment
          outlierArray = isoutlier(dataset,"mean","ThresholdFactor",outlierThreshold,ndims(dataset));
          
       end
+   
    end
 
    methods
