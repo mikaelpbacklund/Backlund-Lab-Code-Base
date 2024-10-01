@@ -56,10 +56,12 @@ end
 IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.tauStart - (sum(IQBuffers)+p.piTime+p.extraRF);
-exportedTauEnd = p.tauEnd - (sum(IQBuffers)+p.piTime+p.extraRF);
-exportedTauByTwoStart = (p.tauStart/2) - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
-exportedTauByTwoEnd = (p.tauEnd/2) - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
+scanInfo.reducedTauTime = sum(IQBuffers)+p.piTime+p.extraRF;
+scanInfo.reducedTauByTwoTime = sum(IQBuffers)+(3/4)*p.piTime+p.extraRF;
+exportedTauStart = p.tauStart - scanInfo.reducedTauTime;
+exportedTauEnd = p.tauEnd - scanInfo.reducedTauTime;
+exportedTauByTwoStart = (p.tauStart/2) - scanInfo.reducedTauByTwoTime;
+exportedTauByTwoEnd = (p.tauEnd/2) - scanInfo.reducedTauByTwoTime;
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
@@ -73,7 +75,7 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = p.piTime/2 + p.extraRF;
+halfTotalPiTime = round(p.piTime/2 + p.extraRF);
 totalPiTime = p.piTime + p.extraRF;
 
 for rs = 1:2 %singal half and reference half
@@ -107,8 +109,8 @@ for rs = 1:2 %singal half and reference half
    end
 
    %modify final tau to tau/2
-   h = modifyPulse(h,numel(h.userSequence),'duration',49);
-   h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2');
+   h = modifyPulse(h,numel(h.userSequence),'duration',49,false);
+   h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2',false);
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
@@ -125,7 +127,11 @@ end
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = p.timePerDataPoint/h.sequenceDurations.user.totalSeconds;
+nTau = ((p.setsXYN*p.nXY)+1);
+scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
+scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
+h.nTotalLoops = round(p.timePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
+scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
@@ -143,7 +149,7 @@ scanInfo.bounds{1,end} = [exportedTauByTwoStart exportedTauByTwoEnd];
 scanInfo.nSteps = p.tauNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(piTime),p.RFResonanceFrequency);
+scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %% Outputs

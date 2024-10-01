@@ -134,25 +134,30 @@ classdef pulse_blaster < instrumentType
          %Adds to sequence structure. If an additional argument is given,
          %use that argument to determine where in the sequence the pulse
          %will be inserted
-         if nargin > 2
+         if nargin > 2 && ~isempty(varargin{1})
             h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo,varargin{1});
          else
             h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo);
          end
 
-         if h.sendUponAddition
-            %Sends the new pulse sequence to the pulse blaster if enabled
-            h = sendToInstrument(h);
-         else
-            %After changing the sequence, perform adjustment to get up to
-            %date adjusted sequence (doesn't change user sequence)
-            %Unneeded if being sent as sendToInstrument does this already
-            h = adjustSequence(h);
+         %If 4th argument is true, adjust sequence
+         if nargin < 4 || ~varargin{2}
+             return
          end
+
+%          if h.sendUponAddition
+%             %Sends the new pulse sequence to the pulse blaster if enabled
+%             h = sendToInstrument(h);
+%          else
+%             %After changing the sequence, perform adjustment to get up to
+%             %date adjusted sequence (doesn't change user sequence)
+%             %Unneeded if being sent as sendToInstrument does this already
+%             h = adjustSequence(h);
+%          end
 
       end
 
-      function [h] = condensedAddPulse(h,activeChannels,duration,notes)
+      function [h] = condensedAddPulse(h,activeChannels,duration,notes,varargin)
          %Single line version of add pulse for "normal" pulses
          pulseInfo.activeChannels = activeChannels;
          pulseInfo.duration = duration;
@@ -238,6 +243,8 @@ classdef pulse_blaster < instrumentType
                current.contextInfo = loopTracker(end);
                loopTracker(end) = [];
             end
+            assignin("base","current",current)
+            assignin("base","opCode",opCode)
             %Sends the current instruction to the pulse blaster
             [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
                opCode-1,current.contextInfo,round(current.duration));
@@ -246,12 +253,13 @@ classdef pulse_blaster < instrumentType
          [~] = calllib(h.commands.name,'pb_stop_programming');
       end
 
-      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue)
+      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue,adjustSequenceBoolean)
          arguments
             h
             addressNumber {mustBeNumeric}
             fieldToModify {mustBeA(fieldToModify,["string","char"])}
             modifiedValue
+            adjustSequenceBoolean
          end
 
          if any(addressNumber > numel(h.userSequence))
@@ -305,7 +313,9 @@ classdef pulse_blaster < instrumentType
                end
 
          end
-         h = calculateDuration(h,'user');
+         if adjustSequenceBoolean
+            h = calculateDuration(h,'user');
+         end
 
       end
 
@@ -731,6 +741,7 @@ classdef pulse_blaster < instrumentType
                end
             end
          end
+         h = adjustSequence(h);
       end
 
       function [h,scanInfo] = loadTemplate(h,templateName,params)

@@ -1,31 +1,33 @@
-%Example Spin Echo using template
+%Runs a simple Rabi sequence with no τ compensation or stage optimization
 
-%% User Settings
-params.RFResonanceFrequency = 2.0465;
-params.piTime = 95;
-params.tauStart = 400;
-params.tauEnd = 5000;
-params.tauStepSize = 300;
-%All parameters below this are optional in that they will revert to defaults if not specified
-params.tauNSteps = [];%will override step size
-params.timePerDataPoint = 8;%seconds
-params.collectionDuration = 800;
-params.collectionBufferDuration = 1000;
-params.intermissionBufferDuration = 2500;
-params.repolarizationDuration = 7000;
-params.extraRF =  6;
-params.AOM_DAQCompensation = 400;
-params.IQPreBufferDuration = 30;
-params.IQPostBufferDuration = 10;
-nIterations = 10;
+%Highly recommended to use a "time per data point" of at least 3 seconds
+%Lower than this is sensitive to jitters in number of points collected,
+%resulting in failed and/or erroneous points
+
+%% User Inputs
+scanBounds = [20 500];%ns
+scanStepSize = 20;
+scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
+nIterations = 2;
+RFFrequency = 2.0595;
+sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
+timeoutDuration = 5;
+forcedDelayTime = .2;
+%Offset for AOM pulses relative to the DAQ in particular
+%Positive for AOM pulse needs to be on first, negative for DAQ on first
+aomCompensation = 400;
+RFReduction = 6;
+
+%Lesser used settings
 RFAmplitude = 10;
 dataType = 'analog';
-timeoutDuration = 10;
-forcedDelayTime = .25;
+scanNSteps = [];%Will override step size if set
 nDataPointDeviationTolerance = .00015;
+collectionDuration = (1/1.25)*1000;
+collectionBufferDuration = 1000;
 
-%% Setup
-
+%% Loading Instruments
+%See ODMR example script for instrument loading information
 warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 
 if ~exist('ex','var'),  ex = experiment; end
@@ -45,28 +47,40 @@ end
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'on';
-ex.SRS_RF.modulationType = 'iq';
+ex.SRS_RF.modulationEnabled = 'off';
 ex.SRS_RF.amplitude = RFAmplitude;
-ex.SRS_RF.frequency = params.RFResonanceFrequency;
+ex.SRS_RF.frequency = RFFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
 ex.DAQ.activeDataChannel = dataType;
 
+%% Use template to create sequence and scan
+
 %Load empty parameter structure from template
-[sentParams,~] = SpinEcho_template([],[]);
+[parameters,~] = Rabi_template([],[]);
 
-%Replaces values in sentParams with values in params if they aren't empty
-for paramName = fieldnames(sentParams)'
-   if ~isempty(params.(paramName{1}))
-      sentParams.(paramName{1}) = params.(paramName{1});
-   end
+%Set parameters
+%Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
+parameters.RFResonanceFrequency = RFFrequency;
+parameters.tauStart = scanBounds(1);
+parameters.tauEnd = scanBounds(2);
+parameters.timePerDataPoint = sequenceTimePerDataPoint;
+parameters.AOM_DAQCompensation = aomCompensation;
+parameters.collectionBufferDuration = collectionBufferDuration;
+parameters.collectionDuration = collectionDuration;
+if ~isempty(scanNSteps) %Use number of steps if set otherwise use step size
+   parameters.tauNSteps = scanNSteps;
+else
+   parameters.tauStepSize = scanStepSize;
 end
+parameters.RFReduction = RFReduction;
 
-%Executes spin echo template, giving back edited pulse blaster object and information for the scan
-[ex.pulseBlaster,scanInfo] = SpinEcho_template(ex.pulseBlaster,sentParams);
+%Sends parameters to template
+%Creates and sends pulse sequence to pulse blaster
+%Gets scan information
+[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
 
 %Deletes any pre-existing scan
 ex.scan = [];
@@ -86,12 +100,9 @@ ex.maxFailedCollections = 10;
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
-%First is the number of steps, second is the full time per data point, third is the number of iterations,
-%fourth is a fudge factor for any additional time from various sources (heuristically found)
-trueTimePerDataPoint = ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5;
-scanStartInfo(ex.scan.nSteps,trueTimePerDataPoint,nIterations,.28)
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
 
-cont = checkContinue(timeoutDuration*2);
+cont = checkContinue(timeoutDuration*4);
 if ~cont
    return
 end
@@ -99,6 +110,7 @@ end
 %% Run scan, and collect and display data
 
 try
+
 %Prepares experiment to run from scratch
 %[0,0] is the value that all initial values for the data will take
 %Two values are used because we are storing ref and sig
@@ -119,6 +131,8 @@ for ii = 1:nIterations
 
       ex = takeNextDataPoint(ex,'pulse sequence');
 
+      %The problem is that the odometer is 1 but the data point is 2?
+
       currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
       currentData = (currentData(1)-currentData(2))/currentData(1);
       avgData(ex.odometer) = currentData;
@@ -135,30 +149,32 @@ for ii = 1:nIterations
           if exist("iterationFig",'var') && ishandle(iterationFig)
             close(iterationFig)
           end
+%           if exist("nPointsFig",'var') && ishandle(nPointsFig)
+%             close(nPointsFig)
+%           end
           averageFig = figure(1);
-          averageAxes = axes(averageFig); %#ok<*LAXES>           
+          averageAxes = axes(averageFig); %#ok<*LAXES> 
           iterationFig = figure(2);
           iterationAxes = axes(iterationFig); 
-          %FIX X AXIS FOR p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF)
+%           nPointsFig = figure(3);
+%           nPointsAxes = axes(nPointsFig); 
           xax = ex.scan.bounds{1}(1):ex.scan.stepSize:ex.scan.bounds{1}(2);
-          avgPlot = plot(averageAxes,xax,avgData);          
+          avgPlot = plot(averageAxes,xax,avgData);
           iterationPlot = plot(iterationAxes,xax,iterationData);
-          title(averageAxes,'Average')
-          title(iterationAxes,'Current')
+%           nPointsPlot = plot(nPointsAxes,xax,ex.data.nPoints);
       else
           avgPlot.YData = avgData;
           iterationPlot.YData = iterationData;
+%           nPointsPlot.YData = ex.data.nPoints(:,ii);
       end
-
    end
 
    if ii ~= nIterations
-      cont = checkContinue(timeoutDuration);
-      if ~cont
-         break
-      end
+       cont = checkContinue(timeoutDuration);
+       if ~cont
+           break
+       end
    end
-
 end
 fprintf('Scan complete\n')
 catch ME   
@@ -166,4 +182,3 @@ catch ME
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)
-

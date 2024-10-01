@@ -2,8 +2,8 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2 2.2];
-scanStepSize = .0025; %Step size for RF frequency
+scanBounds = [2.7 3];
+scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 1;
@@ -80,6 +80,8 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},
 
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 
+ex.pulseBlaster = calculateDuration(ex.pulseBlaster,'user');
+
 %Changes number of loops to match desired time for each data point
 ex.pulseBlaster.nTotalLoops = floor(sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
 
@@ -100,6 +102,8 @@ ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = forcedDelayTime;
+
+ex.maxFailedCollections = 10;
 
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = nDataPointDeviationTolerance;

@@ -32,7 +32,7 @@ if AOM_DAQCompensation > 0
     %       Shortens the repolarization time in accordance with the added time above
     repolarization = repolarization - AOM_DAQCompensation;
     repolarizationAddresses = findPulses(h,'notes','Repolarization','contains');
-    h = modifyPulse(h,repolarizationAddresses,'duration',repolarization);
+    h = modifyPulse(h,repolarizationAddresses,'duration',repolarization,false);
 else
     Adds pulse with DAQ on to account for lag between DAQ and AOM
     h = addBuffer(h,findPulses(h,'activeChannels',{'Data'},'contains'),abs(AOM_DAQCompensation),{'Signal'},'AOM/DAQ delay compensation','before');
@@ -40,6 +40,6 @@ else
     %Shortens the data collection time in accordance with the added time above
     newDataDuration = dataDuration - abs(AOM_DAQCompensation);
     dataAddresses = findPulses(h,'notes','data collection','contains');
-    h = modifyPulse(h,dataAddresses,'duration',newDataDuration);
+    h = modifyPulse(h,dataAddresses,'duration',newDataDuration,false);
 end
 end

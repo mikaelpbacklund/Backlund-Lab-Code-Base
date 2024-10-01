@@ -5,24 +5,24 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-scanBounds = [10 500];%ns
+scanBounds = [10 400];%ns
 scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 20;
-RFFrequency = 2.0465;
+nIterations = 10;
+RFFrequency = 2.87;
 sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-timeoutDuration = 20;
+timeoutDuration = 10;
 forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
 aomCompensation = 400;
-RFReduction = 0;
+RFReduction = 6;
 
 %Lesser used settings
 RFAmplitude = 10;
 dataType = 'analog';
 scanNSteps = [];%Will override step size if set
-nDataPointDeviationTolerance = .0001;
+nDataPointDeviationTolerance = .00015;
 collectionDuration = (1/1.25)*1000;
 collectionBufferDuration = 1000;
 
@@ -93,6 +93,8 @@ ex.forcedCollectionPauseTime = forcedDelayTime;
 
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = nDataPointDeviationTolerance;
+
+ex.maxFailedCollections = 10;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');

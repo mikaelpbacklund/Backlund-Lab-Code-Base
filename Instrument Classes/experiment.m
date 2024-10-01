@@ -10,7 +10,8 @@ classdef experiment
       manualSteps
       useManualSteps = false;%Use steps entered by user rather than evenly spaced
       forcedCollectionPauseTime = .1;%To fully compensate for DAQ and pulse blaster and prevent periodic changes in data collected
-      nPointsTolerance = .01
+      nPointsTolerance = .01;
+      maxFailedCollections = 9;
    end
 
    properties (Hidden)
@@ -140,7 +141,7 @@ classdef experiment
                         else
                            newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
                         end
-                        relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue);
+                        relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue,false);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
                end
@@ -553,24 +554,24 @@ classdef experiment
                         h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
                         if nPauseIncreases ~= 0
                             h.forcedCollectionPauseTime = originalPauseTime;   
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration);
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration);
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration,false);
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration,false);
                             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                         end
                         break
-                    elseif nPauseIncreases < 9%SHOULD BE A PROPERTY OF EXPERIMENT******
+                    elseif nPauseIncreases < h.maxFailedCollections%SHOULD BE A PROPERTY OF EXPERIMENT******
                         nPauseIncreases = nPauseIncreases + 1;
-                        warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-                            (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
+%                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+%                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
                         h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
                         %Usually hits aom/daq compensation but thats fine                        
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases));
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration + (2*nPauseIncreases));
+                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases),false);
+                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration + (2*nPauseIncreases),false);
                         h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                         pause(.1)%For next data point to come in before discarding the read
                         %Discards any data that might have "carried
                         %over" from the previous data point
-%                         [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
                     else
                         h.forcedCollectionPauseTime = originalPauseTime;
                         stop(h.DAQ.handshake)

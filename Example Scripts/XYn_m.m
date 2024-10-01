@@ -2,12 +2,12 @@
 
 %% User Settings
 params.nXY = 8;
-params.setsXYN = 1;
+params.setsXYN = 6;
 params.RFResonanceFrequency = 2.0465;
 params.piTime = 95;
-params.tauStart = 3000;
-params.tauEnd = 12000;
-params.tauStepSize = 500;
+params.tauStart = 300;
+params.tauEnd = 760;
+params.tauStepSize = 20;
 %All parameters below this are optional in that they will revert to defaults if not specified
 params.tauNSteps = [];%will override step size
 params.timePerDataPoint = 10;%seconds
@@ -17,7 +17,7 @@ params.intermissionBufferDuration = 2500;
 params.repolarizationDuration = 7000;
 params.extraRF =  6;
 params.AOM_DAQCompensation = 400;
-params.IQPreBufferDuration = 10;
+params.IQPreBufferDuration = 30;
 params.IQPostBufferDuration = 30;
 nIterations = 100;
 RFAmplitude = 10;
@@ -58,7 +58,7 @@ ex.DAQ.differentiateSignal = 'on';
 ex.DAQ.activeDataChannel = dataType;
 
 %Load empty parameter structure from template
-[sentParams,~] = SpinEcho_template([],[]);
+[sentParams,~] = XYn_m_template([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
@@ -82,14 +82,16 @@ ex.forcedCollectionPauseTime = forcedDelayTime;
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = nDataPointDeviationTolerance;
 
+ex.maxFailedCollections = 10;
+
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
 %First is the number of steps, second is the full time per data point, third is the number of iterations,
 %fourth is a fudge factor for any additional time from various sources (heuristically found)
-timerPerDataPoint = ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5;
-scanStartInfo(ex.scan.nSteps,params.timePerDataPoint,nIterations,.28)
+trueTimePerDataPoint = (scanInfo.meanSequenceDuration*1e-9) + ex.forcedCollectionPauseTime*1.5;
+scanStartInfo(ex.scan.nSteps,trueTimePerDataPoint,nIterations,.28)
 
 cont = checkContinue(timeoutDuration*2);
 if ~cont
@@ -139,8 +141,7 @@ for ii = 1:nIterations
           averageAxes = axes(averageFig); %#ok<*LAXES>           
           iterationFig = figure(2);
           iterationAxes = axes(iterationFig); 
-          %FIX X AXIS FOR p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF)
-          xax = ex.scan.bounds{2}(1):ex.scan.stepSize(2):ex.scan.bounds{2}(2);
+          xax = ex.scan.bounds{2}(1)+scanInfo.reducedTauTime:ex.scan.stepSize(2):ex.scan.bounds{2}(2)+scanInfo.reducedTauTime;
           avgPlot = plot(averageAxes,xax,avgData);          
           iterationPlot = plot(iterationAxes,xax,iterationData);
           title(averageAxes,'Average')

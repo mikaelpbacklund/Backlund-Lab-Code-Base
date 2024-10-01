@@ -122,7 +122,7 @@ end
 scanInfo.nSteps = p.tauNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('Spin Echo (π: %d ns, RF: %.3f GHz)',round(piTime),p.RFResonanceFrequency);
+scanInfo.notes = sprintf('Spin Echo (π: %d ns, RF: %.3f GHz)',round(p.piTime),p.RFResonanceFrequency);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %% Outputs
