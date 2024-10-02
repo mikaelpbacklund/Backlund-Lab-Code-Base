@@ -12,6 +12,7 @@ coarseEstimationNSteps = 9;%odd number
 fineEstimationStepSize = 10;
 fineEstimationNSteps = 9;%odd number
 fineEstimationNIterations = 5;
+initialThreshold = .9;
 
 collectionChannel = 'analog';
 collectionDuration = 1000;
@@ -101,6 +102,7 @@ ex.nPointsTolerance = nDataPointDeviationTolerance;
 %Max contrast value is given as result
 
 try
+
    %Changes scan
    ex.scan = [];
    scanInfo.parameter = 'duration';
@@ -128,7 +130,8 @@ try
       %Reset current scan each iteration
       ex = resetScan(ex);
 
-      iterationData = zeros([ex.scan.nSteps 1]);
+      meanReference = zeros([ex.scan.nSteps 1]);
+      meanContrast = meanReference;
 
       while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
@@ -136,16 +139,43 @@ try
          ex = takeNextDataPoint(ex,'pulse sequence');
 
          %Transforms data to contrast for current iteration and average 
-         currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
-         currentData = (currentData(1)-currentData(2))/currentData(1);
-         avgData(ex.odometer) = currentData;
-         currentData = ex.data.values{ex.odometer,end};
-         currentData = (currentData(1)-currentData(2))/currentData(1);
-         iterationData(ex.odometer) = currentData;
-
-         
-
+         meanData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+         meanReference(ex.odometer) = meanData(1);
+         meanContrast(ex.odometer) = (meanData(1)-meanData(2))/meanData(1);
       end
+
+      optimalContrast = meanContrast(end);
+      optimalReference = meanReference(1);
+      loopcounter = 0;
+      upperbound = 0;
+      lowerbound = 0;
+
+      while upperbound ~= lowerbound + 1 %Why check for this? Means 2 data points within threshold back to back
+
+         if loopcounter == 0 %First loop
+            thresholdValue = initialThreshold;
+
+         elseif upperbound < lowerbound
+            thresholdValue = thresholdValue - 0.01;
+
+         else % upperbound > lowerbound
+            thresholdValue = thresholdValue + 0.009;
+         end
+
+         countmin = meanReference >= thresholdValue*optimalReference;
+         conmin = meanContrast >= thresholdValue*optimalContrast;
+         lowerbound = find(conmin, 1, 'first');
+         upperbound = find(countmin, 1, 'last');
+         loopcounter = loopcounter+1;
+
+         if loopcounter == 1000
+            break
+         end
+      end
+
+      upperBoundDuration = scanBounds(1) + scanStepSize*(upperbound-1);
+      lowerBoundDuration = scanBounds(2) + scanStepSize*(lowerbound-1);
+      bufferDuration = mean([upperBoundDuration lowerBoundDuration]);
 
    end
 
