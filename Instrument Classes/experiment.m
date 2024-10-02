@@ -43,7 +43,7 @@ classdef experiment
 
    methods
 
-      function h= takeNextDataPoint(h,acquisitionType)
+       function h= takeNextDataPoint(h,acquisitionType)
          %Check if valid configuration (always need PB and DAQ, sometimes
          %needs RF or stage, rarely needs laser)
 
@@ -69,6 +69,11 @@ classdef experiment
 
          %Sets odometer to the incremented value
          h.odometer = newOdometer;
+
+         %If no acquisition type given, do not acquire data
+         if strcmpi(acquisitionType,'none') || strcmpi(acquisitionType,'')
+             return
+         end
 
          %Actually takes the data using selected acquisition type
          [h,dataOut,nPoints] = getData(h,acquisitionType);
