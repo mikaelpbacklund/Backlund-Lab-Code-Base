@@ -34,6 +34,13 @@ ex = addStageScan(ex,zAxisBounds,zAxisNSteps,zAxisStepSize,'z');
 loopCounter = 0;
 totalNScans = prod(ex.scan.nSteps);
 
+scanStartInfo(totalNScans,pauseTime,1,.1)
+
+cont = checkContinue(10);
+if ~cont
+    return
+end
+
 %Reset current scan each iteration
    ex = resetScan(ex);
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps

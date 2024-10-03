@@ -101,6 +101,22 @@ classdef experiment
             else
                newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
             end
+         else
+            for ii = 1:numel(currentScan.bounds)
+               newValue = zeros([numel(currentScan.bounds) 1]);
+               if h.manualSteps
+                  %Get the manual steps for the current scan, for
+                  %the address dictated by the loop, for the
+                  %current step of that scan
+                  if h.odometer(scanToChange) == 0
+                     newValue(ii) = h.manualSteps{scanToChange}{ii}(1);
+                  else
+                     newValue(ii) = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
+                  end
+               else
+                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
+               end
+            end
          end 
 
          if strcmp(currentScan.identifier,'forcedCollectionPauseTime')
@@ -134,25 +150,33 @@ classdef experiment
                      %For each pulse address, modify the duration based on
                      %the new values
                      for ii = 1:numel(currentScan.address)
-                        if h.manualSteps
-                           %Get the manual steps for the current scan, for
-                           %the address dictated by the loop, for the
-                           %current step of that scan
-                           if h.odometer(scanToChange) == 0
-                              newValue = h.manualSteps{scanToChange}{ii}(1);
-                           else
-                              newValue = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
-                           end
-                        else
-                           newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
-                        end
-                        relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue,false);
+                        % if h.manualSteps
+                        %    %Get the manual steps for the current scan, for
+                        %    %the address dictated by the loop, for the
+                        %    %current step of that scan
+                        %    if h.odometer(scanToChange) == 0
+                        %       newValue = h.manualSteps{scanToChange}{ii}(1);
+                        %    else
+                        %       newValue = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
+                        %    end
+                        % else
+                        %    newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
+                        % end
+                        relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
                end
 
-            case 'stage'
-               relevantInstrument = absoluteMove(relevantInstrument,currentScan.parameter,newValue);
+            case 'stage'               
+               if isscalar(newValue) %Only 1 axis
+                  relevantInstrument = absoluteMove(relevantInstrument,currentScan.parameter,newValue);
+               else %Multiple axes moving simultaneously
+                  axisNames = convertStringsToChars(currentScan.parameter);
+                  for ii = 1:numel(axisNames)
+                     currentAxis = axisNames(ii);
+                     relevantInstrument = absoluteMove(relevantInstrument,currentAxis,newValue(ii));
+                  end
+               end               
          end
 
          %Feeds instrument info back out

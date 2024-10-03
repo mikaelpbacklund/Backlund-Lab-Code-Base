@@ -43,7 +43,7 @@ classdef experiment
 
    methods
 
-      function h= takeNextDataPoint(h,acquisitionType)
+       function h= takeNextDataPoint(h,acquisitionType)
          %Check if valid configuration (always need PB and DAQ, sometimes
          %needs RF or stage, rarely needs laser)
 
@@ -70,7 +70,10 @@ classdef experiment
          %Sets odometer to the incremented value
          h.odometer = newOdometer;
 
-         if varargin
+         %If no acquisition type given, do not acquire data
+         if strcmpi(acquisitionType,'none') || strcmpi(acquisitionType,'')
+             return
+         end
 
          %Actually takes the data using selected acquisition type
          [h,dataOut,nPoints] = getData(h,acquisitionType);
@@ -149,7 +152,18 @@ classdef experiment
                end
 
             case 'stage'
-               relevantInstrument = absoluteMove(relevantInstrument,currentScan.parameter,newValue);
+               axisNames = convertStringsToChars(currentScan.parameter);
+               if isscalar(axisNames) %Only 1 axis
+                  relevantInstrument = absoluteMove(relevantInstrument,currentScan.parameter,newValue);
+               else %Multiple axes moving simultaneously
+                  for ii = 1:numel(axisNames)
+                     currentAxis = axisNames(ii);
+                     currentLowerBound = currentScan.bounds{ii}(1);
+                     currentStepSize = currentScan.stepSize(ii);
+                     newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
+                  end
+               end
+               
          end
 
          %Feeds instrument info back out
