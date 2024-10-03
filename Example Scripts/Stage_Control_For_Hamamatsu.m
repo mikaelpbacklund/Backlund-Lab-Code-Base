@@ -6,7 +6,7 @@
 %axisIndividualLocations = ex.PIStage.controllerInfo.location;
 
 %% Params
-pauseTime = .25;%Number of seconds to wait after each move
+pauseTime = 1;%Number of seconds to wait after each move
 %Axes bounds for scan. [0 0] or [] for no scan on that axis
 xAxisBounds = [99.980 99.990];
 yAxisBounds = [0 0];
@@ -56,7 +56,7 @@ end
        %'none' argument indicates do not take data
       ex = takeNextDataPoint(ex,'none');     
       pause(pauseTime)
-      fprintf('%d/%d complete',loopCounter,totalNScans)
+      fprintf('%d/%d complete\n',loopCounter,totalNScans)
    end
 
 
@@ -72,7 +72,7 @@ else
 end
 scan.bounds = bounds;
 scan.parameter = axisParam;
-scan.identifier = 'PI stage';%Which instrument is being scanned
+scan.identifier = 'PI Stage';%Which instrument is being scanned
 scan.notes = 'Stage Scan for Hamamatsu Imaging';%Internal notes for scan
 h = addScans(h,scan);
 end
