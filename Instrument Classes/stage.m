@@ -77,12 +77,11 @@ classdef stage < instrumentType
                pause(10)
                continue
                end               
-            end
-            
-            uniqueControllers = unique({h.controllerInfo.serialNumber});
+            end          
             
             %Will give an error if connection fails
             try
+                uniqueControllers = unique({h.controllerInfo.serialNumber});
                 serialNumbers = cellfun(@(x)str2double(x),{h.controllerInfo.serialNumber},'UniformOutput',false);
                 serialNumbers = cell2mat(serialNumbers);
                %For each unique serial number, connect to that controller
@@ -291,8 +290,14 @@ classdef stage < instrumentType
          h = getStageInfo(h,find(axisRow));         
       end
 
-      function h = relativeMove(h,spatialAxis,targetMovement)
+      function h = relativeMove(h,spatialAxis,targetMovement,varargin)
          checkConnection(h)
+
+         if nargin > 3
+             checkTolerance = varargin{1};
+         else
+             checkTolerance = true;
+         end
          
          %Get information about what connections should be used
          spatialStages = strcmpi(spatialAxis,{h.controllerInfo.axis});
@@ -321,8 +326,10 @@ classdef stage < instrumentType
             printOut(h,sprintf("Fine %s moved %g μm to %g; Axis total: %g",...
                spatialAxis,targetMovement,h.controllerInfo(fineRow).location,h.axisSum{sumRow,2}))
 
+            if checkTolerance
             %Checks if current location is within tolerance of the absolute target
             h = toleranceCheck(h,spatialAxis,absoluteTarget);
+            end
             
          else
             %If target is outside of fine bounds, reset fine to midpoint, move coarse
@@ -364,21 +371,29 @@ classdef stage < instrumentType
                spatialAxis,targetMovement,h.controllerInfo(coarseRow).location,...
                spatialAxis,storedFineLocation,h.controllerInfo(fineRow).location,h.axisSum{sumRow,2}))
             
+            if checkTolerance
             %Checks if current location is within tolerance of the absolute target
-            h = toleranceCheck(h,spatialAxis,absoluteTarget);            
+            h = toleranceCheck(h,spatialAxis,absoluteTarget);  
+            end
          end
          
       end
       
-      function h = absoluteMove(h,spatialAxis,targetLocation)
+      function h = absoluteMove(h,spatialAxis,targetLocation,varargin)
          checkConnection(h)
+         
+         if nargin > 3
+             checkTolerance = varargin{1};
+         else
+             checkTolerance = true;
+         end
          
          %Find the relative distance between target input and current sum
          sumRow = strcmpi(spatialAxis,h.axisSum(:,1));
          relativeDifference = targetLocation - h.axisSum{sumRow,2};
          
          %Uses relative move code to circumvent copy-pasting similar code here
-         h = relativeMove(h,spatialAxis,relativeDifference);
+         h = relativeMove(h,spatialAxis,relativeDifference,checkTolerance);
       end
       
       function [h,varargout] = fineReset(h,spatialAxis,minMaxMid,varargin)

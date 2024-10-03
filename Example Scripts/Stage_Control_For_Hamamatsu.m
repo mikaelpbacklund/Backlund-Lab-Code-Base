@@ -1,11 +1,18 @@
+%% Console commands
+% ex.PIStage = absoluteMove(ex.PIStage,spatialAxis,targetLocation);
+% ex.PIStage = relativeMove(ex.PIStage,spatialAxis,targetMovement);
+%axisSumLocations = ex.PIStage.axisSum;
+%Coarse x/y/z then fine x/y/z below
+%axisIndividualLocations = ex.PIStage.controllerInfo.location;
+
 %% Params
 pauseTime = .25;%Number of seconds to wait after each move
 %Axes bounds for scan. [0 0] or [] for no scan on that axis
-xAxisBounds = [0 0];
+xAxisBounds = [99.980 99.990];
 yAxisBounds = [0 0];
 zAxisBounds = [0 0];
 %Step size in microns
-xAxisStepSize = 1;
+xAxisStepSize = .002;
 yAxisStepSize = 1;
 zAxisStepSize = 1;
 %Number of steps. Overrides step size if given. Leave as 0 or [] to not use

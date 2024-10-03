@@ -209,10 +209,12 @@ config.defaults.tolerance = .05;
 config.defaults.pauseTime = .05;
 config.defaults.resetToMidpoint = true;
 config.defaults.maxRecord = 1000;
-config.defaults.maxConnectionAttempts = 3;
+config.defaults.maxConnectionAttempts = 5;
+
+config.identifier = 'PI stage';
 
 saveLocation = pwd;%Default is to save to current directory
-saveName = '\PI_stage_config';
+saveName = '\PI_stage';
 save(strcat(saveLocation,saveName),'config')
 
 %% 488 nm Coherent Laser
