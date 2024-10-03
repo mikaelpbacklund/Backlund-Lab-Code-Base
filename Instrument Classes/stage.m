@@ -151,10 +151,13 @@ classdef stage < instrumentType
          h.controllerInfo(infoRow).limits(2) = h.controllerInfo(infoRow).intrinsicLimits(2) - h.controllerInfo(infoRow).intrinsicRange*.03;
          
          %Computes midpoint of range
-         h.controllerInfo(infoRow).midpoint = h.controllerInfo(infoRow).intrinsicLimits(1) + h.controllerInfo(infoRow).intrinsicRange/2;
+         h.controllerInfo(infoRow).midpoint = h.controllerInfo(infoRow).intrinsicLimits(1) + h.controllerInfo(infoRow).intrinsicRange/2;         
          
          %Gets current information regarding this axis
          h = getStageInfo(h,infoRow);
+
+         %Sets target location to current location
+         h.controllerInfo(infoRow).targetLocation = h.controllerInfo(infoRow).location;
       end
       
       function h = disconnect(h)
@@ -221,7 +224,9 @@ classdef stage < instrumentType
          end
       end
       
-      function h = directMove(h,axisName,targetMovement,varargin)
+      function h = directMove(h,axisName,newTarget,varargin)
+         %newTarget is desired absolute position
+
          checkConnection(h)
          
          %Determine the correct axis to move
@@ -246,15 +251,17 @@ classdef stage < instrumentType
          %Get shorthand for use later
          currentInfo = h.controllerInfo(axisRow);
          handshakeRow = currentInfo.handshakeNumber;
+
+         h.controllerInfo(axisRow).targetLocation = newTarget;
          
          %Conversion to correct units
-         targetMovement = targetMovement / currentInfo.conversionFactor;
+         newTarget = newTarget / currentInfo.conversionFactor;
 
          if currentInfo.invertLocation
-             targetMovement = -targetMovement;
+             newTarget = -newTarget;
          end
          
-         h.handshake{handshakeRow} .MVR(currentInfo.internalAxisNumber,targetMovement); 
+         h.handshake{handshakeRow} .MOV(currentInfo.internalAxisNumber,newTarget); 
          
          if ~h.ignoreWait
             pause(h.pauseTime)
@@ -317,10 +324,11 @@ classdef stage < instrumentType
             %If target movement is positive, check the positive bound and
             %vice versa for negative
 
+            %Conversion to absolute target location from relative
             absoluteTarget = targetMovement + h.axisSum{sumRow,2};
             
             %If target is not outside of fine bounds, enact move on fine controller
-            h = directMove(h,spatialAxis,targetMovement,'fine');
+            h = directMove(h,spatialAxis,absoluteTarget,'fine');
             
             %Displays movement in command window            
             printOut(h,sprintf("Fine %s moved %g μm to %g; Axis total: %g",...
@@ -364,7 +372,7 @@ classdef stage < instrumentType
             
             %Stage direct move is also a relative movement so the targetMovement
             %does not need to be adjusted
-            h = directMove(h,spatialAxis,targetMovement,'coarse');
+            h = directMove(h,spatialAxis,absoluteTarget,'coarse');
 
             %Displays movement in command window
             printOut(h,sprintf("Coarse %s moved %g μm to %g; Fine %s moved %g μm to %g ; Axis total: %g",...
@@ -438,9 +446,6 @@ classdef stage < instrumentType
             return
          end         
          
-         %Change the target from absolute to relative
-         fineTarget = fineTarget - h.controllerInfo(fineRow).location;
-         
          %Records the current location of the sum of the stage positions
          oldLocation = h.axisSum{sumRow,2};
          
@@ -448,8 +453,8 @@ classdef stage < instrumentType
          h = directMove(h,spatialAxis,fineTarget,'fine');
          
          if nargin == 3 
-            %Moves coarse stage to compensate
-            h = directMove(h,spatialAxis,-fineTarget,'coarse');
+            %Moves coarse stage to compensate            
+            h = directMove(h,spatialAxis,h.controllerInfo(coarseRow).targetLocation-fineTarget,'coarse');
             h = toleranceCheck(h,spatialAxis,oldLocation);%Immediate tolerance check
          else
             %Subtracts fine movement from input target location to be used
@@ -460,80 +465,82 @@ classdef stage < instrumentType
       end
       
       function h = toleranceCheck(h,spatialAxis,targetLocation)
-         %Checks the current axis total location and continually adjusts
-         %fine stage for that axis until the location is within the
-         %tolerance value of the given target location
-         
-         checkConnection(h)
-         
-         %Gets the corresponding rows for fine/coarse/sum 
-         spatialStages = strcmpi(spatialAxis,{h.controllerInfo.axis});
-         fineRow = find(spatialStages & strcmpi('fine',{h.controllerInfo.grain}));
-         coarseRow = find(spatialStages & strcmpi('coarse',{h.controllerInfo.grain}));
-         sumRow = strcmpi(spatialAxis,h.axisSum(:,1));
-         
-         %Sets attempt counts to 0 and stores old pause information
-         totalTries = 0;
-         currentTries = 0;
-         oldPauseTime = h.pauseTime;
-         oldIgnoreWait = h.ignoreWait;
-         
-         while true %Continue checking location then moving until it is within tolerance
-            totalTries = totalTries + 1;
-            currentTries = currentTries + 1;
-            
-            %Cutoff in the case tolerance cannot be reached for some reason
-            if totalTries > 20
-               error('Tolerance unable to be reached for %s axis',spatialAxis)
-            end
-                        
-            %If there have been 3 tries without success, enable stage
-            %waiting (if disabled) or increase the pause time slightly. The
-            %idea here is to give the stage more time to settle in between
-            %movement commands to prevent jittering
-            if currentTries > 3
-               if h.ignoreWait
-                  h.ignoreWait = false;
-                  printOut(h,'Temporarily enabling stage wait')
-               else
-                  printOut(h,['Tolerance not reached after 3 attempts, temporarily adding ' ...
-                     '.01 seconds to pause time'])
-                  h.pauseTime = h.pauseTime + .01;
-               end               
-               currentTries = 1;
-            end
-            
-            %Finds and stores the current position for the fine and coarse stages
-            h = getStageInfo(h,[fineRow,coarseRow]);
-            
-            %Calculates how far the current position is from the target
-            distanceError = targetLocation - h.axisSum{sumRow,2};
+         %To fix: work with new absolute target location rather than relative movements
 
-            %If the error is less than the tolerance, end the while loop, otherwise
-            %move the stage to the target using the fine stage
-            %Theoretically, this could cause the fine stage to hit its
-            %bounds but this is very unlikely with normal operation
-            if distanceError > - h.tolerance && distanceError < h.tolerance
-                if totalTries == 1
-                    printOut(h,'Tolerance immediately achieved')
-                elseif totalTries == 2
-                    printOut(h,'Tolerance achieved after 1 try')
-                else
-                    printOut(h,sprintf('Tolerance achieved after %d tries',totalTries-1))
-                end                
-               break
-            else
-               h = directMove(h,spatialAxis,distanceError,'fine');
-            end
-            
-         end
-         
-         %Sets pause conditions to what they were before tolerance check
-         h.ignoreWait = oldIgnoreWait;
-         h.pauseTime = oldPauseTime;
-
-         printOut(h,sprintf('%s axis sum after tolerance check: %g',spatialAxis,...
-             h.axisSum{sumRow,2}))
+         % %Checks the current axis total location and continually adjusts
+         % %fine stage for that axis until the location is within the
+         % %tolerance value of the given target location
+         % 
+         % checkConnection(h)
+         % 
+         % %Gets the corresponding rows for fine/coarse/sum 
+         % spatialStages = strcmpi(spatialAxis,{h.controllerInfo.axis});
+         % fineRow = find(spatialStages & strcmpi('fine',{h.controllerInfo.grain}));
+         % coarseRow = find(spatialStages & strcmpi('coarse',{h.controllerInfo.grain}));
+         % sumRow = strcmpi(spatialAxis,h.axisSum(:,1));
+         % 
+         % %Sets attempt counts to 0 and stores old pause information
+         % totalTries = 0;
+         % currentTries = 0;
+         % oldPauseTime = h.pauseTime;
+         % oldIgnoreWait = h.ignoreWait;
+         % 
+         % while true %Continue checking location then moving until it is within tolerance
+         %    totalTries = totalTries + 1;
+         %    currentTries = currentTries + 1;
+         % 
+         %    %Cutoff in the case tolerance cannot be reached for some reason
+         %    if totalTries > 20
+         %       error('Tolerance unable to be reached for %s axis',spatialAxis)
+         %    end
+         % 
+         %    %If there have been 3 tries without success, enable stage
+         %    %waiting (if disabled) or increase the pause time slightly. The
+         %    %idea here is to give the stage more time to settle in between
+         %    %movement commands to prevent jittering
+         %    if currentTries > 3
+         %       if h.ignoreWait
+         %          h.ignoreWait = false;
+         %          printOut(h,'Temporarily enabling stage wait')
+         %       else
+         %          printOut(h,['Tolerance not reached after 3 attempts, temporarily adding ' ...
+         %             '.01 seconds to pause time'])
+         %          h.pauseTime = h.pauseTime + .01;
+         %       end               
+         %       currentTries = 1;
+         %    end
+         % 
+         %    %Finds and stores the current position for the fine and coarse stages
+         %    h = getStageInfo(h,[fineRow,coarseRow]);
+         % 
+         %    %Calculates how far the current position is from the target
+         %    distanceError = targetLocation - h.axisSum{sumRow,2};
+         % 
+         %    %If the error is less than the tolerance, end the while loop, otherwise
+         %    %move the stage to the target using the fine stage
+         %    %Theoretically, this could cause the fine stage to hit its
+         %    %bounds but this is very unlikely with normal operation
+         %    if distanceError > - h.tolerance && distanceError < h.tolerance
+         %        if totalTries == 1
+         %            printOut(h,'Tolerance immediately achieved')
+         %        elseif totalTries == 2
+         %            printOut(h,'Tolerance achieved after 1 try')
+         %        else
+         %            printOut(h,sprintf('Tolerance achieved after %d tries',totalTries-1))
+         %        end                
+         %       break
+         %    else
+         %       h = directMove(h,spatialAxis,distanceError,'fine');
+         %    end
+         %
+         % end
+         % 
+         % %Sets pause conditions to what they were before tolerance check
+         % h.ignoreWait = oldIgnoreWait;
+         % h.pauseTime = oldPauseTime;
+         % 
+         % printOut(h,sprintf('%s axis sum after tolerance check: %g',spatialAxis,...
+         %     h.axisSum{sumRow,2}))
       end
       
    end
