@@ -69,10 +69,10 @@ classdef stage < instrumentType
             end
             
             if ~isfield(h.controllerInfo,'serialNumber') || any(isempty({h.controllerInfo.serialNumber}))
-               if nfails == h.maxConnectionAttempts
+               if currentConnectionAttempt == h.maxConnectionAttempts
                   error('Unable to connect to all stages after %d attempts',h.maxConnectionAttempts)
                else
-                  warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
+                  warning('Not all specified stage controllers were connected (%d times). Retrying...',currentConnectionAttempt)
                h.pathObject.Destroy
                h.pathObject = [];
                pause(10)
@@ -217,7 +217,7 @@ classdef stage < instrumentType
          if size(h.locationsRecord,1) > h.maxRecord
             if h.notifications
                fprintf(['Locations record exceeds maximum of %d data points as set by'...
-                  ' h.maxRecord\nRemoving the earliest 100 points\n'],h.maxRecord)
+                  'h.maxRecord\nRemoving the earliest 100 points\n'],h.maxRecord)
             end
             if h.maxRecord < 100
                h.locationsRecord(1:end-1,:) = [];
@@ -558,15 +558,11 @@ classdef stage < instrumentType
           else
               nReps = 10;
           end
-
-          spatialStages = strcmpi(axisName,{h.controllerInfo.axis});
+          spatialStages = strcmpi(spatialAxis,{h.controllerInfo.axis});
           fineRow = find(spatialStages & strcmpi('fine',{h.controllerInfo.grain}));
+          coarseRow = find(spatialStages & strcmpi('coarse',{h.controllerInfo.grain}));
+          for ii = 1:nReps
 
-          locationDeviance = zeros(1,nReps);
-
-          for ii = 1:nReps              
-              h = getStageInfo(h,fineRow);
-              locationDeviance(ii) = h.controllerInfo(fineRow).location - h.controllerInfo(fineRow).targetLocation;
           end
       end
    end
