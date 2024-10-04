@@ -53,8 +53,6 @@ classdef stage < instrumentType
          s = checkSettings(h,fieldnames(h.defaults));
          h = instrumentType.overrideStruct(h,s);
 
-         h.identifier = 'stage';%Label for stage
-
          %Loop for potential failures to connect
          nfails = 0;
          while true
@@ -106,39 +104,34 @@ classdef stage < instrumentType
                end
 
                break %ends loop upon successful connection
-
             catch ME               
                nfails = nfails+1;%Increment failed attempts
 
-               %If number of fails hits max attempts, throw error, otherwise throw warning
-               if nfails >= h.maxConnectionAttempts
-                  warning('Not all specified stage controllers were connected. Last error:')
-                  rethrow(ME)
-               end
-               warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
-
-               %If the number of fails is over half the max attempts, close all connections before restarting
-               %If closing all connections, wait for longer than if just retrying
-               %Wait is to allow for electronic nonsense to settle
+               %If the number of
                if nfails >= h.maxConnectionAttempts/2 && ~isempty(h.handshake)
                   for jj = 1:numel(h.handshake)
                      h.handshake{jj}.CloseConnection
                   end
                   h.handshake = [];
-                  pause(3)
-               else
-                  pause(.5)
-               end               
+               end
+
+               if nfails >= h.maxConnectionAttempts
+                  warning('Not all specified stage controllers were connected. Last error:')
+                  rethrow(ME)
+               end
+               warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
+               pause(1)
+
+               continue
             end
          end
 
-         %Finds unique spatial axes and creates entries in axisSum property
          uniqueAxes = unique({h.controllerInfo.axis});
          h.axisSum = cell(numel(uniqueAxes),2);
          h.axisSum(:,1) = uniqueAxes;
 
-         %Marks stage as connected (necessary for toggleAxis to work)
-         h.connected = true;         
+         h.connected = true;
+         h.identifier = 'stage';
 
          %Turn on all axes
          for ii = 1:numel(h.controllerInfo)
@@ -146,7 +139,6 @@ classdef stage < instrumentType
          end
 
          function  PISerialNumber = findSN(identificationString)
-            %Short function to locate serial numbers based on format for PI
             SNLocation = strfind(identificationString,' SN ');
             PISerialNumber = identificationString(SNLocation+4:end-1);
          end
