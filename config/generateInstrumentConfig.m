@@ -209,7 +209,7 @@ config.defaults.tolerance = .05;
 config.defaults.pauseTime = .05;
 config.defaults.resetToMidpoint = true;
 config.defaults.maxRecord = 1000;
-config.defaults.maxConnectionAttempts = 5;
+config.defaults.maxConnectionAttempts = 7;
 
 config.identifier = 'PI stage';
 

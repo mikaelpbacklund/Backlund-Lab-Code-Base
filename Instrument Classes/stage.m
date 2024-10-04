@@ -67,21 +67,13 @@ classdef stage < instrumentType
                   end
                end
             end
-            
-            if ~isfield(h.controllerInfo,'serialNumber') || any(isempty({h.controllerInfo.serialNumber}))
-               if nfails == h.maxConnectionAttempts
-                  error('Unable to connect to all stages after %d attempts',h.maxConnectionAttempts)
-               else
-                  warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
-               h.pathObject.Destroy
-               h.pathObject = [];
-               pause(10)
-               continue
-               end               
-            end          
+            currentControllerInfo{nfails+1} = h.controllerInfo;
             
             %Will give an error if connection fails
             try
+                if ~isfield(h.controllerInfo,'serialNumber') || any(isempty({h.controllerInfo.serialNumber}))
+                    error('Incomplete serial number information')
+                end
                 uniqueControllers = unique({h.controllerInfo.serialNumber});
                 serialNumbers = cellfun(@(x)str2double(x),{h.controllerInfo.serialNumber},'UniformOutput',false);
                 serialNumbers = cell2mat(serialNumbers);
@@ -105,10 +97,11 @@ classdef stage < instrumentType
                 end
                 if nfails >= h.maxConnectionAttempts
                     warning('Not all specified stage controllers were connected. Last error:')
+                    assignin("base","totalcontrollerinfo",currentControllerInfo)
                     rethrow(ME)
                 end
                 warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
-                pause(.1)
+                pause(1)
                 
                 continue
             end            

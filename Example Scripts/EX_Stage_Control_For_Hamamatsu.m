@@ -1,19 +1,20 @@
 %% Console commands
-% ex.PIStage = absoluteMove(ex.PIStage,spatialAxis,targetLocation);
-% ex.PIStage = relativeMove(ex.PIStage,spatialAxis,targetMovement);
-%axisSumLocations = ex.PIStage.axisSum;
+% ex.PIStage = absoluteMove(ex.PIstage,spatialAxis,targetLocation);
+% ex.PIStage = relativeMove(ex.PIstage,spatialAxis,targetMovement);
+%axisSumLocations = ex.PIstage.axisSum;
+%scanInfo = ex.scan;
 %Coarse x/y/z then fine x/y/z below
-%axisIndividualLocations = ex.PIStage.controllerInfo.location;
+%axisIndividualLocations = ex.PIstage.controllerInfo.location;
 
 %% Params
 pauseTime = 1;%Number of seconds to wait after each move
 %Axes bounds for scan. [0 0] or [] for no scan on that axis
-xAxisBounds = [99.980 99.990];
-yAxisBounds = [0 0];
+xAxisBounds = [99.980 100.000];
+yAxisBounds = [100.000 100.020];
 zAxisBounds = [0 0];
 %Step size in microns
-xAxisStepSize = .002;
-yAxisStepSize = 1;
+xAxisStepSize = .0025;
+yAxisStepSize = .002;
 zAxisStepSize = 1;
 %Number of steps. Overrides step size if given. Leave as 0 or [] to not use
 xAxisNSteps = [];
@@ -21,11 +22,13 @@ yAxisNSteps = [];
 zAxisNSteps = [];
 
 %% Backend
+pauseDuration = seconds(pauseTime);
+
 if ~exist('ex','var')
    ex = experiment;
 end
 
-if isempty(ex.PIstage)
+if isempty(ex.PIstage) || ~ex.PIstage.connected
     ex.PIstage = stage('PI_stage');
     ex.PIstage = connect(ex.PIstage);
 end
@@ -39,9 +42,9 @@ ex = addStageScan(ex,yAxisBounds,yAxisNSteps,yAxisStepSize,'y');
 ex = addStageScan(ex,zAxisBounds,zAxisNSteps,zAxisStepSize,'z');
 
 loopCounter = 0;
-totalNScans = prod(ex.scan.nSteps);
+totalNScans = prod([ex.scan.nSteps]);
 
-scanStartInfo(totalNScans,pauseTime,1,.1)
+scanStartInfo(totalNScans,pauseTime,1,0)
 
 cont = checkContinue(10);
 if ~cont
@@ -51,11 +54,17 @@ end
 %Reset current scan each iteration
    ex = resetScan(ex);
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
+       currentTime = datetime;
        loopCounter = loopCounter + 1;
        %Increment the odometer and set the instrument to the next value
        %'none' argument indicates do not take data
       ex = takeNextDataPoint(ex,'none');     
-      pause(pauseTime)
+      while true %This while loop checks to see if elapsed duration exceeds pause duration setting
+          if (datetime - currentTime) >= pauseDuration
+          break
+          end
+          pause(.001)
+      end
       fprintf('%d/%d complete\n',loopCounter,totalNScans)
    end
 
