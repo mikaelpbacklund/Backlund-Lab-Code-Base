@@ -13,6 +13,7 @@ classdef stage < instrumentType
       maxConnectionAttempts
       pathObject
       SNList
+      modelList
       handshake
       spatialAxes
       axisSum
@@ -23,7 +24,17 @@ classdef stage < instrumentType
 
    methods
       %Methods from PI can be found in their software package that must be
-      %downloaded to programfiles
+      %downloaded to programfiles(x86)
+
+      function delete(h)
+          if isempty(h.handshake)
+              return
+          end
+          for jj = 1:numel(h.handshake)
+              h.handshake{jj}.CloseConnection
+          end
+      end
+
       function h = stage(configFileName)
 
          if nargin < 1
@@ -59,50 +70,71 @@ classdef stage < instrumentType
          nfails = 0;
          while true
 
-            %This part does not fail and therefore does not need to be done every loop
-            if isempty(h.pathObject)
-               h.pathObject = PI_GCS_Controller;
-            end
+            %Create PI_GCS_Controller object
+            %evalc is used to suppress command window print inherent to
+            %function
+            [~,h.pathObject] = evalc('PI_GCS_Controller');
 
             %Certain points may fail if connection is not established properly
             try
 
                %Finds serial numbers and model
-               h.SNList = EnumerateUSB(h.pathObject);
-               SNnumbers = cellfun(@(a)findSN(a),h.SNList,'UniformOutput',false);
-               modelList = cellfun(@(a)a(4:8),h.SNList,'UniformOutput',false);
+               newConnections = EnumerateUSB(h.pathObject);
+               if isempty(newConnections) %Nothing obtained
+                   error('No new possible connections found')
+               end
+               newModels = cellfun(@(a)a(4:8),newConnections,'UniformOutput',false);
+               newSNs = cellfun(@(a)findSN(a),newConnections,'UniformOutput',false);
+
+               %If no models/SNs, create models/SNs list
+               if isempty(h.modelList)                    
+                   %For each new unique serial number, create connection and store in handshake
+                   for jj = 1:numel(newSNs)                       
+                       h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
+                   end
+                   h.modelList = newModels;
+                   h.SNList = newSNs;
+               else
+                   %Check if already on list
+                   notOnList = ~contains(newModels,h.modelList);
+                   if ~any(notOnList)
+                       error('No new models found')
+                   end
+                   newModels = newModels(notOnList);
+                   newSNs = newSNs(notOnList);
+
+                   %For each new unique serial number, create connection and store in handshake
+                   for jj = 1:numel(newSNs)                       
+                       h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
+                   end
+
+                   %Update list of models and serial numbers
+                   h.modelList(end+1:end+numel(newModels)) = newModels;         
+                   h.SNList(end+1:end+numel(newSNs)) = newSNs;    
+               end  
 
                %For every axis to be controlled
                for jj = 1:numel(h.controllerInfo)
-                  %For every model found by USB search
-                  for kk = 1:numel(modelList)
-                     %If the model of that axis matches one found by the USB search
-                     %And there is not already a serial number (prevents disconnecting upon looping)
-                     if strcmpi(h.controllerInfo(jj).model,modelList{kk}) && ~isempty(h.controllerInfo(jj).serialNumber)
-                        %Add that serial number to that row of controllerInfo
-                        h.controllerInfo(jj).serialNumber = SNnumbers{kk};
-                     end
-                  end
-               end
+                   %If there is already a known serial number, skip axis
+                   if isfield(h.controllerInfo(jj),'serialNumber') && ~isempty(h.controllerInfo(jj).serialNumber)
+                       continue
+                   end
+
+                   %Finds if any of the new models match axis' model
+                   matchingModel = cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),newModels);
+
+                   %If there is a matching connection, add serial number
+                   %and handshake location to controllerInfo
+                   if any(matchingModel)
+                       h.controllerInfo(jj).serialNumber = str2double(newSNs{matchingModel});
+                       %Handshake location must be based on total list not just new ones
+                       h.controllerInfo(jj).handshakeNumber = find(cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),h.modelList));
+                   end
+               end               
 
                %If not all rows find a corresponding serial number, retry
-               if ~isfield(h.controllerInfo,'serialNumber') || any(isempty({h.controllerInfo.serialNumber}))
-                  error('Incomplete serial number information')
-               end
-
-               %Find unique controllers from the list and prepare serial numbers for connection
-               uniqueControllers = unique({h.controllerInfo.serialNumber});
-               serialNumbers = cellfun(@(x)str2double(x),{h.controllerInfo.serialNumber},'UniformOutput',false);
-               serialNumbers = cell2mat(serialNumbers);
-
-               %For each unique serial number, connect to that controller
-               %then match the serial number to the axes in controllerInfo
-               for jj = 1:numel(uniqueControllers)
-                  h.handshake{jj} = ConnectUSB(h.pathObject,(uniqueControllers{jj}));
-                  matchingSN = find(serialNumbers == str2double(uniqueControllers{jj}));
-                  for kk = 1:numel(matchingSN)
-                     h.controllerInfo(matchingSN(kk)).handshakeNumber = jj;
-                  end
+               if any(cellfun('isempty',{h.controllerInfo.handshakeNumber}))
+                  error('Not all controllers connected')
                end
 
                break %ends loop upon successful connection
@@ -115,20 +147,20 @@ classdef stage < instrumentType
                   warning('Not all specified stage controllers were connected. Last error:')
                   rethrow(ME)
                end
-               warning('Not all specified stage controllers were connected (%d times). Retrying...',nfails)
+               warning(ME.message)
+               errStack{nfails} = ME; %#ok<AGROW>
+               assignin("base","errStack",errStack)
+               fprintf('Not all specified stage controllers were connected (%d times). Retrying...\n',nfails)
 
-               %If the number of fails is over half the max attempts, close all connections before restarting
-               %If closing all connections, wait for longer than if just retrying
-               %Wait is to allow for electronic nonsense to settle
-               if nfails >= h.maxConnectionAttempts/2 && ~isempty(h.handshake)
-                  for jj = 1:numel(h.handshake)
-                     h.handshake{jj}.CloseConnection
-                  end
-                  h.handshake = [];
-                  pause(3)
-               else
-                  pause(.5)
-               end               
+               %Gets rid of any handshakes that didn't properly connect
+               extraHandshakes = numel(h.handshake) - numel(h.SNList);
+               if extraHandshakes > 0
+                   for jj = 1:extraHandshakes
+                       h.handshake{end}.CloseConnection
+                       h.handshake(end) = [];
+                   end
+               end  
+               pause(.5)
             end
          end
 
