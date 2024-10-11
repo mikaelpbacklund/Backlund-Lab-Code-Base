@@ -3,7 +3,7 @@ classdef cam < instrumentType
    properties
       camera
       source
-      bounds
+      bounds %rows, columns (not x,y)
       outputFullImage = true;
       outputFrameStack = true;
    end
@@ -24,6 +24,23 @@ classdef cam < instrumentType
 
    methods
 
+      function h = cam(configFileName)
+         %Creates cam object
+
+         if nargin < 1
+            error('Config file name required as input')
+         end
+
+         %Loads config file and checks relevant field names
+         configFields = {'manufacturer','imageType','defaults'};
+         commandFields = {};
+         numericalFields = {};
+         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
+      end
+      
       function delete(h)
       %What happens when the object is deleted
       %Turn off camera if possible before clearing object
@@ -35,14 +52,8 @@ classdef cam < instrumentType
          end
       end
 
-      function h = connect(h,configName)
-
-          %Loads config file and checks relevant field names
-         configFields = {'manufacturer','imageType','defaults'};
-         commandFields = {};
-         numericalFields = {};
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
-
+      function h = connect(h)
+         try
          %Creates the connection to the camera and its source
          h.camera = videoinput(h.manufacturer,1,h.imageType);
          h.source = getselectedsource(h.camera);
@@ -63,6 +74,9 @@ classdef cam < instrumentType
          start(h.camera)
          
          printOut(h,'Camera Connected')
+         catch
+            h.connected = false;
+         end
       end
       
       function [averageImages,frameStacks] = takeImage(h)
@@ -102,6 +116,9 @@ classdef cam < instrumentType
             totalFrames(:,:,1+100*(kk-1):100*kk) = totalImageOut;
             
          end
+
+         %Get number of expected output images
+         nOutputs = getNumberOfImageOutputs(h,size(totalFrames(:,:,1)));
          
          %For each set of bounds, take the overall frame stack and cut it
          %down to the correct bounds. Then take the average of that cut
@@ -111,14 +128,21 @@ classdef cam < instrumentType
             averageImages{ii} = mean(cutFrameStack,3); %#ok<AGROW>
             if h.outputFrameStack
                frameStacks{ii} = cutFrameStack; %#ok<AGROW>               
-            end
+            end        
          end
 
-         if h.outputFullImage
+         %If number of outputs and number of bounds are not the same, an additional set of images will be added that is
+         %for the entire image
+         if numel(h.useBounds) ~= nOutputs
             averageImages{end+1} = mean(totalFrames,3);
             if h.outputFrameStack
                frameStacks{end+1} = totalFrames;
             end
+         end
+
+         %Adds empty output for frameStacks if outputFrameStack is off
+         if ~h.outputFrameStack
+            frameStacks = [];
          end
          
          %Sets frames back to original
@@ -227,6 +251,31 @@ classdef cam < instrumentType
             end
          end
 
+      end
+
+      function nOutputs = getNumberOfImageOutputs(h,totalSize)
+         %Find number of outputs that will be present based on number of bounds and whether those bounds match the full
+         %image
+
+         nOutputs = size(h.bounds,1);
+
+         %If outputFullImage is off, number of outputs will just be number of bounds
+         if ~h.outputFullImage
+            return
+         end
+
+         %Checks each set of bounds to see if it matches the total size
+         hasMaxSizeBounds  = false;
+         for ii = 1:nOutputs
+            if [h.bounds{ii,1}(1),h.bounds{ii,1}(2);h.bounds{ii,2}(1),h.bounds{ii,2}(2)] == [1,size(totalSize,1);1,size(totalSize,2)]
+               hasMaxSizeBounds  = true;
+            end
+         end
+
+         %If nothing matches the max size bounds (and outputFullImage is true), add 1 output
+         if ~hasMaxSizeBounds
+            nOutputs = nOutputs + 1;
+         end
       end
 
    end

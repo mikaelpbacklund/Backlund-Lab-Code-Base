@@ -385,18 +385,12 @@ classdef experiment
       function h = resetAllData(h,resetValue)
          %Resets all stored data within the experiment object
 
-         %If the reset value isn't a cell, make it a 1x1 cell
-%          if ~isa(resetValue,'cell')
-%             a{1} = resetValue;
-%             resetValue = a;
-%          end
-
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
          h.data.iteration = squeeze(zeros(1,h.scan.nSteps(1)));
 
          %Makes cell array of equivalent size to above
-         h.data.values = num2cell(h.data.iteration)';%***** check '
+         h.data.values = num2cell(h.data.iteration)';
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -452,7 +446,7 @@ classdef experiment
          end
 
          switch lower(acquisitionType)
-            case 'pulse sequence'
+            case {'pulse sequence','sequence','pulses','daq'}
                %Stores old information about pulse sequence for retrieval
                %after optimization
                oldSequence = h.pulseBlaster.userSequence;
@@ -492,7 +486,7 @@ classdef experiment
                      assignin('base','rfStatus',rfStatus)
                      error('RF status (6th argument) must be ''on'' ''off'' or ''contrast''')
                end
-            case 'scmos'
+            case {'scmos','cam','camera'}
 
          end
 
@@ -542,7 +536,7 @@ classdef experiment
       function [h,dataOut,nPointsTaken] = getData(h,acquisitionType)
           nPointsTaken = 0;%default to 0
          switch lower(acquisitionType)
-            case 'pulse sequence'
+            case {'pulse sequence','sequence','pulses','daq'}
 
                 nPauseIncreases = 0;
                 originalPauseTime = h.forcedCollectionPauseTime;
@@ -622,14 +616,30 @@ classdef experiment
                     dataOut{1} = readData(h.DAQ);
                 end
 
-             case 'scmos'
-                 %Takes image using the camera and the current settings
-                 [dataOut,frameStacks] = takeImage(h.hamm); %#ok<ASGLU>
+            case {'scmos','cam','camera'}
+               %Takes image and outputs as data
 
-                 % %Adds frame stacks to data output
-                 % for ii = 1:numel(frameStacks)
-                 %     dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
-                 % end
+               %Output of takeImage is a cell array for meanImages where each cell is the average image for each set of
+               %bounds while frameStacks if a cell array where each cell is a 3D array where each 2D slice is one frame
+               %from the camera and each cell corresponds to a different set of bounds
+
+               %Takes image using the camera and the current settings
+               [meanImages,frameStacks] = takeImage(h.hamm);
+
+               %First column of cell array is the mean images
+               %Second column is the frame stacks
+               dataOut = meanImages;
+               if ~isempty(frameStacks)
+                  dataOut(:,2) = frameStacks;
+               end
+
+               %If only one output (mean image with 1 set of bounds), convert output to matrix
+               if isscalar(dataOut) 
+                  dataOut = dataOut{1};
+               end
+
+               %List number of points taken as frames per trigger
+               nPointsTaken = h.hamm.framesPerTrigger;
          end
       end
 

@@ -305,7 +305,7 @@ config.defaults.bounds = {[1,2304],[1,2304]};
 config.defaults.outputFrameStack = true;
 
 saveLocation = pwd;
-saveName = '\hamm_camm_config';
+saveName = '\camera';
 save(strcat(saveLocation,saveName),'config')
 
 %% Kinesis Motor
