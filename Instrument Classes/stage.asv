@@ -442,6 +442,7 @@ classdef stage < instrumentType
 
          try
             %Only works for one spatial axis, not coarse/fine
+            %Get 
             h = directMove(h,spatialAxis,targetLocation);
             %Checks if current location is within tolerance of the target if enabled
             if checkTolerance
@@ -496,9 +497,8 @@ classdef stage < instrumentType
          else %Fine movement only          
 
             %Finds absolute target location for fine stage then directly move there
-            %Adds extra compensation if already present
             fineTarget = relativeTarget + h.controllerInfo(fineRow).location;
-            h = directMove(h,spatialAxis,fineTarget+h.controllerInfo(fineRow).extraCompensation,'fine');
+            h = directMove(h,spatialAxis,fineTarget,'fine');
 
          end        
 
@@ -639,7 +639,7 @@ classdef stage < instrumentType
          %Repeatedly query stage location and compare to target location
          tic
          for ii = 1:nReps
-            h = getStageInfo(h,axisRow);
+            h = getStageInfo(h,fineRow);
             locationDeviance(ii) = h.controllerInfo(axisRow).location - h.controllerInfo(axisRow).targetLocation;
          end
          %Outputs average time per data point as 3rd optional output

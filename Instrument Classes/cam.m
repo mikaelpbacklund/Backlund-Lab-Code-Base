@@ -16,7 +16,7 @@ classdef cam < instrumentType
       framesPerTrigger
    end
 
-   properties (SetAccess = protected, GetAccess = public)
+   properties (SetAccess = {?cam ?instrumentType}, GetAccess = public)
       %Read-only for user (derived from config)
       manufacturer
       imageType
@@ -38,7 +38,7 @@ classdef cam < instrumentType
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
 
          %Set identifier as given name
-         h.identifier = configFileName;
+         h.identifier = 'Hamamatsu';
       end
       
       function delete(h)
@@ -74,8 +74,9 @@ classdef cam < instrumentType
          start(h.camera)
          
          printOut(h,'Camera Connected')
-         catch
+         catch ME
             h.connected = false;
+            rethrow(ME)
          end
       end
       

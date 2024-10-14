@@ -452,7 +452,7 @@ classdef instrumentType < handle
                properIdentifier = 'PI Stage';
             case {'daq','data','data acquisition','data_acquisition','dataacquisition','ni','ni daq','ni_daq','nidaq'}
                properIdentifier = 'NI DAQ';
-            case {'hamm','ham','hamamatsu','hammcam','hamcam'}
+             case {'hamm','ham','hamamatsu','hammcam','hamcam','cam','camera'}
                properIdentifier = 'Hamamatsu';
             case {'ddl','dynamic delay line','dynamicdelayline','dynamic_delay_line'}
                properIdentifier = 'DDL';

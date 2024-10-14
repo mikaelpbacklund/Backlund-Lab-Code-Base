@@ -39,9 +39,9 @@ if isempty(ex.PIstage) || ~ex.PIstage.connected
    %Outputs current standard deviation for each stage axis
    for ii = ["x","y","z"]
       [ex.PIstage,~,~,locStdDev] = findLocationDeviance(ex.PIstage,ii,100,'coarse');
-      fprintf('Coarse %s axis location has a standard deviation of %.1f nm\n',locStdDev*1000)
+      fprintf('Coarse %s axis location has a standard deviation of %.1f nm\n',ii,locStdDev*1000)
       [ex.PIstage,~,locMean,locStdDev] = findLocationDeviance(ex.PIstage,ii,100,'fine');
-      fprintf('Fine %s axis location has a standard deviation of %.1f nm\n',locStdDev*1000)
+      fprintf('Fine %s axis location has a standard deviation of %.1f nm\n',ii,locStdDev*1000)
    end
 end
 if isempty(ex.hamm) || ~ex.hamm.connected

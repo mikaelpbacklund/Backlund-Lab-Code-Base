@@ -1129,10 +1129,10 @@ classdef experiment
       end
 
       function s = get.hamm(h)
-         s = getInstrumentVal(h,'hamm');
+         s = getInstrumentVal(h,'hamamatsu');
       end
       function h = set.hamm(h,val)
-         h = setInstrumentVal(h,'hamm',val);  
+         h = setInstrumentVal(h,'hamamatsu',val);  
       end
    end
 
