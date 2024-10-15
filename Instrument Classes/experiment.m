@@ -12,6 +12,7 @@ classdef experiment
       forcedCollectionPauseTime = .1;%To fully compensate for DAQ and pulse blaster and prevent periodic changes in data collected
       nPointsTolerance = .01;
       maxFailedCollections = 9;
+      notifications = false;
    end
 
    properties (Hidden)
@@ -582,10 +583,12 @@ classdef experiment
                             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                         end
                         break
-                    elseif nPauseIncreases < h.maxFailedCollections%SHOULD BE A PROPERTY OF EXPERIMENT******
+                    elseif nPauseIncreases < h.maxFailedCollections
                         nPauseIncreases = nPauseIncreases + 1;
-%                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-%                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
+                        if h.notifications
+                        warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                            (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)        
+                        end
                         h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
                         %Usually hits aom/daq compensation but thats fine                        
                         h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases),false);
