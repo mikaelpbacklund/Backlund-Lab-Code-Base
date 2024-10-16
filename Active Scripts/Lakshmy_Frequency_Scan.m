@@ -1,7 +1,7 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = 10;
+instrumentToScan = 'srs';%'srs' or 'wf'
 scanBounds = [2.7 3];
 scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
@@ -10,6 +10,13 @@ nIterations = 1;
 timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
+%SRS parameters
+srsAmplitude = 10;
+srsFrequency = 2.87;%can be overwritten by scan
+%Windfreak parameters
+wfAmplitude = 10;
+wfFrequency = 2.87;%can be overwritten by scan
+
 
 %% Backend
 
@@ -35,22 +42,47 @@ if isempty(ex.SRS_RF)
    ex.SRS_RF = connect(ex.SRS_RF);
 end
 
+%Windfreak connection
+if isempty(ex.windfreak_RF)
+   ex.windfreak_RF = RF_generator('windfreak_RF');
+   ex.windfreak_RF = connect(ex.windfreak_RF);
+end
+
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
 if isempty(ex.DAQ)
    ex.DAQ = DAQ_controller('NI_DAQ');
    ex.DAQ = connect(ex.DAQ);
 end
 
+%Stage connection
+if isempty(ex.PIstage) || ~ex.PIstage.connected
+    ex.PIstage = stage('PI_stage');
+    ex.PIstage = connect(ex.PIstage);
+end
+
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = RFamplitude;
+ex.SRS_RF.amplitude = srsAmplitude;
+
+ex.windfreak_RF.enabled = 'on';
+ex.windfreak_RF.amplitude = wfAmplitude;
+
+%For instrument not scanned, set frequency
+switch lower(instrumentToScan)
+    case 'srs'
+        ex.windfreak_RF.frequency = wfFrequency; 
+    case 'wf'
+        ex.SRS_RF.frequency = srsFrequency; 
+    otherwise
+        error('Instrument to scan must be "wf" or "srs"')
+end
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'analog';
+ex.DAQ.activeDataChannel = 'counter';
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
@@ -94,7 +126,12 @@ ex.scan = [];
 scan.bounds = scanBounds; %RF frequency bounds
 scan.stepSize = scanStepSize; %Step size for RF frequency
 scan.parameter = 'frequency'; %Scan frequency parameter
-scan.identifier = ex.SRS_RF.identifier; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
+switch lower(instrumentToScan)
+    case 'wf'
+        scan.identifier = ex.windfreak_RF.identifier;
+    case 'srs'
+        scan.identifier = ex.SRS_RF.identifier;
+end
 scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 
 %Add the current scan
@@ -173,23 +210,6 @@ for ii = 1:nIterations
           iterationPlot.YData = iterationData;
       end
       
-
-      %Creates plots
-%       plotTypes = {'average','new'};%'old' also viable
-%       for plotName = plotTypes
-%          c = findContrast(ex,[],plotName{1});
-%          ex = plotData(ex,c,plotName{1});
-%       end
-%       currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
-%       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
-%       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
-% %       ex = plotData(ex,refData,'new reference');
-%       nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
-%       nPoints(nPoints == 0) = 1;
-%       ex = plotData(ex,nPoints,'n points');
-%       ex = plotData(ex,ex.data.failedPoints,'n failed points');
-% %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
-% %       ex = plotData(ex,refData,'previous reference');
    end
 
    %Between each iteration, check for user input whether to continue scan

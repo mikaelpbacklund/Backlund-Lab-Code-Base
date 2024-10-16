@@ -205,7 +205,7 @@ config.controllerInfo(n).invertLocation = false;
 config.controllerInfo(n).conversionFactor = 1;
 
 config.defaults.ignoreWait = false;
-config.defaults.tolerance = .05;
+config.defaults.tolerance = .5;
 config.defaults.pauseTime = .05;
 config.defaults.resetToMidpoint = true;
 config.defaults.maxRecord = 1000;

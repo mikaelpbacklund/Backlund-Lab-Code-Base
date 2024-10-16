@@ -28,15 +28,12 @@ classdef RF_generator < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'connectionInfo'};
+         configFields = {'connectionInfo','identifier'};
          commandFields = {'toggleOn','toggleOff','toggleQuery','amplitude','amplitudeQuery','frequency','frequencyQuery'...
             'modulationToggleOn','modulationToggleOff','modulationToggleQuery','modulationWaveform',...
             'modulationWaveformQuery','modulationType','modulationTypeQuery','modulationExternalIQ'};
          numericalFields = {'frequency','amplitude'};%has units, conversion factor, and min/max
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
-
-         %Set identifier as given name
-         h.identifier = configFileName;
       end
 
       function h = connect(h) 
@@ -47,6 +44,7 @@ classdef RF_generator < instrumentType
 
          switch lower(h.connectionInfo.vendor)
             case {'srs','stanford'}
+                h.connectionInfo.vendor = 'srs'; %Standardization
                %Validates that config info has needed fields
                mustContainField(h.connectionInfo,{'checkedValue','fieldToCheck'})
 
@@ -63,6 +61,7 @@ classdef RF_generator < instrumentType
                h.connectionType = 'visadev';
 
             case {'wf','windfreak'}
+                h.connectionInfo.vendor = 'wf'; %Standardization
                %Validates that config info has needed fields
                mustContainField(h.connectionInfo,{'comPort','baudRate'})
 
@@ -107,6 +106,12 @@ classdef RF_generator < instrumentType
 
       function h = writeNumber(h,attribute,numericalInput)
          inputCommand = sprintf(h.commands.(attribute),numericalInput);
+         %For windfreak, a decimal is required otherwise it gives errors
+         if strcmp(h.connectionInfo.vendor,'wf')
+             if ~contains(inputCommand,'.')
+                 inputCommand(end+1:end+2) = '.0';
+             end
+         end
          h = writeInstrument(h,inputCommand);
          pause(.01)%Wait for RF generator to adjust
       end
@@ -133,7 +138,13 @@ classdef RF_generator < instrumentType
 
    methods %Instrument Queries
       function h = queryFrequency(h)
-         [h,newVal] = writeNumberProtocol(h,'frequency','query');
+          %Windfreak is stupid and gives different units for output than
+          %for input
+          if strcmp(h.connectionInfo.vendor,'wf')
+              [h,newVal] = writeNumberProtocol(h,'frequency','query',[],1e-3);
+          else
+              [h,newVal] = writeNumberProtocol(h,'frequency','query');
+          end  
          h.frequency = newVal;
       end
 
@@ -193,7 +204,13 @@ classdef RF_generator < instrumentType
    methods %Variable Set Functions
 
       function set.frequency(h,val)
-          [h,newVal] = writeNumberProtocol(h,'frequency',val);
+          %Windfreak is stupid and gives different units for output than
+          %for input
+          if strcmp(h.connectionInfo.vendor,'wf')
+              [h,newVal] = writeNumberProtocol(h,'frequency',val,[],1e-3);
+          else
+              [h,newVal] = writeNumberProtocol(h,'frequency',val);
+          end          
           h.frequency = newVal;
       end
 
@@ -264,7 +281,7 @@ classdef RF_generator < instrumentType
    end
 
    methods (Static)
-      function failCase(attribute,currentState,setState)
+       function failCase(attribute,setState,currentState)
          error('%s read from RF generator is %g upon %g input',attribute,currentState,setState)
       end
        

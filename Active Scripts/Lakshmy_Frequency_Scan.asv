@@ -1,7 +1,7 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = 10;
+instrumentToScan = 'wf';%'srs' or 'wf'
 scanBounds = [2.7 3];
 scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
@@ -10,8 +10,19 @@ nIterations = 1;
 timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
+%SRS parameters
+srsAmplitude = 10;
+srsFrequency = 2.87;%can be overwritten by scan
+%Windfreak parameters
+wfAmplitude = 10;
+wfFrequency = 2.87;%can be overwritten by scan
+
 
 %% Backend
+
+if ~strcmpi(instrumentToScan,'wf') && ~strcmpi(instrumentToScan,'srs')
+    error('Instrument to scan must be "wf" or "srs"') %#ok<*UNRCH>
+end
 
 %This warning *should* be suppressed in the DAQ code but isn't for an unknown reason. This is not related to my code but
 %rather the data acquisition toolbox code which I obviously can't change
@@ -35,22 +46,46 @@ if isempty(ex.SRS_RF)
    ex.SRS_RF = connect(ex.SRS_RF);
 end
 
+%Windfreak connection
+if isempty(ex.windfreak_RF)
+   ex.windfreak_RF = RF_generator('windfreak_RF');
+   ex.windfreak_RF = connect(ex.windfreak_RF);
+end
+
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
 if isempty(ex.DAQ)
    ex.DAQ = DAQ_controller('NI_DAQ');
    ex.DAQ = connect(ex.DAQ);
 end
 
+%Stage connection
+if isempty(ex.PIstage) || ~ex.PIstage.connected
+    ex.PIstage = stage('PI_stage');
+    ex.PIstage = connect(ex.PIstage);
+end
+
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = RFamplitude;
+ex.SRS_RF.amplitude = srsAmplitude;
+switch lower(instrumentToScan
+
+end
+if ~strcmpi(instrumentToScan,'srs')
+    ex.SRS_RF.frequency = srsFrequency; 
+end
+
+ex.windfreak_RF.enabled = 'on';
+ex.windfreak_RF.amplitude = wfAmplitude;
+if ~strcmpi(instrumentToScan,'wf')
+    ex.SRS_RF.frequency = srsFrequency; 
+end
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'analog';
+ex.DAQ.activeDataChannel = 'counter';
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
@@ -94,7 +129,9 @@ ex.scan = [];
 scan.bounds = scanBounds; %RF frequency bounds
 scan.stepSize = scanStepSize; %Step size for RF frequency
 scan.parameter = 'frequency'; %Scan frequency parameter
-scan.identifier = ex.SRS_RF.identifier; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
+switch instrumentToScan
+end
+scan.identifier = 'SRS RF'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
 scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 
 %Add the current scan

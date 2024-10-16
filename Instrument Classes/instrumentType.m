@@ -119,7 +119,7 @@ classdef instrumentType < handle
          
          %Gives option to input its own information, otherwise follows
          %standard naming convention to get relevant info
-         if nargin == 4
+         if nargin > 3 && ~isempty(varargin{1})
             attributeInfo = varargin{1};
          end
          
@@ -155,6 +155,13 @@ classdef instrumentType < handle
          
          %Gets current data and sets the output to that
          [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+         %This is remarkably stupid where the write units of the instrument
+         %are not the same as the read units. Only the windfreak RF
+         %generator does this, but it has to be corrected here otherwise
+         %the readout is wrong
+         if nargin > 4 && ~isempty(varargin{2})
+             numericalData = numericalData * varargin{2};
+         end
          updatedVal = numericalData./attributeInfo.conversionFactor;
 
          %If it is a query, only one reading is performed
@@ -171,11 +178,16 @@ classdef instrumentType < handle
             numericalInput = setState*attributeInfo.conversionFactor;
             h = writeNumber(h,attribute,numericalInput);%Dependent on instrument
          else
-            error('%s must be between %g and %g %s',...
-               attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units)
+            error('%s must be between %g and %g %s (%g given)',...
+               attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units,setState)
          end
          
          [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+
+         %See previous note about unit mismatch
+         if nargin > 4 && ~isempty(varargin{2})
+             numericalData = numericalData * varargin{2};
+         end
          
          %Checks if new reading matches input value
          if numericalData > numericalInput + attributeInfo.tolerance || numericalData < numericalInput - attributeInfo.tolerance 

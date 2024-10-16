@@ -80,6 +80,8 @@ classdef stage < instrumentType
 
                %Finds serial numbers and model
                newConnections = EnumerateUSB(h.pathObject);
+               isPIStage = cellfun(@(a)strcmp(a(1:2),'PI'),newConnections);
+               newConnections = newConnections(isPIStage);
                if isempty(newConnections) %Nothing obtained
                    error('No new possible connections found')
                end
