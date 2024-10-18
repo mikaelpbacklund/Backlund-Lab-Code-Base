@@ -100,11 +100,13 @@ classdef RF_generator < instrumentType
    methods %Internal Functions
 
       function [h,numericalData] = readNumber(h,attributeQuery)
+          tic
           [h,numericalData] = readInstrument(h,attributeQuery);
          numericalData = str2double(numericalData); 
+         toc
       end
 
-      function h = writeNumber(h,attribute,numericalInput)
+      function h = writeNumber(h,attribute,numericalInput)          
          inputCommand = sprintf(h.commands.(attribute),numericalInput);
          %For windfreak, a decimal is required otherwise it gives errors
          if strcmp(h.connectionInfo.vendor,'wf')
@@ -112,8 +114,7 @@ classdef RF_generator < instrumentType
                  inputCommand(end+1:end+2) = '.0';
              end
          end
-         h = writeInstrument(h,inputCommand);
-         pause(.01)%Wait for RF generator to adjust
+         h = writeInstrument(h,inputCommand);         
       end
 
       function [h,toggleStatus] = readToggle(h,attributeQuery)
@@ -205,13 +206,15 @@ classdef RF_generator < instrumentType
 
       function set.frequency(h,val)
           %Windfreak is stupid and gives different units for output than
-          %for input
+          %for input          
+          tic
           if strcmp(h.connectionInfo.vendor,'wf')
               [h,newVal] = writeNumberProtocol(h,'frequency',val,[],1e-3);
           else
               [h,newVal] = writeNumberProtocol(h,'frequency',val);
           end          
-          h.frequency = newVal;
+          h.frequency = newVal;     
+          toc
       end
 
       function set.amplitude(h,val)

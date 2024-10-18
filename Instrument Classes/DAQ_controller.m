@@ -50,13 +50,10 @@ classdef DAQ_controller < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'channelInfo','clockPort','manufacturer'};
+         configFields = {'channelInfo','clockPort','manufacturer','identifier'};
          commandFields = {};
          numericalFields = {};%has units, conversion factor, and min/max         
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
-
-         %Set identifier as given name
-         h.identifier = configFileName;
       end
       
       function h = connect(h)         
@@ -171,7 +168,7 @@ classdef DAQ_controller < instrumentType
             if strcmpi(collectionInfo.dataType,'EdgeCount')
                %Take difference between each data point and the prior one.
                %This is what is used to actually measure count increases
-                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));
+                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));                
                 
                 %Create logical vector corresponding to whether a
                 %difference should be counted or not
@@ -189,6 +186,9 @@ classdef DAQ_controller < instrumentType
                   signalOn = unsortedData(2:end,collectionInfo.signalReferenceChannel);
                   sig = sum(counterDifference(signalOn & dataOn));
                   ref = sum(counterDifference(~signalOn & dataOn));
+               end
+               if ref > 0
+                   assignin("base","unsortedData",unsortedData)
                end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               

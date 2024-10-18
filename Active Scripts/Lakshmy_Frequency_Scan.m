@@ -1,21 +1,21 @@
 %Default ODMR script example
 
 %% User Inputs
-instrumentToScan = 'srs';%'srs' or 'wf'
-scanBounds = [2.7 3];
-scanStepSize = .005; %Step size for RF frequency
+instrumentToScan = 'wf';%'srs' or 'wf'
+scanBounds = [2.37 3.07];
+scanStepSize = .1; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
+sequenceTimePerDataPoint = .7;%Before factoring in forced delay and other pauses
 nIterations = 1;
 timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
 %SRS parameters
 srsAmplitude = 10;
-srsFrequency = 2.87;%can be overwritten by scan
+srsFrequency = 2.3;%can be overwritten by scan
 %Windfreak parameters
 wfAmplitude = 10;
-wfFrequency = 2.87;%can be overwritten by scan
+wfFrequency = 2.3;%can be overwritten by scan
 
 
 %% Backend
@@ -28,6 +28,7 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var')
    ex = experiment;
 end
+ex.notifications = true;
 
 %If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
 if isempty(ex.pulseBlaster)
@@ -50,15 +51,15 @@ end
 
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
 if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('NI_DAQ');
+   ex.DAQ = DAQ_controller('3rd_setup_daq');
    ex.DAQ = connect(ex.DAQ);
 end
 
 %Stage connection
-if isempty(ex.PIstage) || ~ex.PIstage.connected
-    ex.PIstage = stage('PI_stage');
-    ex.PIstage = connect(ex.PIstage);
-end
+% if isempty(ex.PIstage) || ~ex.PIstage.connected
+%     ex.PIstage = stage('PI_stage');
+%     ex.PIstage = connect(ex.PIstage);
+% end
 
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
@@ -140,7 +141,7 @@ ex = addScans(ex,scan);
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = forcedDelayTime;
 
-ex.maxFailedCollections = 10;
+ex.maxFailedCollections = 3;
 
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = nDataPointDeviationTolerance;

@@ -91,6 +91,9 @@ classdef experiment
       function h = setInstrument(h,scanToChange)
          currentScan = h.scan(scanToChange);%Pulls current scan to change
 
+         currentScan.identifier = instrumentType.giveProperIdentifier(currentScan.identifier);
+         assignin("base","currentScan",currentScan)
+
          if ~isa(currentScan.bounds,'cell')%Cell indicates multiple new values
             if h.useManualSteps
                newValue = h.manualSteps{scanToChange};
@@ -100,7 +103,7 @@ classdef experiment
                   newValue = newValue(h.odometer(scanToChange));
                end
             else
-               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
+               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange));%Computes new value
             end
          else
             for ii = 1:numel(currentScan.bounds)
@@ -586,7 +589,9 @@ classdef experiment
                         pause(.1)%For next data point to come in before discarding the read
                         %Discards any data that might have "carried
                         %over" from the previous data point
-                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                        if h.DAQ.handshake.NumScansAvailable > 0
+                            [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                        end
                     else
                         h.forcedCollectionPauseTime = originalPauseTime;
                         stop(h.DAQ.handshake)

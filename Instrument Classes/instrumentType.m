@@ -182,7 +182,10 @@ classdef instrumentType < handle
                attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units,setState)
          end
          
+         pause(5)
          [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+
+         assignin("base","numericalDataEarly",numericalData)
 
          %See previous note about unit mismatch
          if nargin > 4 && ~isempty(varargin{2})
@@ -319,6 +322,10 @@ classdef instrumentType < handle
                end
                outputInfo = fscanf(h.handshake);
          end
+         disp(queryCommand)
+         disp(outputInfo)
+         assignin("base","numericalDataEarliest",outputInfo)
+         assignin("base","queryCommand",queryCommand)
       end
 
       function h = writeInstrument(h,commandInput)
@@ -331,6 +338,7 @@ classdef instrumentType < handle
             case 'serialport'
                fprintf(h.handshake,commandInput);
          end
+         disp(commandInput)
       end
 
    end
@@ -456,7 +464,7 @@ classdef instrumentType < handle
          switch lower(userIdentifier)
             case {'srs','srs_rf','srs rf','srsrf'}
                properIdentifier = 'SRS RF';
-            case {'wf','windfreak','wind freak','wind_freak'}
+            case {'wf','windfreak','wind freak','wind_freak','wf rf','wf_rf'}
                properIdentifier = 'WF RF';
             case {'pulse_blaster','pulse blaster','pb','pulseblaster','spincore'}
                properIdentifier = 'Pulse Blaster';

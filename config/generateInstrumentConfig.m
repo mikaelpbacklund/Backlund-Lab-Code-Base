@@ -106,7 +106,7 @@ saveLocation = pwd;%Default is to save to current directory
 saveName = '\pulse_blaster_config';
 save(strcat(saveLocation,saveName),'config')
 
-%% NI_DAQ
+%% NI_DAQ 1st setup
 
 clear config
 
@@ -127,27 +127,63 @@ config.channelInfo(4).dataType = 'Digital';
 config.channelInfo(4).port = 'port0/line2';
 config.channelInfo(4).label = 'Signal/Reference';%Signal and/or reference must be included
 
-config.channelInfo(5).dataType = 'Digital';
-config.channelInfo(5).port = 'port0/line3';
-config.channelInfo(5).label = 'Testing';%Signal and/or reference must be included
-
 %Port the clock is connected to
 config.clockPort = 'PFI12';
 
 %DAQ manufacturer
 config.manufacturer = 'ni';
-
+config.identifier = 'daq';
 config.sampleRate = 1.25e6;
 
-config.defaults.continuousCollection = false;
+config.defaults.continuousCollection = true;
 config.defaults.takeData = false;
-config.defaults.activeDataChannel = 'Data counter';
-config.defaults.differentiateSignal = false;
+config.defaults.activeDataChannel = 'Data analog';
+config.defaults.differentiateSignal = true;
 config.defaults.toggleChannel = 'Toggle';
 config.defaults.signalReferenceChannel = 'Signal/Reference';
 
 saveLocation = pwd;%Default is to save to current directory
-saveName = '\NI_DAQ';
+saveName = '\1st_setup_daq';
+save(strcat(saveLocation,saveName),'config')
+
+%% NI_DAQ 3rd setup
+
+clear config
+
+%Info about what ports correspond to what inputs
+config.channelInfo(1).dataType = 'Counter';
+config.channelInfo(1).port = 'ctr2';
+config.channelInfo(1).label = 'Data counter';%Data must be included
+
+config.channelInfo(2).dataType = 'Analog';
+config.channelInfo(2).port = 'ai0';
+config.channelInfo(2).label = 'Data analog';
+
+config.channelInfo(3).dataType = 'Digital';
+config.channelInfo(3).port = 'port0/line0';
+config.channelInfo(3).label = 'Toggle';%Toggle must be included
+
+config.channelInfo(4).dataType = 'Digital';
+config.channelInfo(4).port = 'port0/line1';
+config.channelInfo(4).label = 'Signal/Reference';%Signal and/or reference must be included
+
+%Port the clock is connected to
+config.clockPort = 'PFI1';
+
+%DAQ manufacturer
+config.manufacturer = 'ni';
+config.identifier = 'daq';
+config.sampleRate = 1.25e6;
+
+config.defaults.continuousCollection = true;
+config.defaults.takeData = false;
+config.defaults.activeDataChannel = 'Data counter';
+config.defaults.differentiateSignal = true;
+config.defaults.toggleChannel = 'Toggle';
+config.defaults.signalReferenceChannel = 'Signal/Reference';
+
+saveLocation = pwd;%Default is to save to current directory
+saveName = '\3rd_setup_daq';
 save(strcat(saveLocation,saveName),'config')
 
 %% Stage
@@ -335,16 +371,16 @@ clear config
 config.identifier = 'WF RF';
 
 config.connectionInfo.vendor = 'windfreak';
-config.connectionInfo.comPort = 9;%Unknown com port
+config.connectionInfo.comPort = 9;
 config.connectionInfo.baudRate = 19200;
 
 %Commands section for what messages should be sent to the instrument
-config.commands.toggleOn = 'o 1';
-config.commands.toggleOff = 'o 0';
+config.commands.toggleOn = 'o1';
+config.commands.toggleOff = 'o0';
 config.commands.toggleQuery = 'o?';
-config.commands.amplitude = 'a %g';
-config.commands.amplitudeQuery = 'w?';
-config.commands.frequency = 'f %d';
+config.commands.amplitude = 'a%g';
+config.commands.amplitudeQuery = 'a?';
+config.commands.frequency = 'f%f';
 config.commands.frequencyQuery = 'f?';
 config.commands.modulationToggleOn = '';
 config.commands.modulationToggleOff = '';
@@ -372,6 +408,6 @@ config.(p).minimum = 0;
 config.(p).maximum = 63;
 
 saveLocation = pwd;%Default is to save to current directory
-saveName = '\windfreak_RF_generator_config';
+saveName = '\windfreak_RF';
 save(strcat(saveLocation,saveName),'config')
 
