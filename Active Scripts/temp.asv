@@ -1,0 +1,26 @@
+clear
+if ~exist('ex','var')
+   ex = experiment;
+end
+
+initialTime = datetime;
+%Windfreak connection
+if isempty(ex.windfreak_RF)
+   ex.windfreak_RF = RF_generator('windfreak_RF');
+   ex.windfreak_RF = connect(ex.windfreak_RF);
+end
+
+connectionTime = initialTime - datetime;
+
+ex.windfreak_RF.frequency = 1;
+
+initialSetTime = datetime;
+
+ex.windfreak_RF.frequency = 1.1;
+
+secondarySetTime = datetime;
+
+ex.windfreak_RF = queryFrequency(ex.windfreak_RF);
+
+queryTime = datetime;
+

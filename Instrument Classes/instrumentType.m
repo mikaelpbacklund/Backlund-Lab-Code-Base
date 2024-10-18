@@ -150,12 +150,13 @@ classdef instrumentType < handle
                attributeInfo.tolerance = h.attInfoStr.('tolerance');
             else
                attributeInfo.tolerance = abs(setState)*.0001;
-            end            
+            end        
          end
 
          %Reads data to check if current setting matches input given
          if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query') 
             [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+            
             %This is remarkably stupid where the write units of the instrument
             %are not the same as the read units. Only the windfreak RF
             %generator does this, but it has to be corrected here otherwise
@@ -165,14 +166,14 @@ classdef instrumentType < handle
             end
             updatedVal = numericalData./attributeInfo.conversionFactor;
 
+            %If it is a query, only one reading is performed
+            if strcmpi(setState,'query');     return;    end   
+
             %Attribute already what the input is, no change needed
             if setState <= updatedVal + attributeInfo.tolerance && setState >=updatedVal - attributeInfo.tolerance %#ok<BDSCI>
                printOut(h,sprintf('%s already %g %s',attribute,updatedVal,attributeInfo.units))
                return
-            end
-
-            %If it is a query, only one reading is performed
-            if strcmpi(setState,'query');     return;    end            
+            end                     
          end         
          
          %Check attribute bounds then set new attribute if it is within those bounds
@@ -199,9 +200,6 @@ classdef instrumentType < handle
          
          %Checks if new reading matches input value
          if numericalData > numericalInput + attributeInfo.tolerance || numericalData < numericalInput - attributeInfo.tolerance 
-            assignin('base','numericalInput',numericalInput)
-            assignin('base','numericalData',numericalData)
-            assignin("base","tolerance",attributeInfo.tolerance)
              h.failCase(attribute,numericalInput,numericalData);            
          else
             updatedVal = numericalData/attributeInfo.conversionFactor;
@@ -336,10 +334,6 @@ classdef instrumentType < handle
                end
                outputInfo = fscanf(h.handshake);
          end
-         disp(queryCommand)
-         disp(outputInfo)
-         assignin("base","numericalDataEarliest",outputInfo)
-         assignin("base","queryCommand",queryCommand)
       end
 
       function h = writeInstrument(h,commandInput)
@@ -352,7 +346,6 @@ classdef instrumentType < handle
             case 'serialport'
                fprintf(h.handshake,commandInput);
          end
-         disp(commandInput)
       end
 
    end
@@ -461,10 +454,6 @@ classdef instrumentType < handle
          if strcmp(insertOrReplace,'insert') && ~isempty(s) && indexToAdd <= numel(s)            
             s(indexToAdd+1:end+1) = s(indexToAdd:end);
          end
-
-         assignin("base","indexToAdd",indexToAdd)
-         assignin("base","valuesToAdd",valuesToAdd)
-         assignin("base","s",s)
 
          if isempty(s)
              s = valuesToAdd;

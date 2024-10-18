@@ -104,11 +104,9 @@ classdef RF_generator < instrumentType
 
    methods %Internal Functions
 
-      function [h,numericalData] = readNumber(h,attributeQuery)
-          tic
+      function [h,numericalData] = readNumber(h,attributeQuery)          
           [h,numericalData] = readInstrument(h,attributeQuery);
-         numericalData = str2double(numericalData); 
-         toc
+         numericalData = str2double(numericalData);          
       end
 
       function h = writeNumber(h,attribute,numericalInput)          

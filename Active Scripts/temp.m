@@ -1,34 +1,37 @@
+clear ex
 if ~exist('ex','var')
    ex = experiment;
 end
 
-%If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
-if isempty(ex.pulseBlaster)
-   ex.pulseBlaster = pulse_blaster('PB');
-   ex.pulseBlaster = connect(ex.pulseBlaster);
-end
-
-%If there is no RF_generator object, create a new one with the config file "SRS_RF"
-%This is the "normal" RF generator that our lab uses, other specialty RF generators have their own configs
-if isempty(ex.SRS_RF)
-   ex.SRS_RF = RF_generator('SRS_RF');
-   ex.SRS_RF = connect(ex.SRS_RF);
-end
-
+initialTime = datetime;
 %Windfreak connection
 if isempty(ex.windfreak_RF)
    ex.windfreak_RF = RF_generator('windfreak_RF');
    ex.windfreak_RF = connect(ex.windfreak_RF);
 end
 
-%If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
-if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('NI_DAQ');
-   ex.DAQ = connect(ex.DAQ);
+ex.windfreak_RF.uncommonProperties.bypassPreCheck = true;
+
+ex.windfreak_RF.enabled = true;
+
+ex.windfreak_RF.amplitude = 20;
+
+disp('Kyle it started')
+%%
+connectionTime = seconds(datetime - initialTime);
+
+for ii = 1:6
+    if mod(ii,2) == 1
+        ex.windfreak_RF.frequency = 1;
+    else
+        ex.windfreak_RF.frequency = 1.1;
+    end
+    setTimes(ii) = seconds(datetime - initialTime);
 end
 
-%Stage connection
-if isempty(ex.PIstage) || ~ex.PIstage.connected
-    ex.PIstage = stage('PI_stage');
-    ex.PIstage = connect(ex.PIstage);
-end
+ex.windfreak_RF = queryFrequency(ex.windfreak_RF);
+
+queryTime = seconds(datetime - initialTime);
+
+timeDifferentials = diff([connectionTime setTimes queryTime]);
+
