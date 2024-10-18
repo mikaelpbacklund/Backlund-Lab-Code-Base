@@ -19,7 +19,7 @@ classdef instrumentType < handle
    methods
       function h = instrumentType
          h.uncommonProperties.connectionType = [];
-         h.uncommonProperties.bypassPreCheck = false; %Bypasses
+         h.uncommonProperties.bypassPreCheck = false;
          h.uncommonProperties.bypassPostCheck = false;
       end
       
@@ -71,7 +71,7 @@ classdef instrumentType < handle
          
          %If there is only 1 field name of the output (meaning only 1 input
          %name), return the variable directly rather than in a structure
-         if isscalar(fieldnames(s))
+         if numel(fieldnames(s)) == 1
             s = s.(m);
          end
       end
@@ -235,30 +235,21 @@ classdef instrumentType < handle
             toggleCommand = attributeInfo.toggleOff;
          end
          
-         %Reads data to check if current setting matches input given
-         if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query')
-            [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
-            foundState = instrumentType.discernOnOff(toggleStatus);
-
-            if strcmp(setState,'query')
-               return
-            end
-
-            if strcmp(setState,toggleStatus)
-               className = class(h);
-               className(className=='_') = ' ';
-               printOut(h,sprintf('%s already %s',className,h.status))
-               return
-            end
+         [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
+         foundState = instrumentType.discernOnOff(toggleStatus);
+         
+         if strcmp(setState,'query')
+            return
+         end
+         
+         if strcmp(setState,toggleStatus)
+            className = class(h);
+            className(className=='_') = ' ';
+            printOut(h,sprintf('%s already %s',className,h.status))
+            return
          end
          
          h = writeToggle(h,toggleCommand);
-
-         %Bypass check after if enabled
-         if h.uncommonProperties.bypassPostCheck 
-            foundState = instrumentType.discernOnOff(setState);
-            return
-         end
          
          [h,toggleStatus] = readToggle(h,attributeInfo.query);
          toggleStatus = instrumentType.discernOnOff(toggleStatus);

@@ -75,9 +75,7 @@ classdef RF_generator < instrumentType
 
                h.uncommonProperties.connectionType = 'com';
 
-               %Whenever a setting is changed for windfreak, it stalls out for ~4-5 seconds and cannot answer queries
-               %This setting bypasses ordinary check that makes sure setting has changed properly
-               %This does mean, however, that it may be more susceptible to errors
+               %Whene
                h.uncommonProperties.bypassPostCheck = true;
 
             otherwise
@@ -211,13 +209,15 @@ classdef RF_generator < instrumentType
 
       function set.frequency(h,val)
           %Windfreak is stupid and gives different units for output than
-          %for input         
+          %for input          
+          tic
           if strcmp(h.connectionInfo.vendor,'wf')
               [h,newVal] = writeNumberProtocol(h,'frequency',val,[],1e-3);
           else
               [h,newVal] = writeNumberProtocol(h,'frequency',val);
           end          
           h.frequency = newVal;     
+          toc
       end
 
       function set.amplitude(h,val)
