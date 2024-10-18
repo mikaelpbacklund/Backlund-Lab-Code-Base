@@ -1,7 +1,6 @@
 classdef stage < instrumentType
 
    properties (SetAccess = {?stage ?instrumentType}, GetAccess = public)
-      maxConnectionAttempts
       controllerInfo
       pathObject
       SNList
@@ -13,11 +12,15 @@ classdef stage < instrumentType
    end
 
    properties
-      ignoreWait
-      tolerance
-      pauseTime
-      resetToMidpoint %If true, fine axis resets to midpoint. If false, it resets to max/min depending on movement direction
-      maxRecord
+      maxConnectionAttempts = 5;
+      ignoreWait = false;
+      tolerance = .1;
+      toleranceStandardDeviations = 0; %Overrides hard set tolerance if non-zero
+      pauseTime = .05;
+      resetToMidpoint = true; %If true, fine axis resets to midpoint. If false, it resets to max/min depending on movement direction
+      maxRecord = 1000;
+      numberRecordsErased = 100;
+      checkTolerance = false;
    end
 
    methods
@@ -40,7 +43,7 @@ classdef stage < instrumentType
          addpath(getenv('PI_MATLAB_DRIVER'))
 
          %Loads config file and checks relevant field names
-         configFields = {'controllerInfo','defaults'};
+         configFields = {'controllerInfo','identifier'};
          commandFields = {};
          numericalFields = {};
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
@@ -58,126 +61,126 @@ classdef stage < instrumentType
          end
 
          %This try/catch is to ensure proper status of h.connected in the event of failure
-         try 
+         try
 
-         %Checks defaults of the following settings then
-         %assigns them to corresponding properties
-         s = checkSettings(h,fieldnames(h.defaults));
-         h = instrumentType.overrideStruct(h,s);
+            %Checks defaults of the following settings then
+            %assigns them to corresponding properties
+            s = checkSettings(h,fieldnames(h.defaults));
+            h = instrumentType.overrideStruct(h,s);
 
-         h.identifier = 'stage';%Label for stage
+            h.identifier = 'stage';%Label for stage
 
-         %Loop for potential failures to connect
-         nfails = 0;
-         while true
+            %Loop for potential failures to connect
+            nfails = 0;
+            while true
 
-            %Create PI_GCS_Controller object
-            %evalc is used to suppress command window print inherent to function
-            [~,h.pathObject] = evalc('PI_GCS_Controller');
+               %Create PI_GCS_Controller object
+               %evalc is used to suppress command window print inherent to function
+               [~,h.pathObject] = evalc('PI_GCS_Controller');
 
-            %Certain points may fail if connection is not established properly
-            try
+               %Certain points may fail if connection is not established properly
+               try
 
-               %Finds serial numbers and model
-               newConnections = EnumerateUSB(h.pathObject);
-               isPIStage = cellfun(@(a)strcmp(a(1:2),'PI'),newConnections);
-               newConnections = newConnections(isPIStage);
-               if isempty(newConnections) %Nothing obtained
-                   error('No new possible connections found')
+                  %Finds serial numbers and model
+                  newConnections = EnumerateUSB(h.pathObject);
+                  isPIStage = cellfun(@(a)strcmp(a(1:2),'PI'),newConnections);
+                  newConnections = newConnections(isPIStage);
+                  if isempty(newConnections) %Nothing obtained
+                     error('No new possible connections found')
+                  end
+                  newModels = cellfun(@(a)a(4:8),newConnections,'UniformOutput',false);
+                  newSNs = cellfun(@(a)findSN(a),newConnections,'UniformOutput',false);
+
+                  %If no models/SNs, create models/SNs list
+                  if isempty(h.modelList)
+                     %For each new unique serial number, create connection and store in handshake
+                     for jj = 1:numel(newSNs)
+                        h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
+                     end
+                     h.modelList = newModels;
+                     h.SNList = newSNs;
+                  else
+                     %Check if already on list
+                     notOnList = ~contains(newModels,h.modelList);
+                     if ~any(notOnList)
+                        error('No new models found')
+                     end
+                     newModels = newModels(notOnList);
+                     newSNs = newSNs(notOnList);
+
+                     %For each new unique serial number, create connection and store in handshake
+                     for jj = 1:numel(newSNs)
+                        h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
+                     end
+
+                     %Update list of models and serial numbers
+                     h.modelList(end+1:end+numel(newModels)) = newModels;
+                     h.SNList(end+1:end+numel(newSNs)) = newSNs;
+                  end
+
+                  %For every axis to be controlled
+                  for jj = 1:numel(h.controllerInfo)
+                     %If there is already a known serial number, skip axis
+                     if isfield(h.controllerInfo(jj),'serialNumber') && ~isempty(h.controllerInfo(jj).serialNumber)
+                        continue
+                     end
+
+                     %Finds if any of the new models match axis' model
+                     matchingModel = cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),newModels);
+
+                     %If there is a matching connection, add serial number
+                     %and handshake location to controllerInfo
+                     if any(matchingModel)
+                        h.controllerInfo(jj).serialNumber = str2double(newSNs{matchingModel});
+                        %Handshake location must be based on total list not just new ones
+                        h.controllerInfo(jj).handshakeNumber = find(cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),h.modelList));
+                     end
+                  end
+
+                  %If not all rows find a corresponding serial number, retry
+                  if any(cellfun('isempty',{h.controllerInfo.handshakeNumber}))
+                     error('Not all controllers connected')
+                  end
+
+                  break %ends loop upon successful connection
+
+               catch ME
+                  nfails = nfails+1;%Increment failed attempts
+
+                  %If number of fails hits max attempts, throw error, otherwise throw warning
+                  if nfails >= h.maxConnectionAttempts
+                     warning('Not all specified stage controllers were connected. Last error:')
+                     rethrow(ME)
+                  end
+                  warning(ME.message)
+                  fprintf('Not all specified stage controllers were connected (%d times). Retrying...\n',nfails)
+
+                  %Gets rid of any handshakes that didn't properly connect
+                  extraHandshakes = numel(h.handshake) - numel(h.SNList);
+                  if extraHandshakes > 0
+                     for jj = 1:extraHandshakes
+                        h.handshake{end}.CloseConnection
+                        h.handshake(end) = [];
+                     end
+                  end
+                  pause(.5) %Rapid connection attempts fail, pause is required between attempts
                end
-               newModels = cellfun(@(a)a(4:8),newConnections,'UniformOutput',false);
-               newSNs = cellfun(@(a)findSN(a),newConnections,'UniformOutput',false);
-
-               %If no models/SNs, create models/SNs list
-               if isempty(h.modelList)                    
-                   %For each new unique serial number, create connection and store in handshake
-                   for jj = 1:numel(newSNs)                       
-                       h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
-                   end
-                   h.modelList = newModels;
-                   h.SNList = newSNs;
-               else
-                   %Check if already on list
-                   notOnList = ~contains(newModels,h.modelList);
-                   if ~any(notOnList)
-                       error('No new models found')
-                   end
-                   newModels = newModels(notOnList);
-                   newSNs = newSNs(notOnList);
-
-                   %For each new unique serial number, create connection and store in handshake
-                   for jj = 1:numel(newSNs)                       
-                       h.handshake{end+1} = ConnectUSB(h.pathObject,newSNs{jj});
-                   end
-
-                   %Update list of models and serial numbers
-                   h.modelList(end+1:end+numel(newModels)) = newModels;         
-                   h.SNList(end+1:end+numel(newSNs)) = newSNs;    
-               end  
-
-               %For every axis to be controlled
-               for jj = 1:numel(h.controllerInfo)
-                   %If there is already a known serial number, skip axis
-                   if isfield(h.controllerInfo(jj),'serialNumber') && ~isempty(h.controllerInfo(jj).serialNumber)
-                       continue
-                   end
-
-                   %Finds if any of the new models match axis' model
-                   matchingModel = cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),newModels);
-
-                   %If there is a matching connection, add serial number
-                   %and handshake location to controllerInfo
-                   if any(matchingModel)
-                       h.controllerInfo(jj).serialNumber = str2double(newSNs{matchingModel});
-                       %Handshake location must be based on total list not just new ones
-                       h.controllerInfo(jj).handshakeNumber = find(cellfun(@(x)strcmpi(h.controllerInfo(jj).model,x),h.modelList));
-                   end
-               end               
-
-               %If not all rows find a corresponding serial number, retry
-               if any(cellfun('isempty',{h.controllerInfo.handshakeNumber}))
-                  error('Not all controllers connected')
-               end
-
-               break %ends loop upon successful connection
-
-            catch ME               
-               nfails = nfails+1;%Increment failed attempts
-
-               %If number of fails hits max attempts, throw error, otherwise throw warning
-               if nfails >= h.maxConnectionAttempts
-                  warning('Not all specified stage controllers were connected. Last error:')
-                  rethrow(ME)
-               end
-               warning(ME.message)
-               fprintf('Not all specified stage controllers were connected (%d times). Retrying...\n',nfails)
-
-               %Gets rid of any handshakes that didn't properly connect
-               extraHandshakes = numel(h.handshake) - numel(h.SNList);
-               if extraHandshakes > 0
-                   for jj = 1:extraHandshakes
-                       h.handshake{end}.CloseConnection
-                       h.handshake(end) = [];
-                   end
-               end  
-               pause(.5) %Rapid connection attempts fail, pause is required between attempts
             end
-         end
 
-         %Finds unique spatial axes and creates entries in axisSum property
-         uniqueAxes = unique({h.controllerInfo.axis});
-         h.axisSum = cell(numel(uniqueAxes),2);
-         h.axisSum(:,1) = uniqueAxes;
+            %Finds unique spatial axes and creates entries in axisSum property
+            uniqueAxes = unique({h.controllerInfo.axis});
+            h.axisSum = cell(numel(uniqueAxes),2);
+            h.axisSum(:,1) = uniqueAxes;
 
-         %Marks stage as connected (necessary for toggleAxis to work)
-         h.connected = true;         
+            %Marks stage as connected (necessary for toggleAxis to work)
+            h.connected = true;
 
-         %Turn on all axes
-         for ii = 1:numel(h.controllerInfo)
-            h = toggleAxis(h,ii,'on');
-         end
+            %Turn on all axes
+            for ii = 1:numel(h.controllerInfo)
+               h = toggleAxis(h,ii,'on');
+            end
 
-         %If connection fails, disconnect all controllers
+            %If connection fails, disconnect all controllers
          catch ME
             h.connected = true; %"Tricks" disconnect function into actually disconnecting
             h = disconnect(h);%#ok<NASGU>
@@ -224,6 +227,10 @@ classdef stage < instrumentType
          %Computes midpoint of range
          h.controllerInfo(infoRow).midpoint = h.controllerInfo(infoRow).intrinsicLimits(1) + h.controllerInfo(infoRow).intrinsicRange/2;
 
+         %Sets current error compensation to 0. Will only be non-zero if checkTolerance is on and spatial axis location
+         %is not within tolerance when checked
+         h.controllerInfo(infoRow).errorCompensation = 0;
+
          %Gets current information regarding this axis
          h = getStageInfo(h,infoRow);
 
@@ -263,7 +270,7 @@ classdef stage < instrumentType
          %If it is a string, find all controllers for that spatial axis and
          %convert to double
          if isa(axisRows,'string') || isa(axisRows,'char')
-             [h,axisRows] = findAxisRow(h,axisRows,["coarse","fine"]);
+            [h,axisRows] = findAxisRow(h,axisRows,["coarse","fine"]);
          end
 
          assignin("base","axisRows",axisRows)
@@ -301,10 +308,10 @@ classdef stage < instrumentType
                fprintf(['Locations record exceeds maximum of %d data points as set by'...
                   ' h.maxRecord\nRemoving the earliest 100 points\n'],h.maxRecord)
             end
-            if h.maxRecord < 100
+            if h.maxRecord < h.numberRecordsErased
                h.locationsRecord(1:end-1,:) = [];
             else
-               h.locationsRecord(1:100,:) = [];
+               h.locationsRecord(1:h.numberRecordsErased,:) = [];
             end
          end
 
@@ -320,6 +327,7 @@ classdef stage < instrumentType
          %Moves the stage without checking limits or other axes
          %newTarget is desired absolute position
          %4th input is coarse/fine designation
+         %Note: errorCompensation field modifies target set in directMove
 
          checkConnection(h)
 
@@ -342,12 +350,12 @@ classdef stage < instrumentType
          %Finds amount of relative movement to display in printout later
          relativeMovement = newTarget - h.controllerInfo(axisRow).targetLocation;
 
-         %Sets target location to the new target
-         h.controllerInfo(axisRow).targetLocation = newTarget;
+         %Sets target location to the new target and error compensation
+         h.controllerInfo(axisRow).targetLocation = newTarget + h.controllerInfo(axisRow).errorCompensation;
 
          %Get shorthand for use later
          currentInfo = h.controllerInfo(axisRow);
-         handshakeRow = currentInfo.handshakeNumber;         
+         handshakeRow = currentInfo.handshakeNumber;
 
          %Conversion to correct units
          newTarget = newTarget / currentInfo.conversionFactor;
@@ -393,25 +401,18 @@ classdef stage < instrumentType
          if nargin > 3
             printOut(h,sprintf("%s %s moved %.3f μm to %.3f μm", varargin{1},axisName,relativeMovement,h.controllerInfo(axisRow).location))
          else
-            printOut(h,sprintf("%s moved %.3f μm to %.3f μm",axisName,relativeMovement,h.controllerInfo(axisRow).location))  
+            printOut(h,sprintf("%s moved %.3f μm to %.3f μm",axisName,relativeMovement,h.controllerInfo(axisRow).location))
          end
-         
+
       end
 
-      function h = relativeMove(h,spatialAxis,targetMovement,varargin)
+      function h = relativeMove(h,spatialAxis,targetMovement)
          %Moves relative to current location
          %Uses fine stage when possible, coarse stage when necessary
-         %4th argument is optionally not checking tolerance
          checkConnection(h)
 
-         %If no 4th input give, check tolerance
-         if nargin < 4
-            checkTolerance = true;            
-         else
-            checkTolerance = varargin{1};
-         end
 
-         try 
+         try
             %Works if only 1 axis per spatial axis (no grain)
             [h,infoRows] = findAxisRow(h,spatialAxis);
             targetLocation = targetMovement + h.controllerInfo(infoRows).targetLocation;
@@ -422,33 +423,23 @@ classdef stage < instrumentType
             for ii = infoRows
                targetLocation = targetLocation + h.controllerInfo(ii).targetLocation;
             end
-         end  
+         end
 
          %Moves to absolute location of target
          %Saves on a lot of code by routing it through that function
-         h = absoluteMove(h,spatialAxis,targetLocation,checkTolerance);
+         h = absoluteMove(h,spatialAxis,targetLocation);
       end
 
-      function h = absoluteMove(h,spatialAxis,targetLocation,varargin)
+      function h = absoluteMove(h,spatialAxis,targetLocation)
          %Moves to new absolute location along spatial axis
          %Uses fine stage when possible, coarse stage when necessary
-         %4th argument is optionally not checking tolerance
          checkConnection(h)
-
-         %If no 4th input give, check tolerance
-         if nargin > 3
-            checkTolerance = varargin{1};
-         else
-            checkTolerance = true;
-         end
 
          try
             %Only works for one spatial axis, not coarse/fine
             h = directMove(h,spatialAxis,targetLocation);
             %Checks if current location is within tolerance of the target if enabled
-            if checkTolerance
-               h = toleranceCheck(h,spatialAxis);
-            end
+            h = toleranceCheck(h,spatialAxis);
             return
          catch
          end
@@ -495,19 +486,17 @@ classdef stage < instrumentType
             %Moves coarse stage to new location
             h = directMove(h,spatialAxis,coarseTarget,'coarse');
 
-         else %Fine movement only          
+         else %Fine movement only
 
             %Finds absolute target location for fine stage then directly move there
             %Adds extra compensation if already present
             fineTarget = relativeTarget + h.controllerInfo(fineRow).location;
             h = directMove(h,spatialAxis,fineTarget+h.controllerInfo(fineRow).extraCompensation,'fine');
 
-         end        
+         end
 
          %Checks if current location is within tolerance of the target if enabled
-         if checkTolerance            
-            h = toleranceCheck(h,spatialAxis);
-         end
+         h = toleranceCheck(h,spatialAxis);
 
          %Prints current axis total
          printOut(h,sprintf('Axis total: %.3f μm',h.axisSum{sumRow,2}))
@@ -561,18 +550,29 @@ classdef stage < instrumentType
             varargout{1} = -relativeFineMovement;
          end
 
+         %Checks tolerance if enabled
+         h = toleranceCheck(h,spatialAxis);
+
       end
 
       function h = toleranceCheck(h,spatialAxis)
          %Checks if current location is within h.tolerance μm of target location
+         %This is the only function that will change the errorCompensation field for controllerInfo
+         %It is solely used to change the target of the fine stage such that the location is within tolerance after
+         %moving to what should be the target area
 
-         try 
+         %If set to not check tolerance or tolerance is 0, end function
+         if ~h.checkTolerance || h.tolerance == 0
+            return
+         end
+
+         try
             %Works if only 1 axis per spatial axis (no grain)
             [h,infoRows] = findAxisRow(h,spatialAxis);
          catch
             %Works for fine and coarse grain for spatial axes
             [h,infoRows] = findAxisRow(h,spatialAxis,["coarse","fine"]);
-         end  
+         end
 
          loopCounter = 0;
          while true
@@ -586,34 +586,34 @@ classdef stage < instrumentType
             end
 
             if abs(trueLocation - targetLocation) < h.tolerance
-               break
+               return
             end
 
-            %***.EXTRACOMPENSATION??? for fine stages to correct for
-            %systematic error in coarse stages
+            %Every 50 ms, add compensation to finest stage based on difference between true and target
+            if mod(loopCounter,50) == 0
+               h.controllerInfo(infoRows(end)).errorCompensation = h.controllerInfo(infoRows(end)).errorCompensation + (trueLocation - targetLocation);
+            end
 
-            %Every 100 ms, jostle stage
+            %Every 10 ms, jostle stage
             if mod(loopCounter,10) == 0
                oldIgnoreWait = h.ignoreWait;
                h.ignoreWait = true; %Disable wait for jostling
-               for ii = infoRows                  
+               for ii = infoRows
                   %Moves stage 1 nm then back again after 1 ms
                   h = directMove(h,spatialAxis,h.controllerInfo(ii).targetLocation + .001,h.controllerInfo(ii).grain);
                   pause(.01)
-                  h = directMove(h,spatialAxis,h.controllerInfo(ii).targetLocation,h.controllerInfo(ii).grain);                  
+                  h = directMove(h,spatialAxis,h.controllerInfo(ii).targetLocation,h.controllerInfo(ii).grain);
                end
                h.ignoreWait = oldIgnoreWait; %Set back to previous value
             end
 
-            
-
             if loopCounter > 100 %Hard cap of 1 second
                error('Could not get %s axis within tolerance',spatialAxis)
             end
-            
+
             %Wait 1 ms on failed tolerance check
             pause(.001)
-            
+
          end
       end
 
