@@ -35,6 +35,7 @@ if ~exist('ex','var')
 end
 if isempty(ex.PIstage) || ~ex.PIstage.connected
     ex.PIstage = stage('PI_stage');
+    ex.PIstage.checkTolerance = false;%Don't check tolerance since movements are so fine
     ex.PIstage = connect(ex.PIstage);
     for ii = ["x","y","z"]
       [ex.PIstage,~,~,locStdDev] = findLocationDeviance(ex.PIstage,ii,100,'coarse');

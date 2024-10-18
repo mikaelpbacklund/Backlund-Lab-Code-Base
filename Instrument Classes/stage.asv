@@ -575,7 +575,7 @@ classdef stage < instrumentType
 
             %Every 50 ms, add compensation to finest stage based on difference between true and target
             if mod(loopCounter,50) == 0
-               h.controllerInfo(infoRows(end)).errorCompensation = h.controllerInfo(infoRows(end)).errorCompensation + (trueLocation - targetLocation);
+               h.controllerInfo(infoRows(end)).errorCompensation = h.controllerInfo(infoRows(end)).er rorCompensation + (trueLocation - targetLocation);
             end
 
             %Every 10 ms, jostle stage

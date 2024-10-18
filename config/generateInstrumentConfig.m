@@ -204,13 +204,6 @@ config.controllerInfo(n).internalAxisNumber = '3';
 config.controllerInfo(n).invertLocation = false;
 config.controllerInfo(n).conversionFactor = 1;
 
-config.defaults.ignoreWait = false;
-config.defaults.tolerance = .05;
-config.defaults.pauseTime = .05;
-config.defaults.resetToMidpoint = true;
-config.defaults.maxRecord = 1000;
-config.defaults.maxConnectionAttempts = 7;
-
 config.identifier = 'PI stage';
 
 saveLocation = pwd;%Default is to save to current directory
