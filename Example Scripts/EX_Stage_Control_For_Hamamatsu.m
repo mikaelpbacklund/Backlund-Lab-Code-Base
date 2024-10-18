@@ -37,12 +37,6 @@ if isempty(ex.PIstage) || ~ex.PIstage.connected
     ex.PIstage = stage('PI_stage');
     ex.PIstage.checkTolerance = false;%Don't check tolerance since movements are so fine
     ex.PIstage = connect(ex.PIstage);
-    for ii = ["x","y","z"]
-      [ex.PIstage,~,~,locStdDev] = findLocationDeviance(ex.PIstage,ii,100,'coarse');
-      fprintf('Coarse %s axis location has a standard deviation of %.1f nm\n',locStdDev*1000)
-      [ex.PIstage,~,locMean,locStdDev] = findLocationDeviance(ex.PIstage,ii,100,'fine');
-      fprintf('Fine %s axis location has a standard deviation of %.1f nm\n',locStdDev*1000)
-    end
 end
 
 %Deletes any pre-existing scan
