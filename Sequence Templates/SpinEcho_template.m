@@ -3,30 +3,28 @@ function [varargout] = SpinEcho_template(h,p)
 %h is pulse blaster object, p is parameters structure
 %τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
 
-parameterFieldNames = ["RFResonanceFrequency","piTime","tauStart","tauEnd","tauNSteps","tauStepSize",...
-   "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration"];
+%Creates default parameter structure
+defaultParameters.RFResonanceFrequency = [];
+defaultParameters.piTime = [];
+defaultParameters.tauStart = [];
+defaultParameters.tauEnd = [];
+defaultParameters.tauNSteps = [];
+defaultParameters.tauStepSize = [];
+defaultParameters.timePerDataPoint = 1;
+defaultParameters.collectionDuration = 1000;
+defaultParameters.collectionBufferDuration = 1000;
+defaultParameters.repolarizationDuration = 7000;
+defaultParameters.intermissionBufferDuration = 2500;
+defaultParameters.extraRF = 0;
+defaultParameters.AOM_DAQCompensation = 0;
+defaultParameters.IQPreBufferDuration = 0;
+defaultParameters.IQPostBufferDuration = 0;
+
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
-if isempty(h)
-   %Creates default parameter structure
-   parameterStructure.RFResonanceFrequency = [];
-   parameterStructure.piTime = [];
-   parameterStructure.tauStart = [];
-   parameterStructure.tauEnd = [];
-   parameterStructure.tauNSteps = [];
-   parameterStructure.tauStepSize = [];
-   parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 1000;
-   parameterStructure.collectionBufferDuration = 1000;
-   parameterStructure.repolarizationDuration = 7000;
-   parameterStructure.intermissionBufferDuration = 2500;
-   parameterStructure.extraRF = 0;
-   parameterStructure.AOM_DAQCompensation = 0;
-   parameterStructure.IQPreBufferDuration = 0;
-   parameterStructure.IQPostBufferDuration = 0;
-
-   varargout{1} = parameterStructure;%returns default parameter structure as first output
+if isempty(h)   
+   varargout{1} = defaultParameters;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
    return

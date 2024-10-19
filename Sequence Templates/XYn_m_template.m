@@ -4,32 +4,29 @@ function [varargout] = XYn_m_template(h,p)
 %τ is defined as time between the center of one π pulse and the next
 %τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
 
-parameterFieldNames = ["RFResonanceFrequency","piTime","tauStart","tauEnd","tauNSteps","tauStepSize",...
-   "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration",...
-   "setsXYN","nXY"];
+%Creates default parameter structure
+parameterStructure.RFResonanceFrequency = [];
+parameterStructure.piTime = [];
+parameterStructure.tauStart = [];
+parameterStructure.tauEnd = [];
+parameterStructure.tauNSteps = [];
+parameterStructure.tauStepSize = [];
+parameterStructure.setsXYN = [];
+parameterStructure.nXY = 8;%default number of XY pulses per set
+parameterStructure.timePerDataPoint = 1;
+parameterStructure.collectionDuration = 1000;
+parameterStructure.collectionBufferDuration = 1000;
+parameterStructure.repolarizationDuration = 7000;
+parameterStructure.intermissionBufferDuration = 2500;
+parameterStructure.extraRF = 0;
+parameterStructure.AOM_DAQCompensation = 0;
+parameterStructure.IQPreBufferDuration = 0;
+parameterStructure.IQPostBufferDuration = 0;
+
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   %Creates default parameter structure
-   parameterStructure.RFResonanceFrequency = [];
-   parameterStructure.piTime = [];
-   parameterStructure.tauStart = [];
-   parameterStructure.tauEnd = [];
-   parameterStructure.tauNSteps = [];
-   parameterStructure.tauStepSize = [];
-   parameterStructure.setsXYN = [];
-   parameterStructure.nXY = 8;%default number of XY pulses per set   
-   parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 1000;
-   parameterStructure.collectionBufferDuration = 1000;
-   parameterStructure.repolarizationDuration = 7000;
-   parameterStructure.intermissionBufferDuration = 2500;
-   parameterStructure.extraRF = 0;
-   parameterStructure.AOM_DAQCompensation = 0;
-   parameterStructure.IQPreBufferDuration = 0;
-   parameterStructure.IQPostBufferDuration = 0;
-
    varargout{1} = parameterStructure;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output

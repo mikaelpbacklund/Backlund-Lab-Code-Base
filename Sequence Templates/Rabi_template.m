@@ -2,26 +2,24 @@ function [varargout] = Rabi_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 
-parameterFieldNames = ["RFResonanceFrequency","tauStart","tauEnd","tauNSteps","tauStepSize",...
-   "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","RFReduction","AOM_DAQCompensation"];
+%Creates default parameter structure
+parameterStructure.RFResonanceFrequency = [];
+parameterStructure.tauStart = [];
+parameterStructure.tauEnd = [];
+parameterStructure.tauNSteps = [];
+parameterStructure.tauStepSize = [];
+parameterStructure.timePerDataPoint = 1;
+parameterStructure.collectionDuration = 800;%Matches sample rate
+parameterStructure.collectionBufferDuration = 1000;
+parameterStructure.repolarizationDuration = 7000;
+parameterStructure.intermissionBufferDuration = 2500;
+parameterStructure.RFReduction = 0;
+parameterStructure.AOM_DAQCompensation = 0;
+
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   %Creates default parameter structure
-   parameterStructure.RFResonanceFrequency = [];
-   parameterStructure.tauStart = [];
-   parameterStructure.tauEnd = [];
-   parameterStructure.tauNSteps = [];
-   parameterStructure.tauStepSize = [];
-   parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 800;%Matches sample rate
-   parameterStructure.collectionBufferDuration = 1000;
-   parameterStructure.repolarizationDuration = 7000;
-   parameterStructure.intermissionBufferDuration = 2500;
-   parameterStructure.RFReduction = 0;
-   parameterStructure.AOM_DAQCompensation = 0;
-
    varargout{1} = parameterStructure;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
