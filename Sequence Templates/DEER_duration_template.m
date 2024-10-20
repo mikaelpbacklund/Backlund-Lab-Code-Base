@@ -62,8 +62,8 @@ else
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.frequencyNSteps)
-   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize));
+if isempty(p.RF2DurationNSteps)
+   p.RF2DurationNSteps = ceil(abs((p.RF2DurationEnd-p.RF2DurationStart)/p.RF2DurationStepSize));
 end
 
 %Creates single array for I/Q pre and post buffers
@@ -94,16 +94,16 @@ for rs = 1:2 %singal half and reference half
 
       if p.piTime > p.RF2DurationStart %All RF2 durations less than RF1 pi time
          h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
-         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'scanned (duration difference/2)');
-         h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},99,'scanned π y + rf2');
-         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned π y');         
+         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');
+         h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},99,'scanned rf2 + π y');
+         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');         
          h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
       else
-         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned τ - (duration difference/2)');
-         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2 duration difference/2');
+         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
+         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
          h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},totalPiTime,'π y + rf2');
-         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2 duration difference/2');
-         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned τ - (duration difference/2)');
+         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
       end
 
    else
@@ -138,44 +138,36 @@ h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
 h = sendToInstrument(h);
 
 %% Scan Calculations
-%God this is gonna be nonsense
+scannedBounds = [p.RF2DurationStart,p.RF2DurationEnd];
 
+%Bounds for compensation pulses to keep total length constant
 if p.nRF2Pulses == 1
-   %short rf2
-   %First addresses to be scanned are remainder π
-   %They will have a duration of (pitime - rf2time)/2
-   %Second addresses to be scanned are rf2+pi
-   %They will have a duration of rf2time
-   % h = condensedAddPulse(h,{'RF','I',addedSignal},-durationDifference/2,'inverse scanned π y');
-   % h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},99,'scanned π y + rf2');
-   %long rf2   
-   %First addresses to be scanned are remainder rf2
-   %They will have a duration of (pitime - pitime)/2
-   %Second addresses to be scanned are rf2+pi
-   %They will have a duration of pitime
-   % h = condensedAddPulse(h,{addedSignal},99,'inverse scanned τ - (duration difference/2)');
-   % h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2 duration difference/2');
+   if p.piTime > p.RF2DurationStart %short rf2
+      %Keep π constant  
+      remainderBounds = [floor((totalPiTime - p.RF2DurationStart)/2),floor((totalPiTime - p.RF2DurationEnd)/2)];
+
+   else %long rf2
+      %Keep τ constant  
+      remainderBounds = [(p.tauTime - p.RF2DurationStart),(p.tauTime - p.RF2DurationEnd)];
+
+   end
 else
-   %First addresses to be scanned are remainder tau
-   %They will have a duration of (tautime - rf2time)/2
-   %Second addresses to be scanned are rf2
-   %They will have a duration of rf2time
-   % h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
-   % h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder of τ');
+   %Keep τ constant  
+   remainderBounds = [(p.tauTime - (p.RF2DurationStart+30)),(p.tauTime - (p.RF2DurationEnd+30))];   
 end
 
-%If notes contain "inverse", scanned value is flipped
-%If notes contain remained
+%Gets addresses and sets bounds corresponding to those addresses
+scannedAddresses = findPulses(h,'notes','scanned rf2');
+remainderAddresses = findPulses(h,'notes','remainder');
+scanInfo.address = [scannedAddresses,remainderAddresses];
+scanInfo.bounds{1:numel(scannedAddresses)} = scannedBounds;
+scanInfo.bounds{1+numel(scannedAddresses):numel(scanInfo.address)} = remainderBounds;
 
-
-
-
-%Info regarding the scan
-scanInfo.bounds = [p.frequencyStart,p.frequencyEnd];
-scanInfo.nSteps = p.frequencyNSteps;
-scanInfo.parameter = 'frequency';
-scanInfo.identifier = 'windfreak';
-scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d, RF: %.3f GHz, RF2 duration: %d)',round(p.piTime),round(p.tauTime),p.RFResonanceFrequency,p.RF2Duration);
+%Remaining scan info
+scanInfo.nSteps = p.RF2DurationNSteps;
+scanInfo.parameter = 'duration';
+scanInfo.identifier = 'Pulse Blaster';
+scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d GHz)',round(p.piTime),round(p.tauTime),p.RFResonanceFrequency,p.RF2Duration);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %% Outputs
