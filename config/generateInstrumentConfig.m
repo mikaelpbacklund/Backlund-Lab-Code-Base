@@ -96,6 +96,7 @@ config.acceptableDirectionNames{3} = {'loop','startloop','start_loop','start','s
 config.formalDirectionNames{4} = 'End Loop';
 config.acceptableDirectionNames{4} = {'endloop','end_loop','end','end loop'};
 
+config.identifier = 'pb';
 config.clockSpeed = 500;%MHz
 config.units = 'nanoseconds';
 config.defaults.useTotalLoop = true;%Encompass the entire sequence in a loop
@@ -159,6 +160,7 @@ config.acceptableDirectionNames{3} = {'loop','startloop','start_loop','start','s
 config.formalDirectionNames{4} = 'End Loop';
 config.acceptableDirectionNames{4} = {'endloop','end_loop','end','end loop'};
 
+config.identifier = 'pb';
 config.clockSpeed = 500;%MHz
 config.units = 'nanoseconds';
 config.defaults.useTotalLoop = true;%Encompass the entire sequence in a loop

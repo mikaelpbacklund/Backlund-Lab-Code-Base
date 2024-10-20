@@ -41,16 +41,16 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if any(isempty({p.RFResonanceFrequency,p.RF2DurationStart,p.RF2DurationEnd,p.RF2Frequency})) || (isempty(p.RF2DurationNSteps) && isempty(p.RF2DurationStepSize))
-   error('Parameter input must contain RFResonanceFrequency, RF2DurationStart, RF2DurationEnd, RF2Duration, and (RF2DurationNSteps or RF2DurationStepSize)')
+if any(isempty({p.RF1ResonanceFrequency,p.RF2DurationStart,p.RF2DurationEnd,p.RF2Frequency})) || (isempty(p.RF2DurationNSteps) && isempty(p.RF2DurationStepSize))
+   error('Parameter input must contain RF1ResonanceFrequency, RF2DurationStart, RF2DurationEnd, RF2Duration, and (RF2DurationNSteps or RF2DurationStepSize)')
 end
 
 if p.nRF2Pulses == 1  
    if  p.RF2DurationEnd > p.tauTime + p.piTime || p.RF2DurationStart > p.tauTime + p.piTime
       error('RF2 duration cannot be longer than τ duration (%d) + π duration (%d)',p.tauTime,p.piTime)
    end
-   if (p.RFDurationStart < p.piTime && p.RFDurationEnd > p.piTime) ||...
-         (p.RFDurationStart > p.piTime && p.RFDurationEnd < p.piTime)
+   if (p.RF2DurationStart < p.piTime && p.RF2DurationEnd > p.piTime) ||...
+         (p.RF2DurationStart > p.piTime && p.RF2DurationEnd < p.piTime)
       error('RF2 duration cannot be scanned through pi time (%d). Please make scan either entirely less or entirely greater than pi time',p.piTime)
    end   
 elseif p.nRF2Pulses == 2
@@ -63,7 +63,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.RF2DurationNSteps)
-   p.RF2DurationNSteps = ceil(abs((p.RF2DurationEnd-p.RF2DurationStart)/p.RF2DurationStepSize));
+   p.RF2DurationNSteps = ceil(abs((p.RF2DurationEnd-p.RF2DurationStart)/p.RF2DurationStepSize)+1);
 end
 
 %Creates single array for I/Q pre and post buffers
@@ -157,18 +157,20 @@ else
 end
 
 %Gets addresses and sets bounds corresponding to those addresses
-scannedAddresses = findPulses(h,'notes','scanned rf2');
-remainderAddresses = findPulses(h,'notes','remainder');
+scannedAddresses = findPulses(h,'notes','scanned rf2','contains');
+remainderAddresses = findPulses(h,'notes','remainder','contains');
 scanInfo.address = [scannedAddresses,remainderAddresses];
-scanInfo.bounds{1:numel(scannedAddresses)} = scannedBounds;
-scanInfo.bounds{1+numel(scannedAddresses):numel(scanInfo.address)} = remainderBounds;
+scanInfo.bounds = {};
+[scanInfo.bounds{1:numel(scannedAddresses)}] = deal(scannedBounds);
+[scanInfo.bounds{1+numel(scannedAddresses):numel(scanInfo.address)}] = deal(remainderBounds);
 
 %Remaining scan info
 scanInfo.nSteps = p.RF2DurationNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d GHz)',round(p.piTime),round(p.tauTime),p.RFResonanceFrequency,p.RF2Duration);
-scanInfo.RFFrequency = p.RFResonanceFrequency;
+scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d GHz)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Frequency);
+scanInfo.RF1Frequency = p.RF1ResonanceFrequency;
+scanInfo.RF2Frequency = p.RF2Frequency;
 
 %% Outputs
 varargout{1} = h;%returns pulse blaster object

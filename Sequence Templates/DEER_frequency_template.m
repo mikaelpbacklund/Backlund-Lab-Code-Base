@@ -41,8 +41,8 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.frequencyStart) || isempty(p.frequencyEnd) || isempty(p.RF2Duration) ||(isempty(p.frequencyNSteps) && isempty(p.frequencyStepSize))
-   error('Parameter input must contain RFResonanceFrequency, frequencyStart, frequencyEnd, RF2Duration, and (frequencyNSteps or frequencyStepSize)')
+if isempty(p.RF1ResonanceFrequency) || isempty(p.frequencyStart) || isempty(p.frequencyEnd) || isempty(p.RF2Duration) ||(isempty(p.frequencyNSteps) && isempty(p.frequencyStepSize))
+   error('Parameter input must contain RF1ResonanceFrequency, frequencyStart, frequencyEnd, RF2Duration, and (frequencyNSteps or frequencyStepSize)')
 end
 
 if p.nRF2Pulses == 1  
@@ -59,7 +59,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.frequencyNSteps)
-   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize));
+   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize)+1);
 end
 
 %Creates single array for I/Q pre and post buffers
@@ -144,8 +144,8 @@ scanInfo.bounds = [p.frequencyStart,p.frequencyEnd];
 scanInfo.nSteps = p.frequencyNSteps;
 scanInfo.parameter = 'frequency';
 scanInfo.identifier = 'windfreak';
-scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d ns)',round(p.piTime),round(p.tauTime),p.RFResonanceFrequency,p.RF2Duration);
-scanInfo.RFFrequency = p.RFResonanceFrequency;
+scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d ns)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Duration);
+scanInfo.SRSFrequency = p.RF1ResonanceFrequency;
 
 %% Outputs
 varargout{1} = h;%returns pulse blaster object
