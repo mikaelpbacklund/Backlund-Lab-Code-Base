@@ -3,24 +3,24 @@ function [varargout] = Rabi_template(h,p)
 %h is pulse blaster object, p is parameters structure
 
 %Creates default parameter structure
-parameterStructure.RFResonanceFrequency = [];
-parameterStructure.tauStart = [];
-parameterStructure.tauEnd = [];
-parameterStructure.tauNSteps = [];
-parameterStructure.tauStepSize = [];
-parameterStructure.timePerDataPoint = 1;
-parameterStructure.collectionDuration = 800;%Matches sample rate
-parameterStructure.collectionBufferDuration = 1000;
-parameterStructure.repolarizationDuration = 7000;
-parameterStructure.intermissionBufferDuration = 2500;
-parameterStructure.RFReduction = 0;
-parameterStructure.AOM_DAQCompensation = 0;
+defaultParameters.RFResonanceFrequency = [];
+defaultParameters.tauStart = [];
+defaultParameters.tauEnd = [];
+defaultParameters.tauNSteps = [];
+defaultParameters.tauStepSize = [];
+defaultParameters.timePerDataPoint = 1;
+defaultParameters.collectionDuration = 800;%Matches sample rate
+defaultParameters.collectionBufferDuration = 1000;
+defaultParameters.repolarizationDuration = 7000;
+defaultParameters.intermissionBufferDuration = 2500;
+defaultParameters.RFReduction = 0;
+defaultParameters.AOM_DAQCompensation = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   varargout{1} = parameterStructure;%returns default parameter structure as first output
+   varargout{1} = defaultParameters;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
    return

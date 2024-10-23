@@ -1,11 +1,11 @@
 %Default ODMR script example
 
 %% User Inputs
-instrumentToScan = 'wf';%'srs' or 'wf'
-scanBounds = [2.37 3.07];
-scanStepSize = .1; %Step size for RF frequency
+instrumentToScan = 'srs';%'srs' or 'wf'
+scanBounds = [2.35 2.5];
+scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
+sequenceTimePerDataPoint = .4;%Before factoring in forced delay and other pauses
 nIterations = 1;
 timeoutDuration = 10;
 forcedDelayTime = .125;
@@ -32,7 +32,7 @@ ex.notifications = true;
 
 %If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
 if isempty(ex.pulseBlaster)
-   ex.pulseBlaster = pulse_blaster('PB');
+   ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
    ex.pulseBlaster = connect(ex.pulseBlaster);
 end
 
