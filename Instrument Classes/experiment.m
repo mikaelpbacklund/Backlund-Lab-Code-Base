@@ -409,35 +409,37 @@ classdef experiment
          %sequence.steps: cell array of vectors corresponding to the steps for
          %each axis
          %sequence.axes: axes that should be moved during optimization
-         %sequence.consecutive: boolean for running axes consecutively or like
-         %a scan
+         %5: rf status (on, off, contrast; defaults to off)
+         %6: rf channel name (defaults to rf)
+         %7: time per data point in seconds (defaults to .25 for contrast or .1 for other options)
 
          %*****Make sequence, RF status, and data cell all part of settings
          %input to cut down on number of inptus
 
          if nargin > 4
-            rfStatus = varargin{1};
-         end
-
-         %Steps must be pre-programmed
-         mustContainField(sequence,{'steps','axes','consecutive'})
-
-         %steps input should look like:
-         %[-2,-1.5,-1,-.5,0,.5,1,1.5,2]
-         %Find current position then add steps to that to get the actual
-         %values
-         axisNumbers = zeros(1,numel(sequence.axes));
-         for ii = 1:numel(sequence.steps)
-            %Gets the number corresponding to the axis
-            axisNumbers(ii) = find(strcmpi(sequence.axes{ii},h.PIstage.axisSum(:,1)));
-            if isempty(axisNumbers(ii))
-               error('%d axis in optimization sequence doesn''t correspond to any axis in the stage object',axisNumbers(ii))
+            if nargin > 5
+               rfName = varargin{2};
+            else
+               rfName = 'rf';
             end
-            %Makes steps into absolute locations instead of relative for ease
-            %of input later
-            sequence.steps{ii} = sequence.steps{ii} + h.PIstage.axisSum{axisNumbers(ii),2};
+            rfStatus = varargin{1};
+         else
+            rfStatus = 'off';
          end
 
+         mustContainField(sequence,{'steps','axes'})
+
+         %Steps input should be cell array with number of elements equivalent to number of axes in sequence.axes
+         %Each element should be a vector of relative positions that should be tested
+         %e.g. {[-1,-.75,-.5,-.25,0,.25,.5,.75,1],[-2,-1.5,-1,-.5,0,.25,.5]} for {'x','y'}
+
+
+
+
+
+
+
+         %Sets up the data acquisition format
          switch lower(acquisitionType)
             case {'pulse sequence','sequence','pulses','daq'}
                %Stores old information about pulse sequence for retrieval
@@ -446,53 +448,61 @@ classdef experiment
                oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
                h.pulseBlaster.userSequence = [];
                h.pulseBlaster.useTotalLoop = false;
-
-               if ~exist('rfStatus','var')
-                  assignin('base','rfStatus',rfStatus)
-                  error('RF status (6th argument) must be ''on'' ''off'' or ''contrast''')
-               end
                switch rfStatus
-                  case {'off','on'}
-                     channels{1} = {'laser'};
-                     channels{2} = {'laser','data'};
-                     if strcmpi(rfStatus,'on')
-                        channels{1}{end+1} = 'rf';
-                        channels{2}{end+1} = 'rf';
+                  case {'off','on'}        
+                     if nargin > 6
+                        timePerDataPoint = varargin{3};
+                     else
+                        timePerDataPoint = .1;
                      end
-
-                     clear pulseInfo
-                     pulseInfo.activeChannels = channels{1};
-                     pulseInfo.duration = 500;
-                     pulseInfo.notes = 'Initial buffer';
-                     h.pulseBlaster = addPulse(h.pulseBlaster,pulseInfo);
-
-                     clear pulseInfo
-                     pulseInfo.activeChannels = channels{2};
-                     pulseInfo.duration = 1e7; %10 milliseconds
-                     pulseInfo.notes = 'Taking data';
-                     h.pulseBlaster = addPulse(h.pulseBlaster,pulseInfo);
+                     if strcmpi(rfStatus,'on')
+                        addedChannel = rfName;
+                     else
+                        addedChannel = [];
+                     end
+                     %Basic data collection
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM',addedChannel},500,'Initial buffer');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ',addedChannel},timePerDataPoint*1e9,'Taking data');
 
                      h.pulseBlaster = sendToInstrument(h.pulseBlaster);
 
                   case 'contrast'
+                     if nargin > 6
+                        timePerDataPoint = varargin{3};
+                     else
+                        timePerDataPoint = .25;
+                     end
+
+                     %ODMR sequence
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Initial buffer');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},(timePerDataPoint*1e9)/2,'Reference');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Middle buffer signal off');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF','Signal'},(timePerDataPoint*1e9)/2,'Signal');
+                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Final buffer');
+
+                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+
                   otherwise
                      assignin('base','rfStatus',rfStatus)
-                     error('RF status (6th argument) must be ''on'' ''off'' or ''contrast''')
+                     error('RF status (5th argument) must be ''on'' ''off'' or ''contrast''')
                end
             case {'scmos','cam','camera'}
 
          end
 
+         spatialAxes = string(sequence.axes);
 
-         if sequence.consecutive
-            %Default way, runs each axis consecutively
-
+         %Performs stage movement, gets data for each location, then moves to best location along each axis
             for ii = 1:numel(sequence.axes)
-               spatialAxis = sequence.axes{ii};
+               %Find current location of axis
+               currentSteps = sequence.steps{ii} + 1;
+               %creates 
                dataVector = zeros(1,numel(sequence.steps{ii}));
+
                for jj = 1:numel(sequence.steps{ii})
                   %Moves to location for taking this data
-                  h.PIstage = absoluteMove(h.PIstage,spatialAxis,sequence.steps{ii}(jj));
+                  h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),sequence.steps{ii}(jj));
 
                   %Get data at this location
                   [h,dataOut] = getData(h,acquisitionType);
@@ -504,18 +514,9 @@ classdef experiment
                   end
                end
 
-               assignin('base',"dataVector",dataVector)
-
                [~,maxPosition] = experiment.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
                h.PIstage = absoluteMove(h.PIstage,spatialAxis,maxPosition);
-
-               assignin('base',"maxPosition",maxPosition)
-               assignin('base',"stepLocations",sequence.steps{ii})
             end
-
-         else
-
-         end
 
          %Set pulse blaster back to previous sequence
          if strcmpi(acquisitionType,'pulse sequence')
