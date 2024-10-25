@@ -69,6 +69,7 @@ end
 %Creates single array for I/Q pre and post buffers
 IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
 
+
 %% Sequence Creation
 
 %Deletes prior sequence
@@ -78,7 +79,6 @@ h.useTotalLoop = true;
 
 halfTotalPiTime = p.piTime/2 + p.extraRF;
 totalPiTime = p.piTime + p.extraRF;
-
 for rs = 1:2 %singal half and reference half
    %Adds whether signal channel is on or off
    if rs == 1

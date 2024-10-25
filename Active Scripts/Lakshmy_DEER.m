@@ -1,7 +1,7 @@
 %Example Spin Echo using template
 
 %% User Settings
-scanType = 'duration';%Either frequency or duration
+scanType = 'frequency';%Either frequency or duration
 params.RF2Frequency = .452;%GHz. Overwritten by scan if frequency selected
 params.RF2Duration = 100;%ns. Overwritten by scan if duration selected
 params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
@@ -97,8 +97,7 @@ for paramName = fieldnames(sentParams)'
    end
 end
 
-%Executes spin echo template, giving back edited pulse blaster object and information for the scan
-
+%Executes template, giving back edited pulse blaster object and information for the scan
 
 %Changes rf2 frequency if running duration scan (constant frequency)
 if strcmpi(scanType,'duration')

@@ -1075,6 +1075,9 @@ classdef experiment
       function h = setInstrumentVal(h,instrumentName,val)
          instrumentLocation = findInstrument(h,instrumentName);
          if sum(instrumentLocation) == 0
+            if ~any(strcmp({'RF_generator','stage','pulse_blaster','laser','kinesis_piezo','deformable_mirror','DAQ_controller','cam'},class(val)))
+               error('Cannot set %s as it does not exist',instrumentName)
+            end
             h.instrumentCells{end+1} = val;
          else
             h.instrumentCells{instrumentLocation} = val;
