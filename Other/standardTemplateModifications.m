@@ -11,9 +11,10 @@ function h = standardTemplateModifications(h,intermission,repolarization,collect
 %pulse (caused by differences in cable length and other minor electrical discrepancies). They are added in an order such
 %that the final result is in the desired configuration
 
-iqBuffers = varargin{1};
+
 
 if nargin > 5
+    iqBuffers = varargin{1};
    foundAddress = findPulses(h,'activeChannels',{'RF'},'contains');
    h = addBuffer(h,foundAddress,iqBuffers,{'I','Q','Signal'},[],'I/Q buffer');
    for currentAddress = findPulses(h,'activeChannels',{'RF'},'contains')

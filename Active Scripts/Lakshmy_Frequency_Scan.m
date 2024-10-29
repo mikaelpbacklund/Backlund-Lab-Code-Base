@@ -2,8 +2,8 @@
 
 %% User Inputs
 instrumentToScan = 'srs';%'srs' or 'wf'
-scanBounds = [2.35 2.5];
-scanStepSize = .005; %Step size for RF frequency
+scanBounds = [2.41 2.44];
+scanStepSize = .0005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .4;%Before factoring in forced delay and other pauses
 nIterations = 1;
@@ -11,8 +11,8 @@ timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
 %SRS parameters
-srsAmplitude = 10;
-srsFrequency = 2.3;%can be overwritten by scan
+srsAmplitude = -5;
+srsFrequency = 2.425;%can be overwritten by scan
 %Windfreak parameters
 wfAmplitude = 10;
 wfFrequency = 2.3;%can be overwritten by scan
@@ -70,14 +70,14 @@ ex.windfreak_RF.enabled = 'on';
 ex.windfreak_RF.amplitude = wfAmplitude;
 
 %For instrument not scanned, set frequency
-switch lower(instrumentToScan)
-    case 'srs'
-        ex.windfreak_RF.frequency = wfFrequency; 
-    case 'wf'
-        ex.SRS_RF.frequency = srsFrequency; 
-    otherwise
-        error('Instrument to scan must be "wf" or "srs"')
-end
+% switch lower(instrumentToScan)
+%     case 'srs'
+%         ex.windfreak_RF.frequency = wfFrequency; 
+%     case 'wf'
+%         ex.SRS_RF.frequency = srsFrequency; 
+%     otherwise
+%         error('Instrument to scan must be "wf" or "srs"')
+% end
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
@@ -200,8 +200,10 @@ for ii = 1:nIterations
             close(iterationFig)
           end
           averageFig = figure(1);
+          % title('Average')
           averageAxes = axes(averageFig); %#ok<LAXES>
           iterationFig = figure(2);
+          % title('Current Iteration')
           iterationAxes = axes(iterationFig); %#ok<LAXES>
           xax = ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2);
           avgPlot = plot(averageAxes,xax,avgData);

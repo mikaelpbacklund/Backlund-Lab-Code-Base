@@ -92,7 +92,6 @@ classdef experiment
          currentScan = h.scan(scanToChange);%Pulls current scan to change
 
          currentScan.identifier = instrumentType.giveProperIdentifier(currentScan.identifier);
-         assignin("base","currentScan",currentScan)
 
          if ~isa(currentScan.bounds,'cell')%Cell indicates multiple new values
             if h.useManualSteps
@@ -106,8 +105,8 @@ classdef experiment
                newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange));%Computes new value
             end
          else
-            for ii = 1:numel(currentScan.bounds)
-               newValue = zeros([numel(currentScan.bounds) 1]);
+             newValue = zeros([numel(currentScan.bounds) 1]);
+            for ii = 1:numel(currentScan.bounds)               
                if h.manualSteps
                   %Get the manual steps for the current scan, for
                   %the address dictated by the loop, for the
@@ -165,9 +164,15 @@ classdef experiment
                         % else
                         %    newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
                         % end
+                        if ii == 1
+                            assignin("base",'addresses',currentScan.address)
+                            assignin("base",'durations',newValue)
+                        end
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
+                   otherwise
+                       error('unknown scan parameter')
                end
 
             case 'stage'               

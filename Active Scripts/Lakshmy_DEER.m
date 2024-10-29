@@ -1,15 +1,15 @@
 %Example Spin Echo using template
 
 %% User Settings
-scanType = 'frequency';%Either frequency or duration
-params.RF2Frequency = .452;%GHz. Overwritten by scan if frequency selected
-params.RF2Duration = 100;%ns. Overwritten by scan if duration selected
-params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
+scanType = 'duration';%Either frequency or duration
+params.RF2Frequency = .4454;%GHz. Overwritten by scan if frequency selected
+params.RF2Duration = 150;%ns. Overwritten by scan if duration selected
+params.nRF2Pulses = 1;%1 for centered on pi pulse, 2 for during tau
 params.RF1ResonanceFrequency = 2.4185;
-params.piTime = 130;
-params.tauTime = 300;
-scanStart = 20;%ns or GHz
-scanEnd = 300;%ns or GHz
+params.piTime = 100;
+params.tauTime = 400;
+scanStart = 50;%ns or GHz
+scanEnd = 250;%ns or GHz
 scanStepSize = 10;%ns or GHz
 
 %All parameters below this are optional in that they will revert to defaults if not specified
@@ -23,7 +23,7 @@ params.extraRF =  6;
 params.AOM_DAQCompensation = -100;
 params.IQPreBufferDuration = 22;
 params.IQPostBufferDuration = 0;
-nIterations = 10;
+nIterations = 200;
 SRSAmplitude = 10;
 windfreakAmplitude = 19;
 dataType = 'counter';
