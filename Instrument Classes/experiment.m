@@ -401,13 +401,14 @@ classdef experiment
          %For each instrument get the "proper" identifier
          if isempty(h.instrumentCells)
             h.instrumentIdentifiers = [];
+            h.instrumentClasses = [];
          else
             h.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),h.instrumentCells,'UniformOutput',false);
-         end
-         h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
+            h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
+         end         
       end
 
-      function h = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
+      function [h,optimizedValue,optimizedLocation] = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
          %sequence.steps: cell array of vectors corresponding to the steps for
          %each axis
          %sequence.axes: axes that should be moved during optimization
@@ -418,8 +419,8 @@ classdef experiment
          %*****Make sequence, RF status, and data cell all part of settings
          %input to cut down on number of inptus
 
-         if nargin > 4
-            if nargin > 5
+         if nargin > 4 && ~isempty(varargin{2})
+            if nargin > 5 && ~isempty(varargin{2})
                rfName = varargin{2};
             else
                rfName = 'rf';
@@ -446,7 +447,7 @@ classdef experiment
          if strcmp(acquisitionType,'pulse sequence')
             oldSequence = h.pulseBlaster.userSequence;
             oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
-            h.pulseBlaster.userSequence = [];
+            h.pulseBlaster = deleteSequence(h.pulseBlaster);
             h.pulseBlaster.useTotalLoop = false;
             switch rfStatus
                case {'off','on'}
@@ -488,19 +489,25 @@ classdef experiment
             end
          end
 
-         spatialAxes = string(sequence.axes);
+         spatialAxes = string(sequence.axes);         
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
-         for ii = 1:numel(sequence.axes)
+         for ii = 1:numel(spatialAxes)
             %creates empty data vector
             dataVector = cell(1,numel(sequence.steps{ii}));
 
+            rawData = cell(1,numel(sequence.steps{ii}));
+
+            axisRow = strcmpi(h.PIstage.axisSum(:,1),spatialAxes(ii));
+            stepLocations = sequence.steps{ii} + h.PIstage.axisSum{axisRow,2};
+            assignin("base","stepLocations",stepLocations)
+
             for jj = 1:numel(sequence.steps{ii})
                %Moves to location for taking this data
-               h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),sequence.steps{ii}(jj));
+               h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),stepLocations(jj));
 
                %Get data at this location
-               [h,rawData(jj)] = getData(h,acquisitionType);
+               [h,rawData{jj}] = getData(h,acquisitionType);
             end
 
             %After acquiring data, use below algorithms to get single value to fit for each location
@@ -511,104 +518,18 @@ classdef experiment
                         dataVector = cellfun(@(x)x(1),rawData);
                      case 'contrast'
                         dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData);
-                        dataVector(jj) = (dataOut(1) - dataOut(2))/dataOut(1);
                   end
                case 'scmos'
             end
             
-
-            [~,maxPosition] = experiment.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
-            h.PIstage = absoluteMove(h.PIstage,spatialAxis,maxPosition);
-         end
-
-         %Set pulse blaster back to previous sequence
-         if strcmpi(acquisitionType,'pulse sequence')
-            h.pulseBlaster.useTotalLoop = oldUseTotalLoop;
-            h.pulseBlaster.userSequence = oldSequence;
-            h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-         end
-
-
-
-
-
-
-         %Sets up the data acquisition format
-         switch lower(acquisitionType)
-            case {'pulse sequence','sequence','pulses','daq'}
-               %Stores old information about pulse sequence for retrieval
-               %after optimization
-               oldSequence = h.pulseBlaster.userSequence;
-               oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
-               h.pulseBlaster.userSequence = [];
-               h.pulseBlaster.useTotalLoop = false;
-               switch rfStatus
-                  case {'off','on'}
-                     if nargin > 6
-                        timePerDataPoint = varargin{3};
-                     else
-                        timePerDataPoint = .1;
-                     end
-                     if strcmpi(rfStatus,'on')
-                        addedChannel = rfName;
-                     else
-                        addedChannel = [];
-                     end
-                     %Basic data collection
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM',addedChannel},500,'Initial buffer');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ',addedChannel},timePerDataPoint*1e9,'Taking data');
-
-                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-
-                  case 'contrast'
-                     if nargin > 6
-                        timePerDataPoint = varargin{3};
-                     else
-                        timePerDataPoint = .25;
-                     end
-
-                     %ODMR sequence
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Initial buffer');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},(timePerDataPoint*1e9)/2,'Reference');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Middle buffer signal off');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF','Signal'},(timePerDataPoint*1e9)/2,'Signal');
-                     h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Final buffer');
-
-                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-
-                  otherwise
-                     error('RF status (5th argument) must be ''on'' ''off'' or ''contrast''')
-               end
-            case {'scmos','cam','camera'}
-
-         end
-
-         spatialAxes = string(sequence.axes);
-
-         %Performs stage movement, gets data for each location, then moves to best location along each axis
-         for ii = 1:numel(sequence.axes)
-            %Find current location of axis
-            currentSteps = sequence.steps{ii} + 1;
-            %creates
-            dataVector = zeros(1,numel(sequence.steps{ii}));
-
-            for jj = 1:numel(sequence.steps{ii})
-               %Moves to location for taking this data
-               h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),sequence.steps{ii}(jj));
-
-               %Get data at this location
-               [h,dataOut] = getData(h,acquisitionType);
-               switch rfStatus
-                  case {'off','on'}
-                     dataVector(jj) = dataOut(1);
-                  case 'contrast'
-                     dataVector(jj) = (dataOut(1) - dataOut(2))/dataOut(1);
-               end
-            end
-
-            [~,maxPosition] = experiment.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
-            h.PIstage = absoluteMove(h.PIstage,spatialAxis,maxPosition);
+            assignin("base","rawData",rawData)
+            assignin("base","dataVector",dataVector)
+            
+            [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,algorithmType);
+            optimizedValue = maxVal;
+            optimizedLocation = maxPosition;
+            assignin("base","maxPosition",maxPosition)
+            h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
          end
 
          %Set pulse blaster back to previous sequence
@@ -673,8 +594,9 @@ classdef experiment
                      h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
                      if nPauseIncreases ~= 0
                         h.forcedCollectionPauseTime = originalPauseTime;
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration,false);
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration,false);
+                        for ii = 1:numel(bufferPulses)
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                        end
                         h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                      end
                      break
@@ -686,8 +608,9 @@ classdef experiment
                      end
                      h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
                      %Usually hits aom/daq compensation but thats fine
-                     h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases),false);
-                     h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration + (2*nPauseIncreases),false);
+                     for ii = 1:numel(bufferPulses)
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                     end
                      h.pulseBlaster = sendToInstrument(h.pulseBlaster);
                      pause(.1)%For next data point to come in before discarding the read
                      %Discards any data that might have "carried

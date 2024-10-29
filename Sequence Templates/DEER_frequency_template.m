@@ -111,11 +111,11 @@ for rs = 1:2 %singal half and reference half
 
       h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
       h = condensedAddPulse(h,{'RF2',addedSignal},p.RF2Duration,'rf2');
-      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30,'remainder of τ');
+      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - sum(IQBuffers),'remainder of τ');
       h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
       h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
       h = condensedAddPulse(h,{'RF2',addedSignal},p.RF2Duration,'rf2');
-      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30,'remainder of τ');
+      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - sum(IQBuffers),'remainder of τ');
    end
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal

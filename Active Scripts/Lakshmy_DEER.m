@@ -4,7 +4,7 @@
 scanType = 'duration';%Either frequency or duration
 params.RF2Frequency = .4454;%GHz. Overwritten by scan if frequency selected
 params.RF2Duration = 150;%ns. Overwritten by scan if duration selected
-params.nRF2Pulses = 1;%1 for centered on pi pulse, 2 for during tau
+params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
 params.RF1ResonanceFrequency = 2.4185;
 params.piTime = 100;
 params.tauTime = 400;

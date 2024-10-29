@@ -2,9 +2,11 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.4 2.45];
-scanStepSize = .001; %Step size for RF frequency
-scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
+% scanBounds = [-75 -50];
+scanBounds = [-100 0];
+scanStepSize = 1; %Step size for RF frequency
+scanNotes = 'Stage scan'; %Notes describing scan (will appear in titles for plots)
+scanAxis = 'y';
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 1;
 timeoutDuration = 5;
@@ -99,8 +101,8 @@ ex.scan = [];
 
 scan.bounds = scanBounds; %RF frequency bounds
 scan.stepSize = scanStepSize; %Step size for RF frequency
-scan.parameter = 'frequency'; %Scan frequency parameter
-scan.identifier = 'srs rf'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
+scan.parameter = scanAxis; %Scan frequency parameter
+scan.identifier = 'stage'; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
 scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
 
 %Add the current scan
@@ -234,26 +236,3 @@ catch ME
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)
-
-%%
-algorithmType = 'max value';
-acquisitionType = 'pulse blaster';
-sequence.axes = "z";
-sequence.steps{1} = -2:.2:2;
-% sequence.steps{2} = -1:.25:1;
-rfStatus = 'off';
-timePerOptimizationPoint = .1;
-
-ex.SRS_RF.frequency = 2.423;
-[ex,dataOutPre,~] = getData(ex,acquisitionType);
-% %%
-[ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,sequence,rfStatus,[],timePerOptimizationPoint);
-% %%
-[ex,dataOutPost,~] = getData(ex,acquisitionType);
-
-% ex.PIstage = absoluteMove(ex.PIstage,'y',-68);
-%%
-%original vals:
-%x: -2473
-%y: -68
-%z: 7430

@@ -11,7 +11,7 @@ timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
 %SRS parameters
-srsAmplitude = -5;
+srsAmplitude = 10;
 srsFrequency = 2.425;%can be overwritten by scan
 %Windfreak parameters
 wfAmplitude = 10;

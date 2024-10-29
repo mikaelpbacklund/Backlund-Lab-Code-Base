@@ -153,7 +153,7 @@ if p.nRF2Pulses == 1
    end
 else
    %Keep τ constant  
-   remainderBounds = [(p.tauTime - (p.RF2DurationStart+30)),(p.tauTime - (p.RF2DurationEnd+30))];   
+   remainderBounds = [(p.tauTime - (p.RF2DurationStart+30+sum(IQBuffers)+(3/4)*p.piTime)),(p.tauTime - (p.RF2DurationEnd+30+sum(IQBuffers)+(3/4)*p.piTime))];   
 end
 
 %Gets addresses and sets bounds corresponding to those addresses

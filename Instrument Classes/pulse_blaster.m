@@ -10,7 +10,7 @@ classdef pulse_blaster < instrumentType
       sendUponAddition%Send sequence to pulse blaster when running addPulse
    end
 
-   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
+   properties (SetAccess = {?pulse_blaster ?instrumentType ?experiment}, GetAccess = public)
       %Read-only for user, derived from config or functions     
       commands
       clockSpeed%MHz

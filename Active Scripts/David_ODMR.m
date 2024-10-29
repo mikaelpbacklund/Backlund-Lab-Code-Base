@@ -1,12 +1,12 @@
 %Default ODMR script example
 
 %% User Inputs
-RFamplitude = 0;
-scanBounds = [2 2.1];
-scanStepSize = .001; %Step size for RF frequency
+RFamplitude = 10;
+scanBounds = [2.3 3];
+scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
-nIterations = 5;
+nIterations = 1;
 timeoutDuration = 5;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .00015;
@@ -24,7 +24,7 @@ end
 
 %If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
 if isempty(ex.pulseBlaster)
-   ex.pulseBlaster = pulse_blaster('PB');
+   ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
    ex.pulseBlaster = connect(ex.pulseBlaster);
 end
 
@@ -37,7 +37,7 @@ end
 
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
 if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('NI_DAQ');
+   ex.DAQ = DAQ_controller('3rd_setup_daq');
    ex.DAQ = connect(ex.DAQ);
 end
 
@@ -50,7 +50,7 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'analog';
+ex.DAQ.activeDataChannel = 'counter';
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop

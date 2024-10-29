@@ -5,8 +5,7 @@ classdef stage < instrumentType
       pathObject
       SNList
       modelList
-      handshake
-      spatialAxes
+      handshake      
       axisSum
       locationsRecord
    end
@@ -15,7 +14,8 @@ classdef stage < instrumentType
       maxConnectionAttempts = 5;
       ignoreWait = false;
       tolerance = .1; %Overriden by standard deviations if it is non-zero (overriden by default)
-      toleranceStandardDeviations = 3; %Overrides hard set tolerance if non-zero
+      toleranceStandardDeviations = 2.5; %Overrides hard set tolerance if non-zero
+      checkTolerance = false;
       pauseTime = .05;
       resetToMidpoint = true; %If true, fine axis resets to midpoint. If false, it resets to max/min depending on movement direction
       maxRecord = 1000;
@@ -276,13 +276,8 @@ classdef stage < instrumentType
             [h,axisRows] = findAxisRow(h,axisRows,["coarse","fine"]);
          end
 
-         assignin("base","axisRows",axisRows)
-
          for infoRow = axisRows
             currentInfo = h.controllerInfo(infoRow);
-
-            assignin("base","currentInfo",currentInfo)
-            assignin("base","infoRow",infoRow)
 
             %Obtains current position of the stage
             h.controllerInfo(infoRow).location = h.handshake{currentInfo.handshakeNumber} .qPOS(currentInfo.internalAxisNumber);
@@ -501,6 +496,8 @@ classdef stage < instrumentType
          %Checks if current location is within tolerance of the target if enabled
          h = toleranceCheck(h,spatialAxis);
 
+         h = getStageInfo(h,spatialAxis);
+
          %Prints current axis total
          printOut(h,sprintf('Axis total: %.3f μm',h.axisSum{sumRow,2}))
       end
@@ -565,7 +562,8 @@ classdef stage < instrumentType
          %moving to what should be the target area
 
          %If set to not check tolerance or tolerance is 0, end function
-         if ~h.checkTolerance || h.tolerance == 0
+         if ~h.checkTolerance || (h.tolerance == 0 && h.absoluteTolerance) ||...
+                 (h.toleranceStandardDeviations == 0 && ~h.absoluteTolerance)
             return
          end
 
@@ -591,7 +589,7 @@ classdef stage < instrumentType
 
          loopCounter = 0;
          while true
-            loopCounter = loopCounter + 1;
+            loopCounter = loopCounter + 1;            
 
             targetLocation = 0;
             trueLocation = 0;
@@ -601,6 +599,11 @@ classdef stage < instrumentType
             end
 
             if abs(trueLocation - targetLocation) < totalTolerance
+                fprintf('tolerance loops used: %d\n',loopCounter)
+                assignin("base","trueLocation",trueLocation)
+                assignin("base","targetLocation",targetLocation)
+                assignin("base","totalTolerance",totalTolerance)
+                assignin("base","precisionFound",abs(trueLocation - targetLocation))
                return
             end
 
