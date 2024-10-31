@@ -1,16 +1,12 @@
 %Example Spin Echo using template
 
-%Notes to self:
-%find difference between the most recent data point and the data point of last optimization
-%To do this, store optimization value after taking the next data point in loop where optimization is done
-
 %% User Settings
 scanType = 'duration';%Either frequency or duration
-params.RF2Frequency = .4454;%GHz. Overwritten by scan if frequency selected
+params.RF2Frequency = .43038;%GHz. Overwritten by scan if frequency selected
 params.RF2Duration = 150;%ns. Overwritten by scan if duration selected
 params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
-params.RF1ResonanceFrequency = 2.4185;
-params.piTime = 100;
+params.RF1ResonanceFrequency = 2.44;
+params.piTime = 70;
 params.tauTime = 400;
 scanStart = 50;%ns or GHz
 scanEnd = 250;%ns or GHz
@@ -18,25 +14,25 @@ scanStepSize = 10;%ns or GHz
 
 %All parameters below this are optional in that they will revert to defaults if not specified
 optimizationAxes = {'z'};
-optimizationSteps = {-2:0.2:2};
+optimizationSteps = {-1:0.25:1};
 optimizationRFStatus = 'off';
 timePerOptimizationPoint = .1;
-timeBetweenOptimizations = 120; %s
+timeBetweenOptimizations = 120; %s (Inf to disable)
 %How much the current data would be less than the previous optimized value to force a new optimization
-percentageDifferenceToForceOptimization = 15; %-Inf to disable
+percentageDifferenceToForceOptimization =.4; %-Inf to disable
 scanNSteps = [];%will override step size
 params.timePerDataPoint = 10;%seconds
 params.collectionDuration = 800;
 params.collectionBufferDuration = 1000;
 params.intermissionBufferDuration = 2500;
 params.repolarizationDuration = 7000;
-params.extraRF =  6;
+params.extraRF =  0;
 params.AOM_DAQCompensation = -100;
 params.IQPreBufferDuration = 22;
 params.IQPostBufferDuration = 0;
 nIterations = 200;
 SRSAmplitude = 10;
-windfreakAmplitude = 19;
+windfreakAmplitude = 29;
 dataType = 'counter';
 timeoutDuration = 10;
 forcedDelayTime = .25;
@@ -51,26 +47,37 @@ if ~strcmpi(scanType,'frequency') && ~strcmpi(scanType,'duration')
 end
 
 if ~exist('ex','var'),  ex = experiment; end
+ex.notifications = true;
 
 if isempty(ex.pulseBlaster)
+    fprintf('Connecting to pulse blaster...\n')
    ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
    ex.pulseBlaster = connect(ex.pulseBlaster);
+   fprintf('Pulse blaster connected\n')
 end
 if isempty(ex.SRS_RF)
+    fprintf('Connecting to SRS...\n')
    ex.SRS_RF = RF_generator('SRS_RF');
    ex.SRS_RF = connect(ex.SRS_RF);
+   fprintf('SRS connected\n')
 end
 if isempty(ex.windfreak_RF)
+    fprintf('Connecting to windfreak...\n')
    ex.windfreak_RF = RF_generator('windfreak_RF');
    ex.windfreak_RF = connect(ex.windfreak_RF);
+fprintf('windfreak connected\n')
 end
 if isempty(ex.DAQ)
+    fprintf('Connecting to DAQ...\n')
    ex.DAQ = DAQ_controller('daq_6361');
    ex.DAQ = connect(ex.DAQ);
+   fprintf('DAQ connected\n')
 end
 if isempty(ex.PIstage)
+    fprintf('Connecting to PI stage...\n')
    ex.PIstage = stage('PI_stage');
    ex.PIstage = connect(ex.PIstage);
+   fprintf('PI stage connected\n')
 end
 
 %Sends SRS settings
@@ -140,7 +147,7 @@ ex.maxFailedCollections = 10;
 algorithmType = 'max value';
 acquisitionType = 'pulse blaster';
 optimizationSequence.axes = optimizationAxes;
-optimizationSequence.steps{1} = optimizationSteps;
+optimizationSequence.steps = optimizationSteps;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
@@ -167,7 +174,7 @@ ex = resetAllData(ex,[0 0]);
 avgData = zeros([ex.scan.nSteps 1]);
 
 lastOptimizationTime = datetime;
-lastOptimizationValue = 0;
+lastOptimizationValue = 9999999999999999;
 
 for ii = 1:nIterations
 
@@ -180,20 +187,20 @@ for ii = 1:nIterations
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
-      timeSinceLastOptimizaiton = seconds(datetime - lastOptimizationTime);
-
-      %If first data point, or time since last optimization is greater than set time, or difference between current
-      %value and last optimized value is greater than set parameter
-      if ii && ex.odometer == 1 || timeSinceLastOptimizaiton < timeBetweenOptimizations || ...
-            lastOptimizationValue*(1-percentageDifferenceToForceOptimization) < ex.data.values{ex.odometer,end}(1)
-         lastOptimizationTime = datetime;
-         fprintf('Beginning stage optimization (%.1f seconds since last optimization)\n',timeSinceLastOptimizaiton)
-         [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
-         fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
-         didOptimization = true;
-      else
-         didOptimization = false;
-      end
+      % timeSinceLastOptimizaiton = seconds(datetime - lastOptimizationTime);
+      % 
+      % %If first data point, or time since last optimization is greater than set time, or difference between current
+      % %value and last optimized value is greater than set parameter
+      % if  timeSinceLastOptimizaiton > timeBetweenOptimizations || ...
+      %       (ex.odometer ~= 0 && lastOptimizationValue*(1-percentageDifferenceToForceOptimization) > ex.data.values{ex.odometer,end}(1))
+      %    lastOptimizationTime = datetime;
+      %    fprintf('Beginning stage optimization (%.1f seconds since last optimization)\n',timeSinceLastOptimizaiton)
+      %    [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
+      %    fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
+      %    didOptimization = true;
+      % else
+      %    didOptimization = false;
+      % end
 
       ex = takeNextDataPoint(ex,'pulse sequence');
 

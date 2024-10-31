@@ -1,12 +1,12 @@
 %Default ODMR script example
 
 %% User Inputs
-instrumentToScan = 'srs';%'srs' or 'wf'
-scanBounds = [2.41 2.44];
-scanStepSize = .0005; %Step size for RF frequency
+instrumentToScan = 'wf';%'srs' or 'wf'
+scanBounds = [.25 .4];
+scanStepSize = .01; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .4;%Before factoring in forced delay and other pauses
-nIterations = 1;
+sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+nIterations = 4;
 timeoutDuration = 10;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .0001;
@@ -14,7 +14,7 @@ nDataPointDeviationTolerance = .0001;
 srsAmplitude = 10;
 srsFrequency = 2.425;%can be overwritten by scan
 %Windfreak parameters
-wfAmplitude = 10;
+wfAmplitude = 29;
 wfFrequency = 2.3;%can be overwritten by scan
 
 
@@ -109,7 +109,12 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Middle buffer signa
 
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
 
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
+if strcmpi(instrumentToScan,'wf')
+    ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF2','Signal'},1e6,'Signal'); %#ok<UNRCH>
+else
+    ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
+end
+
 
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 

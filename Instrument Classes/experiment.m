@@ -590,8 +590,11 @@ classdef experiment
                   expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
                   expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
 
-                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) && nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
-                     h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) &&...
+                          nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
+                          if ~all(h.odometer == 0)
+                            h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                          end
                      if nPauseIncreases ~= 0
                         h.forcedCollectionPauseTime = originalPauseTime;
                         for ii = 1:numel(bufferPulses)

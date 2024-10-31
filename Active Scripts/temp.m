@@ -2,8 +2,8 @@
 
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.4 2.45];
-scanStepSize = .001; %Step size for RF frequency
+scanBounds = [2.35 2.5];
+scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 1;
@@ -239,12 +239,12 @@ stop(ex.DAQ.handshake)
 algorithmType = 'max value';
 acquisitionType = 'pulse blaster';
 sequence.axes = "z";
-sequence.steps{1} = -2:.2:2;
+sequence.steps{1} = -10:.5:10;
 % sequence.steps{2} = -1:.25:1;
 rfStatus = 'off';
 timePerOptimizationPoint = .1;
 
-ex.SRS_RF.frequency = 2.423;
+% ex.SRS_RF.frequency = 2.423;
 [ex,dataOutPre,~] = getData(ex,acquisitionType);
 % %%
 [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,sequence,rfStatus,[],timePerOptimizationPoint);
