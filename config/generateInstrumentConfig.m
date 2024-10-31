@@ -211,6 +211,46 @@ saveLocation = pwd;%Default is to save to current directory
 saveName = '\1st_setup_daq';
 save(strcat(saveLocation,saveName),'config')
 
+%% NI_DAQ New 1st setup
+
+clear config
+
+%Info about what ports correspond to what inputs
+config.channelInfo(1).dataType = 'Counter';
+config.channelInfo(1).port = 'ctr2';
+config.channelInfo(1).label = 'Data counter';%Data must be included
+
+config.channelInfo(2).dataType = 'Analog';
+config.channelInfo(2).port = 'ai0';
+config.channelInfo(2).label = 'Data analog';
+
+config.channelInfo(3).dataType = 'Digital';
+config.channelInfo(3).port = 'port0/line0';
+config.channelInfo(3).label = 'Toggle';%Toggle must be included
+
+config.channelInfo(4).dataType = 'Digital';
+config.channelInfo(4).port = 'port0/line1';
+config.channelInfo(4).label = 'Signal/Reference';%Signal and/or reference must be included
+
+%Port the clock is connected to
+config.clockPort = 'PFI1';
+
+%DAQ manufacturer
+config.manufacturer = 'ni';
+config.identifier = 'daq';
+config.sampleRate = 1.25e6;
+
+config.defaults.continuousCollection = true;
+config.defaults.takeData = false;
+config.defaults.activeDataChannel = 'Data counter';
+config.defaults.differentiateSignal = true;
+config.defaults.toggleChannel = 'Toggle';
+config.defaults.signalReferenceChannel = 'Signal/Reference';
+
+saveLocation = pwd;%Default is to save to current directory
+saveName = '\daq_6361';
+save(strcat(saveLocation,saveName),'config')
+
 %% NI_DAQ 3rd setup
 
 clear config

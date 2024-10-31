@@ -99,6 +99,10 @@ classdef DAQ_controller < instrumentType
          
          %Finds the non-simulated device and stores that as the name
          h.daqName = c(~isSimulated);
+
+         if numel(h.daqName) > 1
+             error('Multiple DAQs detected')
+         end
          
          %Stores list of names of ports corresponding to various types of
          %inputs

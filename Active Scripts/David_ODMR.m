@@ -1,15 +1,14 @@
-%Default ODMR script example
-
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.3 3];
-scanStepSize = .005; %Step size for RF frequency
+scanBounds = [2.75 2.95];
+scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
 nIterations = 1;
 timeoutDuration = 5;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .00015;
+useStageOptimization = false;%Not usable yet
 
 %% Backend
 
@@ -24,21 +23,32 @@ end
 
 %If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_config"
 if isempty(ex.pulseBlaster)
+   fprintf('Connecting to pulse blaster...\n')
    ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
    ex.pulseBlaster = connect(ex.pulseBlaster);
+   fprintf('Pulse blaster connected\n')
 end
 
 %If there is no RF_generator object, create a new one with the config file "SRS_RF"
 %This is the "normal" RF generator that our lab uses, other specialty RF generators have their own configs
 if isempty(ex.SRS_RF)
+   fprintf('Connecting to SRS...\n')
    ex.SRS_RF = RF_generator('SRS_RF');
    ex.SRS_RF = connect(ex.SRS_RF);
+   fprintf('SRS connected\n')
 end
 
 %If there is no DAQ_controller object, create a new one with the config file "NI_DAQ_config"
 if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('3rd_setup_daq');
+   fprintf('Connecting to DAQ...\n')
+   ex.DAQ = DAQ_controller('daq_6361');
    ex.DAQ = connect(ex.DAQ);
+   fprintf('DAQ connected\n')
+end
+
+if isempty(ex.PIstage) && useStageOptimization
+   ex.PIstage = stage('PI_stage');
+   ex.PIstage = connect(ex.PIstage);
 end
 
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
