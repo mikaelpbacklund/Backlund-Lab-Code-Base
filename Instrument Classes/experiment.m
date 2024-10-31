@@ -244,7 +244,7 @@ classdef experiment
 
          if isfield(scanInfo,'stepSize')
             s = [scanInfo.stepSize];
-            n = cellfun(@(x)x(2)-x(1),b);
+            n = cellfun(@(x)abs(x(2)-x(1)),b);
 
             if isscalar(n)
                n = n(1) ./ s;
