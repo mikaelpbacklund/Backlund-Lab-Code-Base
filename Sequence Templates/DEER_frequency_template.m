@@ -59,7 +59,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.frequencyNSteps)
-   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize)+1);
+   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize));
 end
 
 %Creates single array for I/Q pre and post buffers
@@ -111,11 +111,11 @@ for rs = 1:2 %singal half and reference half
 
       h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
       h = condensedAddPulse(h,{'RF2',addedSignal},p.RF2Duration,'rf2');
-      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - sum(IQBuffers),'remainder of τ');
+      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - (3/4)*p.piTime,'remainder of τ');
       h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
       h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
       h = condensedAddPulse(h,{'RF2',addedSignal},p.RF2Duration,'rf2');
-      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - sum(IQBuffers),'remainder of τ');
+      h = condensedAddPulse(h,{addedSignal},p.tauTime - p.RF2Duration - 30 - (3/4)*p.piTime,'remainder of τ');
    end
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
@@ -141,7 +141,11 @@ h = sendToInstrument(h);
 %% Scan Calculations
 %Info regarding the scan
 scanInfo.bounds = [p.frequencyStart,p.frequencyEnd];
+if ~isempty(p.frequencyStepSize)
+scanInfo.stepSize = p.frequencyStepSize;
+else
 scanInfo.nSteps = p.frequencyNSteps;
+end
 scanInfo.parameter = 'frequency';
 scanInfo.identifier = 'windfreak';
 scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d ns)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Duration);

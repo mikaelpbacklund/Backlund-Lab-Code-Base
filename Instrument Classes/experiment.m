@@ -489,7 +489,10 @@ classdef experiment
             end
          end
 
-         spatialAxes = string(sequence.axes);         
+         spatialAxes = string(sequence.axes);       
+
+         optimizedValue = zeros(1,numel(spatialAxes));
+         optimizedLocation = optimizedValue;
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
          for ii = 1:numel(spatialAxes)
@@ -526,9 +529,8 @@ classdef experiment
             assignin("base","dataVector",dataVector)
             
             [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,algorithmType);
-            optimizedValue = maxVal;
-            optimizedLocation = maxPosition;
-            assignin("base","maxPosition",maxPosition)
+            optimizedValue(ii) = maxVal;
+            optimizedLocation(ii) = maxPosition;
             h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
          end
 

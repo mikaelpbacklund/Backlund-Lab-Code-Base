@@ -1,11 +1,11 @@
 %Default ODMR script example
 
 %% User Inputs
-instrumentToScan = 'wf';%'srs' or 'wf'
-scanBounds = [.25 .4];
-scanStepSize = .01; %Step size for RF frequency
+instrumentToScan = 'srs';%'srs' or 'wf'
+scanBounds = [2.43 2.45];
+scanStepSize = .00025; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 4;
 timeoutDuration = 10;
 forcedDelayTime = .125;
@@ -111,6 +111,10 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Middle buff
 
 if strcmpi(instrumentToScan,'wf')
     ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF2','Signal'},1e6,'Signal'); %#ok<UNRCH>
+    if sequenceTimePerDataPoint < 4
+        sequenceTimePerDataPoint = 4;
+        warning('Sequence time per data point for a windfreak scan must be at least 4 seconds and has been changed accordingly')
+    end
 else
     ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
 end

@@ -1,20 +1,20 @@
 %Example Spin Echo using template
 
 %% User Settings
-scanType = 'duration';%Either frequency or duration
+scanType = 'frequency';%Either frequency or duration
 params.RF2Frequency = .43038;%GHz. Overwritten by scan if frequency selected
-params.RF2Duration = 150;%ns. Overwritten by scan if duration selected
+params.RF2Duration = 110;%ns. Overwritten by scan if duration selected
 params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
-params.RF1ResonanceFrequency = 2.44;
-params.piTime = 70;
-params.tauTime = 400;
-scanStart = 50;%ns or GHz
-scanEnd = 250;%ns or GHz
-scanStepSize = 10;%ns or GHz
+params.RF1ResonanceFrequency = 2.43925;
+params.piTime = 66;
+params.tauTime = 350;
+scanStart = .35;%ns or GHz
+scanEnd = .55;%ns or GHz
+scanStepSize = .005;%ns or GHz
 
 %All parameters below this are optional in that they will revert to defaults if not specified
 optimizationAxes = {'z'};
-optimizationSteps = {-1:0.25:1};
+optimizationSteps = {-5:0.25:5};
 optimizationRFStatus = 'off';
 timePerOptimizationPoint = .1;
 timeBetweenOptimizations = 120; %s (Inf to disable)
@@ -187,20 +187,20 @@ for ii = 1:nIterations
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
-      % timeSinceLastOptimizaiton = seconds(datetime - lastOptimizationTime);
-      % 
-      % %If first data point, or time since last optimization is greater than set time, or difference between current
-      % %value and last optimized value is greater than set parameter
-      % if  timeSinceLastOptimizaiton > timeBetweenOptimizations || ...
-      %       (ex.odometer ~= 0 && lastOptimizationValue*(1-percentageDifferenceToForceOptimization) > ex.data.values{ex.odometer,end}(1))
-      %    lastOptimizationTime = datetime;
-      %    fprintf('Beginning stage optimization (%.1f seconds since last optimization)\n',timeSinceLastOptimizaiton)
-      %    [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
-      %    fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
-      %    didOptimization = true;
-      % else
-      %    didOptimization = false;
-      % end
+      timeSinceLastOptimizaiton = seconds(datetime - lastOptimizationTime);
+
+      %If first data point, or time since last optimization is greater than set time, or difference between current
+      %value and last optimized value is greater than set parameter
+      if  timeSinceLastOptimizaiton > timeBetweenOptimizations || ...
+            (ex.odometer ~= 0 && lastOptimizationValue*(1-percentageDifferenceToForceOptimization) > ex.data.values{ex.odometer,end}(1))
+         lastOptimizationTime = datetime;
+         fprintf('Beginning stage optimization (%.1f seconds since last optimization)\n',timeSinceLastOptimizaiton)
+         [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
+         fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
+         didOptimization = true;
+      else
+         didOptimization = false;
+      end
 
       ex = takeNextDataPoint(ex,'pulse sequence');
 

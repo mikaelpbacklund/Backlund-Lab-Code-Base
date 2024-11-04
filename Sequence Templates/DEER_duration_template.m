@@ -61,11 +61,6 @@ else
    error('Number of RF2 pulses must be either 1 or 2')
 end
 
-%Calculates number of steps if only step size is given
-if isempty(p.RF2DurationNSteps)
-   p.RF2DurationNSteps = ceil(abs((p.RF2DurationEnd-p.RF2DurationStart)/p.RF2DurationStepSize)+1);
-end
-
 %Creates single array for I/Q pre and post buffers
 IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
 
@@ -165,7 +160,11 @@ scanInfo.bounds = {};
 [scanInfo.bounds{1+numel(scannedAddresses):numel(scanInfo.address)}] = deal(remainderBounds);
 
 %Remaining scan info
+if ~isempty(p.RF2DurationStepSize)
+scanInfo.stepSize = p.RF2DurationStepSize;
+else
 scanInfo.nSteps = p.RF2DurationNSteps;
+end
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d GHz)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Frequency);

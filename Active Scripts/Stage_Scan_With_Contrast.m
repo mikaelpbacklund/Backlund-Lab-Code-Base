@@ -2,9 +2,11 @@
 
 %% User Inputs
 RFamplitude = 10;
-% scanBounds = [-75 -50];
-scanBounds = [-100 0];
-scanStepSize = 1; %Step size for RF frequency
+RFfrequency = 2.43925;
+% scanBounds = [-3400 -3450];
+scanBounds = [-450 -550];
+% scanBounds = [7400 7450];
+scanStepSize = 2;
 scanNotes = 'Stage scan'; %Notes describing scan (will appear in titles for plots)
 scanAxis = 'y';
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
@@ -52,7 +54,7 @@ end
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
 ex.SRS_RF.amplitude = RFamplitude;
-ex.SRS_RF.frequency = 2.423;
+ex.SRS_RF.frequency = RFfrequency;
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
