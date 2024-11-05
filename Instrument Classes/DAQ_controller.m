@@ -378,7 +378,7 @@ classdef DAQ_controller < instrumentType
       end      
 
       function set.continuousCollection(h,val)
-         h = setParameter(h,val,'continuousCollection'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'continuousCollection'); %#ok<NASGU>
       end
       function val = get.continuousCollection(h)
          val = getParameter(h,'continuousCollection');
@@ -392,7 +392,7 @@ classdef DAQ_controller < instrumentType
       end
 
       function set.differentiateSignal(h,val)
-         h = setParameter(h,val,'differentiateSignal'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'differentiateSignal'); %#ok<NASGU>
       end
       function val = get.differentiateSignal(h)
          val = getParameter(h,'differentiateSignal');

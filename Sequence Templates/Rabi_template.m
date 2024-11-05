@@ -68,7 +68,7 @@ h = sendToInstrument(h);
 
 %% Scan Calculations
 
-%Finds pulses designated as τ which will be scanned
+%Finds pulses designated as τ which will be scanned  
 scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
