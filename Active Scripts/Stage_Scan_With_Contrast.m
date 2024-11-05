@@ -4,11 +4,11 @@
 RFamplitude = 10;
 RFfrequency = 2.43925;
 % scanBounds = [-3400 -3450];
-scanBounds = [-450 -550];
-% scanBounds = [7400 7450];
-scanStepSize = 2;
+% scanBounds = [-450 -550];
+scanBounds = [7400 7450];
+scanStepSize = 1;
 scanNotes = 'Stage scan'; %Notes describing scan (will appear in titles for plots)
-scanAxis = 'y';
+scanAxis = 'z';
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 1;
 timeoutDuration = 5;

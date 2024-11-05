@@ -161,7 +161,8 @@ scanInfo.bounds = {};
 
 %Remaining scan info
 if ~isempty(p.RF2DurationStepSize)
-scanInfo.stepSize = p.RF2DurationStepSize;
+    scanInfo.nSteps = round(abs(p.RF2DurationEnd-p.RF2DurationStart) ./ p.RF2DurationStepSize);
+    scanInfo.nSteps = scanInfo.nSteps+1;%Matlab starts at 1
 else
 scanInfo.nSteps = p.RF2DurationNSteps;
 end

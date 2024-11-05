@@ -1,25 +1,28 @@
 %Example Spin Echo using template
 
 %% User Settings
-scanType = 'frequency';%Either frequency or duration
-params.RF2Frequency = .43038;%GHz. Overwritten by scan if frequency selected
-params.RF2Duration = 110;%ns. Overwritten by scan if duration selected
+scanType = 'duration';%Either frequency or duration
+params.RF2Frequency = .43088;%GHz. Overwritten by scan if frequency selected
+params.RF2Duration = 100;%ns. Overwritten by scan if duration selected
 params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
 params.RF1ResonanceFrequency = 2.43925;
-params.piTime = 66;
-params.tauTime = 350;
-scanStart = .35;%ns or GHz
-scanEnd = .55;%ns or GHz
-scanStepSize = .005;%ns or GHz
+params.piTime = 88;
+params.tauTime = 450;
+% scanStart = .4;%ns or GHz
+% scanEnd = .45;%ns or GHz
+% scanStepSize = .0025;%ns or GHz
+scanStart = 10;%ns or GHz
+scanEnd = 310;%ns or GHz
+scanStepSize = 10;%ns or GHz
 
 %All parameters below this are optional in that they will revert to defaults if not specified
 optimizationAxes = {'z'};
-optimizationSteps = {-5:0.25:5};
+optimizationSteps = {-2:0.25:2};
 optimizationRFStatus = 'off';
 timePerOptimizationPoint = .1;
-timeBetweenOptimizations = 120; %s (Inf to disable)
+timeBetweenOptimizations = 180; %s (Inf to disable)
 %How much the current data would be less than the previous optimized value to force a new optimization
-percentageDifferenceToForceOptimization =.4; %-Inf to disable
+percentageDifferenceToForceOptimization = .5; %Inf to disable
 scanNSteps = [];%will override step size
 params.timePerDataPoint = 10;%seconds
 params.collectionDuration = 800;
@@ -198,11 +201,14 @@ for ii = 1:nIterations
          [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
          fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
          didOptimization = true;
+         pause(numel(optimizationSequence.steps{1})*timePerOptimizationPoint)
       else
          didOptimization = false;
       end
 
       ex = takeNextDataPoint(ex,'pulse sequence');
+
+      pause(params.timePerDataPoint)
 
       %Stores reference value of the data point if the optimization was just done
       %Used to reference later to determine if optimization should be performed

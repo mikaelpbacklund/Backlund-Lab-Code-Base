@@ -5,8 +5,8 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-scanBounds = [25 1000];%ns
-scanStepSize = 25;
+scanBounds = [10 400];%ns
+scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
 nIterations = 1;
 RFFrequency = 2.43925;

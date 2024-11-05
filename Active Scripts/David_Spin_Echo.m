@@ -1,9 +1,9 @@
 %Example Spin Echo using template
 
 %% User Settings
-params.RFResonanceFrequency = 2.0465;
-params.piTime = 220;
-params.tauStart = 400;
+params.RFResonanceFrequency = 2.43925;
+params.piTime = 88;
+params.tauStart = 200;
 params.tauEnd = 2000;
 params.tauStepSize = 200;
 %All parameters below this are optional in that they will revert to defaults if not specified
@@ -15,8 +15,8 @@ params.intermissionBufferDuration = 2500;
 params.repolarizationDuration = 7000;
 params.extraRF =  0;
 params.AOM_DAQCompensation = 400;
-params.IQPreBufferDuration = 30;
-params.IQPostBufferDuration = 10;
+params.IQPreBufferDuration = 22;
+params.IQPostBufferDuration = 0;
 nIterations = 20;
 RFAmplitude = 10;
 dataType = 'counter';

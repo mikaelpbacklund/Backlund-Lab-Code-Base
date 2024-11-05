@@ -2,8 +2,8 @@
 
 %% User Inputs
 instrumentToScan = 'srs';%'srs' or 'wf'
-scanBounds = [2.43 2.45];
-scanStepSize = .00025; %Step size for RF frequency
+scanBounds = [2.3 2.5];
+scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 nIterations = 4;
