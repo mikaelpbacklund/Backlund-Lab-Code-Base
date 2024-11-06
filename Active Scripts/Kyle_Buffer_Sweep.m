@@ -5,11 +5,11 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-myDurationSetting = 100;
-scanBounds = [10 510];%ns
+myDurationSetting = 120;
+scanBounds = [10 1000];%ns
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-scanNSteps = 126;%Will override step size if set
-nIterations = 10;
+scanNSteps = 100;%Will override step size if set
+nIterations = 1;
 RFFrequency = 2.87;
 sequenceTimePerDataPoint = 4;%seconds before factoring in forced delay and other pauses
 timeoutDuration = 10;
@@ -17,7 +17,7 @@ forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
 aomCompensation = 1;
-RFReduction = 6;
+RFReduction = 0;
 
 %Lesser used settings
 RFAmplitude = 10;
@@ -85,17 +85,19 @@ parameters.RFReduction = RFReduction;
 tauPulses = findPulses(ex.pulseBlaster,'notes','τ','contains');
 
 for ii = 1:numel(tauPulses)
-   ex.pulseBlaster = modifyPulse(tauPulses(ii),'duration',myDurationSetting);
+   ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauPulses(ii),'duration',myDurationSetting);
 end
 
 %Deletes any pre-existing scan
 ex.scan = [];
 
 scanInfo.address = findPulses(ex.pulseBlaster,'notes','AOM/DAQ delay compensation','matches');
-for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = scanBounds;
-end
-scanInfo.nSteps = 201;
+% scanInfo.address(end+1:end+2) = findPulses(ex.pulseBlaster,'duration',799); %
+scanInfo.bounds{1} = scanBounds;
+scanInfo.bounds{2} = scanBounds;
+% scanInfo.bounds{3} = 800-scanBounds; %
+% scanInfo.bounds{4} = 800-scanBounds; %
+scanInfo.nSteps = scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = 'Kyles sweep';
@@ -125,30 +127,33 @@ end
 %% Run scan, and collect and display data
 
 try
-
-%Prepares experiment to run from scratch
-%[0,0] is the value that all initial values for the data will take
-%Two values are used because we are storing ref and sig
-ex = resetAllData(ex,[0 0]);
+%Resets current data. [0,0] is for reference and contrast counts
+ex = resetAllData(ex,[0,0]);
 
 avgData = zeros([ex.scan.nSteps 1]);
 
-for ii = 1:nIterations
+recordedTime = cell(1,nIterations+1);
+recordedTime{1} = datetime;
 
-   %Prepares scan for a fresh start while keeping data from previous
-   %iterations
+for ii = 1:nIterations
+   
+   %Reset current scan each iteration
    ex = resetScan(ex);
 
    iterationData = zeros([ex.scan.nSteps 1]);
+   refData = zeros([ex.scan.nSteps 1]);
+   
+   while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
-   %While the odometer is not at its max value
-   while ~all(ex.odometer == [ex.scan.nSteps])
+      %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
+      ex = takeNextDataPoint(ex,'pulse sequence');          
 
-      ex = takeNextDataPoint(ex,'pulse sequence');
+      con = zeros(1,ex.scan.nSteps);
 
       %The problem is that the odometer is 1 but the data point is 2?
 
       currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      refData(ex.odometer) = currentData(1);
       currentData = (currentData(1)-currentData(2))/currentData(1);
       avgData(ex.odometer) = currentData;
       currentData = ex.data.values{ex.odometer,end};
@@ -164,27 +169,56 @@ for ii = 1:nIterations
           if exist("iterationFig",'var') && ishandle(iterationFig)
             close(iterationFig)
           end
-%           if exist("nPointsFig",'var') && ishandle(nPointsFig)
-%             close(nPointsFig)
-%           end
-          averageFig = figure(1);
-          averageAxes = axes(averageFig); %#ok<*LAXES> 
-          iterationFig = figure(2);
-          iterationAxes = axes(iterationFig); 
-%           nPointsFig = figure(3);
-%           nPointsAxes = axes(nPointsFig); 
+          if exist("refFig",'var') && ishandle(refFig)
+            close(refFig)
+          end
           xax = ex.scan.bounds{1}(1):ex.scan.stepSize:ex.scan.bounds{1}(2);
+          averageFig = figure(1);          
+          averageAxes = axes(averageFig); %#ok<LAXES>          
+          iterationFig = figure(2);          
+          iterationAxes = axes(iterationFig); %#ok<LAXES>          
           avgPlot = plot(averageAxes,xax,avgData);
           iterationPlot = plot(iterationAxes,xax,iterationData);
-%           nPointsPlot = plot(nPointsAxes,xax,ex.data.nPoints);
+          refFig = figure(3);          
+          refAxes = axes(refFig); %#ok<LAXES>          
+          refPlot = plot(refAxes,xax,refData);
+          title(averageAxes,'Average')
+          ylabel(averageAxes,'contrast')
+          title(iterationAxes,'Current')
+          ylabel(iterationAxes,'contrast')
+          title(refAxes,'Reference')
+          ylabel(refAxes,'counts')
       else
           avgPlot.YData = avgData;
           iterationPlot.YData = iterationData;
-%           nPointsPlot.YData = ex.data.nPoints(:,ii);
-      end
+          refPlot.YData = refData;
+      end      
+
+      %Creates plots
+%       plotTypes = {'average','new'};%'old' also viable
+%       for plotName = plotTypes
+%          c = findContrast(ex,[],plotName{1});
+%          ex = plotData(ex,c,plotName{1});
+%       end
+%       currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+%       prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+%       refData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'new reference');
+%       nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+%       nPoints(nPoints == 0) = 1;
+%       ex = plotData(ex,nPoints,'n points');
+%       ex = plotData(ex,ex.data.failedPoints,'n failed points');
+% %       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+% %       ex = plotData(ex,refData,'previous reference');
    end
 
+   recordedTime{ii+1} = datetime;
+
+   %Between each iteration, check for user input whether to continue scan
+   %5 second timeout
    if ii ~= nIterations
+       fprintf('Finished iteration %d\n',ii)
+       fprintf('Number of failed points: %d\n',sum(ex.data.failedPoints(:,ii)))
        cont = checkContinue(timeoutDuration);
        if ~cont
            break

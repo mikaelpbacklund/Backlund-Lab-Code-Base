@@ -6,23 +6,23 @@
 
 %% User Inputs
 scanBounds = [20 500];%ns
-scanStepSize = 20;
+scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 2;
-RFFrequency = 2.0595;
-sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-timeoutDuration = 5;
+nIterations = 1;
+RFFrequency = 2.87;
+sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+timeoutDuration = 10;
 forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
-aomCompensation = 400;
-RFReduction = 6;
+aomCompensation = 600;
+RFReduction = 0;
 
 %Lesser used settings
 RFAmplitude = 10;
-dataType = 'analog';
+dataType = 'counter';
 scanNSteps = [];%Will override step size if set
-nDataPointDeviationTolerance = .00015;
+nDataPointDeviationTolerance = .01;
 collectionDuration = (1/1.25)*1000;
 collectionBufferDuration = 1000;
 
@@ -33,7 +33,7 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var'),  ex = experiment; end
 
 if isempty(ex.pulseBlaster)
-   ex.pulseBlaster = pulse_blaster('PB');
+   ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
    ex.pulseBlaster = connect(ex.pulseBlaster);
 end
 if isempty(ex.SRS_RF)
@@ -41,7 +41,7 @@ if isempty(ex.SRS_RF)
    ex.SRS_RF = connect(ex.SRS_RF);
 end
 if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('NI_DAQ');
+   ex.DAQ = DAQ_controller('daq_6361');
    ex.DAQ = connect(ex.DAQ);
 end
 
@@ -94,7 +94,7 @@ ex.forcedCollectionPauseTime = forcedDelayTime;
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = nDataPointDeviationTolerance;
 
-ex.maxFailedCollections = 10;
+ex.maxFailedCollections = 3;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
