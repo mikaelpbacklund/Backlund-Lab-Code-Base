@@ -131,7 +131,27 @@ for ii = 1:nIterations
       end
 
       ex = plotData(ex,averageData(1),'Average Reference');
-      ex = plotData(ex,currentData(1),'Current Iteration Reference');
+      ex = plotData(ex,avgContrast,'Current Iteration Reference');
+
+
+
+
+      %Creates plots
+      plotTypes = {'average','new'};%'old' also viable
+      for plotName = plotTypes
+         c = findContrast(ex,[],plotName{1});
+         ex = plotData(ex,c,plotName{1});
+      end
+      data = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+      refData = cell2mat(cellfun(@(x)x(1),data,'UniformOutput',false));
+%       ex = plotData(ex,refData,'new reference');
+      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+      nPoints(nPoints == 0) = 1;
+      ex = plotData(ex,nPoints,'n points');
+      ex = plotData(ex,ex.data.failedPoints,'n failed points');
+%       refData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+%       ex = plotData(ex,refData,'previous reference');
    end
 
    if ii ~= nIterations

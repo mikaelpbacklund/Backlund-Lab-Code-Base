@@ -244,7 +244,7 @@ classdef experiment
 
          if isfield(scanInfo,'stepSize')
             s = [scanInfo.stepSize];
-            n = cellfun(@(x)x(2)-x(1),b);
+            n = cellfun(@(x)abs(x(2)-x(1)),b);
 
             if isscalar(n)
                n = n(1) ./ s;
@@ -419,8 +419,8 @@ classdef experiment
          %*****Make sequence, RF status, and data cell all part of settings
          %input to cut down on number of inptus
 
-         if nargin > 4
-            if nargin > 5
+         if nargin > 4 && ~isempty(varargin{2})
+            if nargin > 5 && ~isempty(varargin{2})
                rfName = varargin{2};
             else
                rfName = 'rf';
@@ -489,7 +489,10 @@ classdef experiment
             end
          end
 
-         spatialAxes = string(sequence.axes);         
+         spatialAxes = string(sequence.axes);       
+
+         optimizedValue = zeros(1,numel(spatialAxes));
+         optimizedLocation = optimizedValue;
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
          for ii = 1:numel(spatialAxes)
@@ -500,9 +503,7 @@ classdef experiment
 
             axisRow = strcmpi(h.PIstage.axisSum(:,1),spatialAxes(ii));
             stepLocations = sequence.steps{ii} + h.PIstage.axisSum{axisRow,2};
-            assignin("base","sequenceSteps",stepLocations)
-            opt
-            return
+            assignin("base","stepLocations",stepLocations)
 
             for jj = 1:numel(sequence.steps{ii})
                %Moves to location for taking this data
@@ -528,10 +529,9 @@ classdef experiment
             assignin("base","dataVector",dataVector)
             
             [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,algorithmType);
-            optimizedValue = maxVal;
-            optimizedLocation = maxPosition;
-            assignin("base","maxPosition",maxPosition)
-            % h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
+            optimizedValue(ii) = maxVal;
+            optimizedLocation(ii) = maxPosition;
+            h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
          end
 
          %Set pulse blaster back to previous sequence
@@ -592,8 +592,11 @@ classdef experiment
                   expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
                   expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
 
-                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) && nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
-                     h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) &&...
+                          nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
+                          if ~all(h.odometer == 0)
+                            h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                          end
                      if nPauseIncreases ~= 0
                         h.forcedCollectionPauseTime = originalPauseTime;
                         for ii = 1:numel(bufferPulses)
@@ -669,7 +672,12 @@ classdef experiment
       end
 
       function h = plotData(h,dataIn,plotName,varargin)
-         %4th argument is y axis label for 1D plot
+         %4th argument is y axis label if desired
+         %5th argument is selecting which set of bounds to use if multiple are present (defaults to first)
+         %6th argument is boolean to flip scan axes (1st scan made y, 2nd made x)
+         %7th argument is update location. Defaults to current odometer location
+         %Expects matrix of numbers, no cell or strings etc.
+         %Does not work for 2D scans using manual steps
 
          %Prevents errors in variable name by swapping space with
          %underscore
@@ -693,18 +701,27 @@ classdef experiment
             replot = false;
          end
 
-         if isvector(dataIn) %1D
-            if numel(h.scan.nSteps) ~= 1
-               error('plotData function only works for 1D data when there is only 1 scan dimension')
-            end
-            if numel(dataIn) ~= h.scan.nSteps
-               error(strcat('plotData function only works for 1D data when the number',...
-                  ' of data points in the scan matches the number of data points given in argument 2'))
-            end
+         %Check for 1D vs 2D
+         %Find where CData is different and replace
 
-            if isa(h.scan.bounds,'cell') %REALLY BAD FIX HERE******
-               %x axis isn't the same. Assumed to be different plot entirely
-               if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds{1})) || ...
+         if isscalar(h.scan) %1D data
+
+            %If multiple sets of bounds, choose first or based on 5th argument
+            if isa(h.scan.bounds,'cell') && ~h.useManualSteps
+               if nargin >= 5 && ~isempty(varargin{2}) && isscalar(varargin{2})
+                  xBounds = h.scan.bounds{varargin{2}};
+                  stepSize = h.scan.stepSize{varargin{2}};
+               else
+                  xBounds = h.scan.bounds{1};
+                  stepSize = h.scan.stepSize{1};
+               end
+            elseif ~h.useManualSteps
+               xBounds = h.scan.bounds;
+               stepSize = h.scan.stepSize;
+            end
+            
+            %x axis isn't the same. Assumed to be different plot entirely
+               if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= xBounds)) || ...
                      (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
                   replot = true;
                end
@@ -714,79 +731,85 @@ classdef experiment
                   if h.useManualSteps
                      xAxis = h.manualSteps;
                   else
-                     xAxis = h.scan.bounds{1}(1):h.scan.stepSize:h.scan.bounds{1}(2);
+                     xAxis = xBounds(1):stepSize:xBounds(2);
                   end
 
+                  emptyData = zeros(1,ex.scan.nSteps);
+
                   %Creates the actual plot as a line
-                  h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,dataIn);
+                  h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,emptyData);
 
                   %Add x and, optionally, y labels
                   xlabel(h.plots.(plotName).axes,h.scan.parameter)
-                  if nargin > 3
+                  if nargin >= 4 && ~isempty(varargin{1})
                      ylabel(h.plots.(plotName).axes,varargin{1})
                   end
-               else
-                  h.plots.(plotName).dataDisplay.YData = dataIn;
-               end
-            else
-               %x axis isn't the same. Assumed to be different plot entirely
-               if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds)) || ...
-                     (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
-                  replot = true;
+                  title(h.plots.(plotName).axes,strcat(plotName,' ',h.scan.notes))           
                end
 
-               if replot
-                  %Creates x axis from manual steps or from scan settings
-                  if h.useManualSteps
-                     xAxis = h.manualSteps;
-                  else
-                     xAxis = h.scan.bounds(1):h.scan.stepSize:h.scan.bounds(2);
-                  end
+               h.plots.(plotName).dataDisplay.YData(ex.odometer) = dataIn;   
 
-                  %Creates the actual plot as a line
-                  h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,dataIn);
-
-                  %Add x and, optionally, y labels
-                  xlabel(h.plots.(plotName).axes,h.scan.parameter)
-                  if nargin > 3
-                     ylabel(h.plots.(plotName).axes,varargin{1})
-                  end
-               else
-                  h.plots.(plotName).dataDisplay.YData = dataIn;
-               end
-            end
-
-
-
-         else %image
-
-            %Different image bounds
-            if ~replot && (size(dataIn,1) ~= h.plots.(plotName).dataDisplay.YData(2) || ...
-                  size(dataIn,2) ~= h.plots.(plotName).dataDisplay.XData(2))
-               replot = true;
-            end
-
-            if replot
-               h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,dataIn);
-               h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
-               h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
-            else
-               h.plots.(plotName).dataDisplay.CData = dataIn;
-            end
-
-
+               return
          end
-         %          if replot
-         %             %Sets the plot title to include the given plotName and any scan
-         %             %notes
-         %             if ~isempty(h.scan) && ~isempty(h.scan.notes) && ~strcmp(h.scan.notes,'')
-         %                title(h.plots.(plotName).axes,strcat(plotTitle,' (',h.scan.notes,')'))
-         %             else
-         %                title(h.plots.(plotName).axes,plotTitle)
-         %             end
-         %          else
-         %             h.plots.(plotName).dataDisplay.CData = dataIn;
-         %          end
+
+         %For 2D data
+
+         if h.useManualSteps
+            error('plotData function does not work for 2D data using manual steps')
+         end
+
+         for ii = 1:2
+            %Gets bounds and step size for both scans
+            if isa(h.scan(ii).bounds,'cell')
+               if nargin >= 5 && ~isempty(varargin{2}) && isscalar(varargin{2})
+                  imageBounds{ii} = h.scan(ii).bounds{varargin{2}}; %#ok<*AGROW>
+                  stepSize(ii) = h.scan(ii).stepSize{varargin{2}};
+               else
+                  imageBounds{ii} = h.scan(ii).bounds{1};
+                  stepSize(ii) = h.scan(ii).stepSize{1};
+               end
+            else
+               imageBounds{ii} = h.scan(ii).bounds;
+               stepSize(ii) = h.scan(ii).stepSize;
+            end
+            params{ii} = h.scan.parameter;
+         end
+
+         %Flip scan order (make scan 2 x and scan 1 y)
+         if nargin >= 6 && ~isempty(varargin{3}) && varargin{3}
+            imageBounds = flip(imageBounds);
+            stepSize = flip(stepSize);
+            params = flip(params);
+         end         
+         
+         if any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{1}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{2})
+            replot = true;
+         end
+
+         if replot
+            %array of 0s
+            emptyImage = zeros()
+            h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,dataIn);
+            axis(h.plots.(plotName).axes,'square')%Makes pixel size square, not stretched out
+            h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
+            h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
+            xlabel(h.plots.(plotName).axes,params{1})
+            ylabel(h.plots.(plotName).axes,params{2})
+            title(h.plots.(plotName).axes,strcat(plotName, ' ', h.scan.notes))
+            h.plots.(plotName).dataDisplay.XData = imageBounds{1};
+            h.plots.(plotName).dataDisplay.YData = imageBounds{2};
+            h.plots.(plotName).axes.XLim = imageBounds{1};
+            h.plots.(plotName).axes.YLim = imageBounds{2};
+            %The following makes the image look nicer, otherwise it cuts the edge points in half
+            h.plots.(plotName).axes.XLim(1) = h.plots.(plotName).axes.XLim(1) - stepSize(1)/2;
+            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(1) + stepSize(1)/2;
+            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(2) - stepSize(2)/2;
+            h.plots.(plotName).axes.YLim(2) = h.plots.(plotName).axes.YLim(2) + stepSize(2)/2;           
+            
+         end
+
+         %Change for odometer location
+         h.plots.(plotName).dataDisplay.CData(ex.odometer) = dataIn;
 
       end
 
