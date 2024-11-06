@@ -223,7 +223,10 @@ classdef DAQ_controller < instrumentType
             %Increase number of data points taken. Used primarily for
             %analog to find average voltage
             handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
+            elseif ~isfield(handshake.UserData,'nPoints')
+                handshake.UserData.nPoints = 0;
             end
+
              catch ME
                  if ~isfield(handshake.UserData,'numErrors')
                      handshake.UserData.numErrors = 1;
@@ -343,7 +346,7 @@ classdef DAQ_controller < instrumentType
       end
       
       function varargout = readData(h)
-         if h.handshake.UserData.differentiateSignal
+         if strcmp(h.differentiateSignal,'on')
             varargout{1} = h.handshake.UserData.reference;
             varargout{2} = h.handshake.UserData.signal;
          elseif strcmp(h.continuousCollection,'on')

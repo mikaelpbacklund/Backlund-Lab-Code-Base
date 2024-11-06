@@ -63,25 +63,30 @@ classdef experiment
          %value corresponding to the most nested scan being incremented
          needChanging = find(newOdometer ~= h.odometer);
 
+         %Sets odometer to the incremented value
+         h.odometer = newOdometer;
+
          for ii = needChanging
             %Sets the instrument's parameter to the value determined by
             %the step of the scan
             h = setInstrument(h,ii);
          end
 
-         %Sets odometer to the incremented value
-         h.odometer = newOdometer;
-
          %Actually takes the data using selected acquisition type
          [h,dataOut,nPoints] = getData(h,acquisitionType);
 
+         %Cell array used for indexing since MatLab's indexing is silly
+         indexingCell = num2cell(h.odometer);
+
          %Increments number of data points taken by 1
-         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
+         h.data.iteration(indexingCell{:}) = h.data.iteration(indexingCell{:}) + 1;
 
          %Takes data and puts it in the current iteration spot for this
          %data point
-         h.data.values{h.odometer,h.data.iteration(h.odometer)} = dataOut;
-         h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;
+         currentIteration = h.data.iteration(indexingCell{:});
+         indexingCell{end+1} = currentIteration;
+         h.data.values{indexingCell{:}} = dataOut;
+         h.data.nPoints(indexingCell{:}) = nPoints;
       end
 
       function h = setInstrument(h,scanToChange)
@@ -98,7 +103,7 @@ classdef experiment
                   newValue = newValue(h.odometer(scanToChange));
                end
             else
-               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange));%Computes new value
+               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
             end
          else
              newValue = zeros([numel(currentScan.bounds) 1]);
@@ -160,10 +165,6 @@ classdef experiment
                         % else
                         %    newValue = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
                         % end
-                        if ii == 1
-                            assignin("base",'addresses',currentScan.address)
-                            assignin("base",'durations',newValue)
-                        end
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
@@ -320,31 +321,40 @@ classdef experiment
          else
             dataPoint = h.odometer;
          end
+         dataPoint = num2cell(dataPoint);
 
-         if h.data.iteration(dataPoint) == 0
+         currentIteration = h.data.iteration(dataPoint{:});
+         if currentIteration == 0
             dataMatrix = nan;
             return
+         elseif currentIteration == 1
+             dataMatrix = h.data.values{dataPoint{:}};
+             return
          end
 
-         %Gets the data for all iterations of the current point according to the odometer or optional input
-         currentData = h.data.values(dataPoint,:);
+         if ~isa(h.data.values,'cell')
+             dataMatrix = h.data.values(dataPoint{:},:);
+             return
+         end
+
+         %Gets the data for all iterations of the current point according to the odometer or optional input          
+         currentData = squeeze(h.data.values(dataPoint{:},:));      
 
          %Deletes all the data points that are empty
          currentData(isempty(currentData)) = [];
 
          %Used to find dimensionality
-         comparisonMatrix = squeeze(currentData{1});
+         comparisonMatrix = currentData{1};
 
          if any(size(comparisonMatrix) == 1) %Only happens for a vector
 
             %Creates 2 dimensional matrix where first dimension is of size
             %of data vector while second dimension is of number of
             %iterations
-            dataMatrix = zeros([numel(comparisonMatrix) numel(currentData)]);
+            dataMatrix = zeros([numel(comparisonMatrix) currentIteration]);
 
-
-            for i = 1:numel(currentData)
-               dataMatrix(:,i) = currentData{i};
+            for ii = 1:numel(currentData)
+               dataMatrix(:,ii) = currentData{ii};
             end
             return
          end
@@ -359,9 +369,9 @@ classdef experiment
          dataMatrix = zeros([size(comparisonMatrix) numel(currentData)]);
 
          %Converts the "cell" dimension into an additional matrix dimension
-         for i = 1:numel(currentData)%For each cell
-            s.subs{end} = i;
-            dataMatrix = subsasgn(dataMatrix,s,currentData{i});
+         for ii = 1:numel(currentData)%For each cell
+            s.subs{end} = ii;
+            dataMatrix = subsasgn(dataMatrix,s,currentData{ii});
          end
       end
 
@@ -381,7 +391,11 @@ classdef experiment
 
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
-         h.data.iteration = squeeze(zeros(1,h.scan.nSteps(1)));
+         if isscalar(h.scan)
+            h.data.iteration = zeros(1,h.scan.nSteps);
+         else
+            h.data.iteration = zeros([h.scan.nSteps]);
+         end
 
          %Makes cell array of equivalent size to above
          h.data.values = num2cell(h.data.iteration)';
@@ -503,7 +517,6 @@ classdef experiment
 
             axisRow = strcmpi(h.PIstage.axisSum(:,1),spatialAxes(ii));
             stepLocations = sequence.steps{ii} + h.PIstage.axisSum{axisRow,2};
-            assignin("base","stepLocations",stepLocations)
 
             for jj = 1:numel(sequence.steps{ii})
                %Moves to location for taking this data
@@ -524,9 +537,6 @@ classdef experiment
                   end
                case 'scmos'
             end
-            
-            assignin("base","rawData",rawData)
-            assignin("base","dataVector",dataVector)
             
             [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,algorithmType);
             optimizedValue(ii) = maxVal;
@@ -588,6 +598,10 @@ classdef experiment
                   % away) ***********
 
                   h.DAQ.takeData = false;
+
+                  if strcmpi(h.DAQ.continuousCollection,'off')
+                      break
+                  end
                   nPointsTaken = h.DAQ.dataPointsTaken;
                   expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
                   expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
@@ -641,7 +655,7 @@ classdef experiment
                else
                   %Takes data and puts it in the current iteration spot for this
                   %data point
-                  dataOut{1} = readData(h.DAQ);
+                  dataOut = readData(h.DAQ);
                end
 
             case 'scmos'
@@ -744,7 +758,7 @@ classdef experiment
                   if nargin >= 4 && ~isempty(varargin{1})
                      ylabel(h.plots.(plotName).axes,varargin{1})
                   end
-                  title(h.plots.(plotName).axes,strcat(plotName,' ',h.scan.notes))           
+                  title(h.plots.(plotName).axes,strcat(plotTitle,' ',h.scan.notes))           
                end
 
                h.plots.(plotName).dataDisplay.YData(ex.odometer) = dataIn;   
@@ -775,7 +789,7 @@ classdef experiment
                stepSize(ii) = h.scan(ii).stepSize;
                nSteps(ii) = h.scan(ii).nSteps;
             end
-            params{ii} = h.scan.parameter;
+            params{ii} = h.scan(ii).parameter;
          end
 
          %Flip scan order (make scan 2 x and scan 1 y)
@@ -786,7 +800,7 @@ classdef experiment
             params = flip(params);
          end         
          
-         if any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{1}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{2})
+         if ~replot && (any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{1}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{2}))
             replot = true;
          end
 
@@ -794,25 +808,26 @@ classdef experiment
             emptyImage = zeros(nSteps(1),nSteps(2));
             h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,emptyImage);
             axis(h.plots.(plotName).axes,'square')%Makes pixel size square, not stretched out
-            h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
+            % h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
             h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
             xlabel(h.plots.(plotName).axes,params{1})
             ylabel(h.plots.(plotName).axes,params{2})
-            title(h.plots.(plotName).axes,strcat(plotName, ' ', h.scan.notes))
+            title(h.plots.(plotName).axes,[plotTitle,' - ', h.scan(1).notes])
             h.plots.(plotName).dataDisplay.XData = imageBounds{1};
             h.plots.(plotName).dataDisplay.YData = imageBounds{2};
             h.plots.(plotName).axes.XLim = imageBounds{1};
             h.plots.(plotName).axes.YLim = imageBounds{2};
             %The following makes the image look nicer, otherwise it cuts the edge points in half
             h.plots.(plotName).axes.XLim(1) = h.plots.(plotName).axes.XLim(1) - stepSize(1)/2;
-            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(1) + stepSize(1)/2;
-            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(2) - stepSize(2)/2;
+            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(2) + stepSize(1)/2;
+            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(1) - stepSize(2)/2;
             h.plots.(plotName).axes.YLim(2) = h.plots.(plotName).axes.YLim(2) + stepSize(2)/2;           
             
          end
 
          %Adds data for current odometer location
-         h.plots.(plotName).dataDisplay.CData(ex.odometer) = dataIn;
+         odoCell = num2cell(h.odometer);
+         h.plots.(plotName).dataDisplay.CData(odoCell{:}) = dataIn;
 
       end
 

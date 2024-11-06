@@ -1,10 +1,10 @@
 %% User Inputs
-scanBounds = {[0 100],[200 300]};
+scanBounds = {[-3350 -3300],[-500 -450]};
 scanAxes = {'x','y'};
-scanStepSize = {10,5};
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 1;
-contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+scanStepSize = {25,25};
+sequenceTimePerDataPoint = .4;%Before factoring in forced delay and other pauses
+nIterations = 2;
+contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
 RFfrequency = 2.87;
 
 %Uncommonly changed parameters
@@ -12,6 +12,7 @@ dataType = 'counter';%'counter' or 'analog'
 RFamplitude = 10;
 timeoutDuration = 5;
 forcedDelayTime = .125;
+
 nDataPointDeviationTolerance = .00015;
 scanNotes = 'Stage scan';
 
@@ -83,9 +84,9 @@ ex.scan = [];
 
 %Adds each scan
 for ii = 1:numel(scanBounds)
-   scan.bounds = scanBounds(ii);
-   scan.stepSize = scanStepSize(ii);
-   scan.parameter = scanAxes(ii);
+   scan.bounds = scanBounds{ii};
+   scan.stepSize = scanStepSize{ii};
+   scan.parameter = scanAxes{ii};
    scan.identifier = 'stage';
    scan.notes = scanNotes;
 
@@ -100,7 +101,7 @@ ex.maxFailedCollections = 3;
 ex.nPointsTolerance = nDataPointDeviationTolerance;
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
+% scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
 
 cont = checkContinue(timeoutDuration*2);
 if ~cont
@@ -109,7 +110,11 @@ end
 
 %% Running Scan
 try
-ex = resetAllData(ex,[0,0]);
+    if strcmp(contrastVSReference,'con')
+        ex = resetAllData(ex,[0,0]);
+    else
+        ex = resetAllData(ex,0);
+    end
 
 for ii = 1:nIterations
    
@@ -119,8 +124,13 @@ for ii = 1:nIterations
 
       ex = takeNextDataPoint(ex,'pulse sequence');
 
-      averageData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
-      currentData = ex.data.values{ex.odometer,end};
+      odoCell = num2cell(ex.odometer);
+      currentData = ex.data.values{odoCell{:},ex.data.iteration(odoCell{:})};
+      if ii == 1
+          averageData = currentData;
+      else
+        averageData = mean(createDataMatrixWithIterations(ex,ex.odometer),numel(ex.scan)+1);
+      end      
 
       %Create plot for contrast if set to that
       if strcmpi(contrastVSReference,'con')
