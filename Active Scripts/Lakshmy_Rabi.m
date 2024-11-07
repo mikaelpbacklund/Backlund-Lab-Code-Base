@@ -5,17 +5,17 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-scanBounds = [10 400];%ns
+scanBounds = [10 310];%ns
 scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 1;
-RFFrequency = 2.43925;
+nIterations = 3;
+RFFrequency = 2.425;
 sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
-timeoutDuration = 10;
+timeoutDuration = 5;
 forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
-aomCompensation = -100;
+aomCompensation = 300;
 RFReduction = 0;
 
 %Lesser used settings
@@ -26,6 +26,14 @@ nDataPointDeviationTolerance = .01;
 collectionDuration = (1/1.25)*1000;
 collectionBufferDuration = 1000;
 ex.maxFailedCollections = 5;
+
+optimizationAxes = {'z'};
+optimizationSteps = {-2:0.25:2};
+optimizationRFStatus = 'off';
+timePerOptimizationPoint = .1;
+timeBetweenOptimizations = 180; %s (Inf to disable)
+%How much the current data would be less than the previous optimized value to force a new optimization
+percentageDifferenceToForceOptimization = .5; %Inf to disable
 
 %% Loading Instruments
 %See ODMR example script for instrument loading information
@@ -44,6 +52,12 @@ end
 if isempty(ex.DAQ)
    ex.DAQ = DAQ_controller('NI_DAQ');
    ex.DAQ = connect(ex.DAQ);
+end
+if isempty(ex.PIstage)
+    fprintf('Connecting to PI stage...\n')
+   ex.PIstage = stage('PI_stage');
+   ex.PIstage = connect(ex.PIstage);
+   fprintf('PI stage connected\n')
 end
 
 %Sends RF settings
@@ -103,6 +117,11 @@ ex = validateExperimentalConfiguration(ex,'pulse sequence');
 %Sends information to command window
 scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
 
+algorithmType = 'max value';
+acquisitionType = 'pulse blaster';
+optimizationSequence.axes = optimizationAxes;
+optimizationSequence.steps = optimizationSteps;
+
 cont = checkContinue(timeoutDuration*2);
 if ~cont
    return
@@ -119,6 +138,9 @@ ex = resetAllData(ex,[0 0]);
 
 avgData = zeros([ex.scan.nSteps 1]);
 
+lastOptimizationTime = datetime;
+lastOptimizationValue = 9999999999999999;
+
 for ii = 1:nIterations
 
    %Prepares scan for a fresh start while keeping data from previous
@@ -130,7 +152,27 @@ for ii = 1:nIterations
    %While the odometer is not at its max value
    while ~all(ex.odometer == [ex.scan.nSteps])
 
+        timeSinceLastOptimizaiton = seconds(datetime - lastOptimizationTime);
+
+      %If first data point, or time since last optimization is greater than set time, or difference between current
+      %value and last optimized value is greater than set parameter
+      if  timeSinceLastOptimizaiton > timeBetweenOptimizations || ...
+            (ex.odometer ~= 0 && lastOptimizationValue*(1-percentageDifferenceToForceOptimization) > ex.data.values{ex.odometer,end}(1))
+         lastOptimizationTime = datetime;
+         fprintf('Beginning stage optimization (%.1f seconds since last optimization)\n',timeSinceLastOptimizaiton)
+         [ex,optVal,optLoc] = stageOptimization(ex,algorithmType,acquisitionType,optimizationSequence,optimizationRFStatus,[],timePerOptimizationPoint);
+         fprintf('Stage optimization finished, max value %g at location %.1f\n',optVal,optLoc)
+         didOptimization = true;
+         pause(numel(optimizationSequence.steps{1})*timePerOptimizationPoint)
+      else
+         didOptimization = false;
+      end
+
       ex = takeNextDataPoint(ex,'pulse sequence');
+
+      if didOptimization
+         lastOptimizationValue = ex.data.values{ex.odometer,end}(1);
+      end
 
       %The problem is that the odometer is 1 but the data point is 2?
 

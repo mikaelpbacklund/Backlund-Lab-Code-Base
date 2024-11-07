@@ -339,9 +339,9 @@ classdef stage < instrumentType
          %Checks if new target location is within the bounds of the axis
          if newTarget > h.controllerInfo(axisRow).limits(2) || newTarget < h.controllerInfo(axisRow).limits(1)
             if nargin < 4
-               error('%s stage boundary reached\n',axisName)
+               error('%s stage boundary reached. Attempted to move to %.3f\n',axisName,newTarget)
             else
-               error('%s %s stage boundary reached\n',varargin{1},axisName)
+               error('%s %s stage boundary reached. Attempted to move to %.3f\n',varargin{1},axisName,newTarget)
             end
          end
 
@@ -452,14 +452,14 @@ classdef stage < instrumentType
 
          %If there is no change in location, print that then end function
          if relativeTarget == 0
-            printOut(h,'%s axis already at %.3f',spatialAxis,targetLocation)
+            printOut(h,sprintf('%s axis already at %.3f',spatialAxis,targetLocation))
             return
          end
 
          %Checks if coarse movement is required. If it is, performs fine reset, then moves coarse to compensate for fine
          %and adds the new target
-         if relativeTarget + h.controllerInfo(fineRow).targetLocation > h.controllerInfo(fineRow).limits(2) || ...
-               relativeTarget + h.controllerInfo(fineRow).targetLocation < h.controllerInfo(fineRow).limits(1)
+         if relativeTarget + h.controllerInfo(fineRow).targetLocation >= h.controllerInfo(fineRow).limits(2) || ...
+               relativeTarget + h.controllerInfo(fineRow).targetLocation <= h.controllerInfo(fineRow).limits(1)
 
             %Gets location for fine stage when reset
             if ~h.resetToMidpoint
@@ -488,7 +488,7 @@ classdef stage < instrumentType
 
             %Finds absolute target location for fine stage then directly move there
             %Adds extra compensation if already present
-            fineTarget = relativeTarget + h.controllerInfo(fineRow).location;
+            fineTarget = relativeTarget + h.controllerInfo(fineRow).targetLocation;
             h = directMove(h,spatialAxis,fineTarget+h.controllerInfo(fineRow).extraCompensation,'fine');
 
          end
@@ -600,10 +600,6 @@ classdef stage < instrumentType
 
             if abs(trueLocation - targetLocation) < totalTolerance
                 fprintf('tolerance loops used: %d\n',loopCounter)
-                assignin("base","trueLocation",trueLocation)
-                assignin("base","targetLocation",targetLocation)
-                assignin("base","totalTolerance",totalTolerance)
-                assignin("base","precisionFound",abs(trueLocation - targetLocation))
                return
             end
 

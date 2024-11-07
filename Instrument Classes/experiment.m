@@ -748,7 +748,7 @@ classdef experiment
                      xAxis = xBounds(1):stepSize:xBounds(2);
                   end
 
-                  emptyData = zeros(1,ex.scan.nSteps);
+                  emptyData = zeros(1,h.scan.nSteps);
 
                   %Creates the actual plot as a line
                   h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,emptyData);
@@ -761,7 +761,7 @@ classdef experiment
                   title(h.plots.(plotName).axes,strcat(plotTitle,' ',h.scan.notes))           
                end
 
-               h.plots.(plotName).dataDisplay.YData(ex.odometer) = dataIn;   
+               h.plots.(plotName).dataDisplay.YData(h.odometer) = dataIn;   
 
                return
          end

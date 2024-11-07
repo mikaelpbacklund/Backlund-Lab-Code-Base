@@ -2,11 +2,11 @@
 
 %% User Settings
 scanType = 'duration';%Either frequency or duration
-params.RF2Frequency = .43088;%GHz. Overwritten by scan if frequency selected
+params.RF2Frequency = .44539;%GHz. Overwritten by scan if frequency selected
 params.RF2Duration = 100;%ns. Overwritten by scan if duration selected
 params.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
-params.RF1ResonanceFrequency = 2.43925;
-params.piTime = 88;
+params.RF1ResonanceFrequency = 2.425;
+params.piTime = 80;
 params.tauTime = 450;
 % scanStart = .4;%ns or GHz
 % scanEnd = .45;%ns or GHz
@@ -30,10 +30,10 @@ params.collectionBufferDuration = 1000;
 params.intermissionBufferDuration = 2500;
 params.repolarizationDuration = 7000;
 params.extraRF =  0;
-params.AOM_DAQCompensation = -100;
+params.AOM_DAQCompensation = 300;
 params.IQPreBufferDuration = 22;
 params.IQPostBufferDuration = 0;
-nIterations = 200;
+nIterations = 20;
 SRSAmplitude = 10;
 windfreakAmplitude = 29;
 dataType = 'counter';

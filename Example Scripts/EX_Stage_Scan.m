@@ -1,10 +1,13 @@
+%stageLocations = ex.PIstage.axisSum;
+%ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
+%ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 %% User Inputs
-scanBounds = {[-3350 -3300],[-500 -450]};
-scanAxes = {'x','y'};
-scanStepSize = {25,25};
-sequenceTimePerDataPoint = .4;%Before factoring in forced delay and other pauses
-nIterations = 2;
-contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+scanBounds = {[6300 6800]};
+scanAxes = {'z'};
+scanStepSize = {2};
+sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
+nIterations = 1;
+contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
 RFfrequency = 2.87;
 
 %Uncommonly changed parameters
