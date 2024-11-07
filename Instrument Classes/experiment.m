@@ -328,7 +328,7 @@ classdef experiment
             dataMatrix = nan;
             return
          elseif currentIteration == 1
-             dataMatrix = h.data.values{dataPoint{:}};
+             dataMatrix = h.data.values{dataPoint{:}}';
              return
          end
 

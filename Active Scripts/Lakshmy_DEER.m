@@ -50,7 +50,6 @@ if ~strcmpi(scanType,'frequency') && ~strcmpi(scanType,'duration')
 end
 
 if ~exist('ex','var'),  ex = experiment; end
-ex.notifications = true;
 
 if isempty(ex.pulseBlaster)
     fprintf('Connecting to pulse blaster...\n')
