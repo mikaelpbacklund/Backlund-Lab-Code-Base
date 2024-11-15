@@ -1,14 +1,16 @@
 %% User Inputs
 RFamplitude = 10;
-scanBounds = [2.75 2.95];
-scanStepSize = .001; %Step size for RF frequency
+scanBounds = [2.76 3.0];
+scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
-nIterations = 1;
+sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
+nIterations = 10;
 timeoutDuration = 5;
 forcedDelayTime = .125;
 nDataPointDeviationTolerance = .00015;
 useStageOptimization = false;%Not usable yet
+dataType = 'analog';
+baselineSubtraction = .13;
 
 %% Backend
 
@@ -60,7 +62,7 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'counter';
+ex.DAQ.activeDataChannel = dataType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
@@ -152,7 +154,10 @@ for ii = 1:nIterations
    while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
-      ex = takeNextDataPoint(ex,'pulse sequence');          
+      ex = takeNextDataPoint(ex,'pulse sequence');      
+
+      odoCell = num2cell(ex.odometer);
+      ex.data.values{odoCell{:},ex.data.iteration(odoCell{:})} = ex.data.values{odoCell{:},ex.data.iteration(odoCell{:})} - baselineSubtraction;
 
       con = zeros(1,ex.scan.nSteps);
 

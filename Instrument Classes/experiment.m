@@ -13,6 +13,7 @@ classdef experiment
       nPointsTolerance = .01;
       maxFailedCollections = 9;
       notifications = false;
+      data
    end
 
    properties (Hidden)
@@ -39,7 +40,7 @@ classdef experiment
       %Read-only
       instrumentIdentifiers
       instrumentClasses
-      data %Stores data for each data point within a scan including its iteration
+%       data %Stores data for each data point within a scan including its iteration
       instrumentCells
    end
 
@@ -583,9 +584,20 @@ classdef experiment
                   %Start sequence
                   runSequence(h.pulseBlaster)
 
+                  n = 0;
+
                   %Wait until pulse blaster says it is done running
                   while pbRunning(h.pulseBlaster)
-                     pause(.001)
+                      if strcmpi(h.DAQ.continuousCollection,'off')                          
+                          n = n+1;
+                          if n == 1
+                              dataOut = readData(h.DAQ);
+                          else
+                        dataOut = dataOut + readData(h.DAQ);
+                          end
+                      else
+                          pause(.001)
+                      end                     
                   end
 
                   %Stop sequence. This allows pulse blaster to run the same
@@ -600,6 +612,7 @@ classdef experiment
                   h.DAQ.takeData = false;
 
                   if strcmpi(h.DAQ.continuousCollection,'off')
+                      dataOut = dataOut./n;
                       break
                   end
                   nPointsTaken = h.DAQ.dataPointsTaken;
@@ -646,16 +659,18 @@ classdef experiment
 
                end
 
-               if strcmp(h.DAQ.differentiateSignal,'on')
+               if strcmpi(h.DAQ.continuousCollection,'on')
                   dataOut(1) = h.DAQ.handshake.UserData.reference;
                   dataOut(2) = h.DAQ.handshake.UserData.signal;
+                  %FIX THIS**** Should be dividing by signal data points or
+                  %reference data points, not total/2
                   if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
-                     dataOut(1:2) = dataOut(1:2) ./ h.DAQ.dataPointsTaken;
+                     dataOut(1:2) = dataOut(1:2) ./ (h.DAQ.dataPointsTaken/2);
                   end
                else
                   %Takes data and puts it in the current iteration spot for this
                   %data point
-                  dataOut = readData(h.DAQ);
+                  
                end
 
             case 'scmos'
@@ -760,6 +775,8 @@ classdef experiment
                   end
                   title(h.plots.(plotName).axes,strcat(plotTitle,' ',h.scan.notes))           
                end
+
+               h.plots.(plotName).axes.XLim = xBounds;
 
                h.plots.(plotName).dataDisplay.YData(h.odometer) = dataIn;   
 

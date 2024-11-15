@@ -162,12 +162,11 @@ classdef DAQ_controller < instrumentType
             %while differentiation of S/R is enabled, stop this function
             if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
                   || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable < 5
-               return
+                return
             end
             
             %Read off the data from the device in matrix form
-            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
-            
+            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix");             
             
             if strcmpi(collectionInfo.dataType,'EdgeCount')
                %Take difference between each data point and the prior one.
@@ -197,7 +196,7 @@ classdef DAQ_controller < instrumentType
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)
-                   assignin('base','unsortedData',unsortedData)
+%                    assignin('base','unsortedData',unsortedData)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
                        ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
@@ -381,7 +380,10 @@ classdef DAQ_controller < instrumentType
       end      
 
       function set.continuousCollection(h,val)
-         h = setParameter(h,instrumentType.discernOnOff(val),'continuousCollection'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'continuousCollection');
+         if strcmpi(instrumentType.discernOnOff(val),'off')
+             h = setParameter(h,'off','differentiateSignal');%#ok<NASGU>
+         end
       end
       function val = get.continuousCollection(h)
          val = getParameter(h,'continuousCollection');
@@ -395,7 +397,10 @@ classdef DAQ_controller < instrumentType
       end
 
       function set.differentiateSignal(h,val)
-         h = setParameter(h,instrumentType.discernOnOff(val),'differentiateSignal'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'differentiateSignal');
+         if strcmpi(instrumentType.discernOnOff(val),'on')
+             h = setParameter(h,'on','continuousCollection');%#ok<NASGU>
+         end
       end
       function val = get.differentiateSignal(h)
          val = getParameter(h,'differentiateSignal');
