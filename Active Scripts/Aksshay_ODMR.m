@@ -128,7 +128,7 @@ for ii = 1:nIterations
    %Reset current scan each iteration
    ex = resetScan(ex);
    
-   while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
+   while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
       ex = takeNextDataPoint(ex,'pulse sequence');      

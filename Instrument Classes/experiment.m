@@ -1,7 +1,4 @@
 classdef experiment
-   %To do:
-   %Multi-dimensional scans
-   %Scan multiple variables at once (e.g. x and y spatial axes or RF frequency and pulse duration)
 
    properties
       scan %Structure containing info specific to each scan within the broader operation
@@ -14,6 +11,7 @@ classdef experiment
       maxFailedCollections = 9;
       notifications = false;
       data
+      optimizationInfo
    end
 
    properties (Hidden)
@@ -40,7 +38,6 @@ classdef experiment
       %Read-only
       instrumentIdentifiers
       instrumentClasses
-%       data %Stores data for each data point within a scan including its iteration
       instrumentCells
    end
 
@@ -52,7 +49,7 @@ classdef experiment
 
          %If the odometer is at the max value, end this function without
          %incrementing anything
-         if all(h.odometer == [h.scan.nSteps])
+         if all(cell2mat(h.odometer) == [h.scan.nSteps])
             return
          end
 
@@ -62,7 +59,7 @@ classdef experiment
          %Determine which scans need to be changed. Scans whose odometer
          %value isn't changed don't need to be set again. Often gets 1
          %value corresponding to the most nested scan being incremented
-         needChanging = find(newOdometer ~= h.odometer);
+         needChanging = find(cell2mat(newOdometer) ~= cell2mat(h.odometer));
 
          %Sets odometer to the incremented value
          h.odometer = newOdometer;
@@ -76,35 +73,33 @@ classdef experiment
          %Actually takes the data using selected acquisition type
          [h,dataOut,nPoints] = getData(h,acquisitionType);
 
-         %Cell array used for indexing since MatLab's indexing is silly
-         indexingCell = num2cell(h.odometer);
-
          %Increments number of data points taken by 1
-         h.data.iteration(indexingCell{:}) = h.data.iteration(indexingCell{:}) + 1;
+         h.data.iteration(h.odometer{:}) = h.data.iteration(h.odometer{:}) + 1;
 
          %Takes data and puts it in the current iteration spot for this
          %data point
-         currentIteration = h.data.iteration(indexingCell{:});
-         indexingCell{end+1} = currentIteration;
-         h.data.values{indexingCell{:}} = dataOut;
-         h.data.nPoints(indexingCell{:}) = nPoints;
+         currentIteration = h.data.iteration(h.odometer{:});
+         h.odometer{end+1} = currentIteration;
+         h.data.values{h.odometer{:}} = dataOut;
+         h.data.nPoints(h.odometer{:}) = nPoints;
       end
 
       function h = setInstrument(h,scanToChange)
          currentScan = h.scan(scanToChange);%Pulls current scan to change
+         currentScan.odometer = h.odometer{scanToChange};
 
          currentScan.identifier = instrumentType.giveProperIdentifier(currentScan.identifier);
 
          if ~isa(currentScan.bounds,'cell')%Cell indicates multiple new values
             if h.useManualSteps
                newValue = h.manualSteps{scanToChange};
-               if h.odometer(scanToChange) == 0
+               if currentScan.odometer == 0
                   newValue = newValue(1);
                else
-                  newValue = newValue(h.odometer(scanToChange));
+                  newValue = newValue(currentScan.odometer);
                end
             else
-               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
+               newValue = currentScan.bounds(1) + currentScan.stepSize*(currentScan.odometer-1);%Computes new value
             end
          else
              newValue = zeros([numel(currentScan.bounds) 1]);
@@ -113,24 +108,19 @@ classdef experiment
                   %Get the manual steps for the current scan, for
                   %the address dictated by the loop, for the
                   %current step of that scan
-                  if h.odometer(scanToChange) == 0
+                  if currentScan.odometer == 0
                      newValue(ii) = h.manualSteps{scanToChange}{ii}(1);
                   else
-                     newValue(ii) = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
+                     newValue(ii) = h.manualSteps{scanToChange}{ii}(currentScan.odometer);
                   end
                else
-                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
+                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(currentScan.odometer);
                end
             end
          end
 
          if strcmp(currentScan.identifier,'forcedCollectionPauseTime')
             h.forcedCollectionPauseTime = newValue;
-            %              if mod(h.odometer,2) == 1
-            %                  h.SRS_RF.amplitude = 10;
-            %              else
-            %                  h.SRS_RF.amplitude = 9;
-            %              end
             return
          end
 
@@ -318,11 +308,10 @@ classdef experiment
          %2nd argument is cell corresponding to the specific data point
          %within the scan
          if nargin > 1 && ~isempty(varargin{1})
-            dataPoint = varargin{1};
+            dataPoint = num2cell(varargin{1});
          else
             dataPoint = h.odometer;
          end
-         dataPoint = num2cell(dataPoint);
 
          currentIteration = h.data.iteration(dataPoint{:});
          if currentIteration == 0
@@ -380,11 +369,11 @@ classdef experiment
          %Sets the scan to the starting value for each dimension of the
          %scan
          h = getInstrumentNames(h);
-         h.odometer = ones(1,numel(h.scan));
+         h.odometer = num2cell(ones(1,numel(h.scan)));
          for ii = 1:numel(h.odometer)
             h = setInstrument(h,ii);
          end
-         h.odometer(end) = 0;
+         h.odometer{end} = 0;
       end
 
       function h = resetAllData(h,resetValue)
@@ -424,6 +413,8 @@ classdef experiment
       end
 
       function [h,optimizedValue,optimizedLocation] = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
+         %TO DO ****** Incorporate experiment properties as inputs and outputs
+         
          %sequence.steps: cell array of vectors corresponding to the steps for
          %each axis
          %sequence.axes: axes that should be moved during optimization
@@ -554,6 +545,44 @@ classdef experiment
 
       end
 
+      function performOptimization = checkOptimization(h)
+         %Checks if stage optimization should occur based on time and percentage difference criteria
+         %performOptimization is boolean 
+
+         %Required fields and default values
+         optimizationDefaults = {'algorithmType','max value';...
+            'acquisitionType','pulse blaster';...
+            'stageAxes',[];...
+            'steps',[];...
+            'timePerPoint',.1;...
+            'timeBetweenOptimizations',120;...%0 means run optimization every time
+            'useTimer',false;...
+            'percentageToForceOptimization',.75;...
+            'usePercentageDifference',false;...
+            'needNewValue',false;...
+            'lastOptimizationTime',[];...
+            'optimizationMaxValue',[];...
+            'optimizationMaxLocation',[];...
+            'postOptimizationValue',0};
+
+         %Checks if fields are present and gives default values
+         h.optimizationInfo = mustContainField(h.optimizationInfo,optimizationDefaults(:,1),optimizationDefaults(:,2));
+
+         optInfo = h.optimizationInfo;%Shorthand
+
+         %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
+         %OR
+         %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
+         if (optInfo.useTimer && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+               || ...
+            (optInfo.usePercentageDifference && (isempty(optInfo.percentageToForceOptimization) || ...
+               h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
+            performOptimization = true;
+         else
+            performOptimization = false;
+         end
+      end
+
       function [h,dataOut,nPointsTaken] = getData(h,acquisitionType)
 
          %Gets "correct" name for experiment type
@@ -621,8 +650,8 @@ classdef experiment
 
                   if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) &&...
                           nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
-                          if ~all(h.odometer == 0)
-                            h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
+                          if ~all(cell2mat(h.odometer) == 0)
+                            h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
                           end
                      if nPauseIncreases ~= 0
                         h.forcedCollectionPauseTime = originalPauseTime;
@@ -778,7 +807,7 @@ classdef experiment
 
                h.plots.(plotName).axes.XLim = xBounds;
 
-               h.plots.(plotName).dataDisplay.YData(h.odometer) = dataIn;   
+               h.plots.(plotName).dataDisplay.YData(h.odometer{:}) = dataIn;   
 
                return
          end
@@ -843,8 +872,7 @@ classdef experiment
          end
 
          %Adds data for current odometer location
-         odoCell = num2cell(h.odometer);
-         h.plots.(plotName).dataDisplay.CData(odoCell{:}) = dataIn;
+         h.plots.(plotName).dataDisplay.CData(h.odometer{:}) = dataIn;
 
       end
 
@@ -1248,6 +1276,7 @@ classdef experiment
       end
 
       function newValues = incrementOdometer(oldValues,maxValues)
+         oldValues = cell2mat(oldValues);
          if all(oldValues == maxValues)
             error('Odometer overflow. Attempted to increment value beyond maximum for all scans')
          end
@@ -1281,7 +1310,8 @@ classdef experiment
                break
             end
          end
-
+         %Odometer should be in form of a cell instead of matrix since this is how matlab can use it as an index
+         newValues = num2cell(newValues);
       end
 
       function [xEst,yEst] = double1DGaussian(im,percentileCutoff,cutoffForGaussianAmplitudeRatio,varargin)

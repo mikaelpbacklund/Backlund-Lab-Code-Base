@@ -57,7 +57,7 @@ end
 
 %Reset current scan each iteration
    ex = resetScan(ex);
-   while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
+   while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
        startTime = datetime;
        loopCounter = loopCounter + 1;
        %Increment the odometer and set the instrument to the next value
