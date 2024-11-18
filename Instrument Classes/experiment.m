@@ -412,107 +412,78 @@ classdef experiment
          end         
       end
 
-      function [h,optimizedValue,optimizedLocation] = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
-         %TO DO ****** Incorporate experiment properties as inputs and outputs
-         
-         %sequence.steps: cell array of vectors corresponding to the steps for
-         %each axis
-         %sequence.axes: axes that should be moved during optimization
-         %5: rf status (on, off, contrast; defaults to off)
-         %6: rf channel name (defaults to rf)
-         %7: time per data point in seconds (defaults to .25 for contrast or .1 for other options)
-
-         %*****Make sequence, RF status, and data cell all part of settings
-         %input to cut down on number of inptus
-
-         if nargin > 4 && ~isempty(varargin{2})
-            if nargin > 5 && ~isempty(varargin{2})
-               rfName = varargin{2};
-            else
-               rfName = 'rf';
-            end
-            rfStatus = varargin{1};
-         else
-            rfStatus = 'off';
-         end
-
-         mustContainField(sequence,{'steps','axes'})
+      function h = stageOptimization(h)
 
          %Steps input should be cell array with number of elements equivalent to number of axes in sequence.axes
          %Each element should be a vector of relative positions that should be tested
          %e.g. {[-1,-.75,-.5,-.25,0,.25,.5,.75,1],[-2,-1.5,-1,-.5,0,.25,.5]} for {'x','y'}
 
-         acquisitionType = experiment.discernExperimentType(acquisitionType);
+         optInfo = h.optimizationInfo;%shorthand
+
+         optInfo.acquisitionType = experiment.discernExperimentType(acquisitionType);
 
          if strcmp(acquisitionType,'none')
             error('Cannot perform stage optimization without acquiring data')
          end
 
-         %If using pulse sequence to collect data, set pulse sequence to either basic data collection or to an ODMR
-         %depending on rf status
-         if strcmp(acquisitionType,'pulse sequence')
-            oldSequence = h.pulseBlaster.userSequence;
-            oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
+         %If using pulse sequence to collect data, change sequence
+         if strcmp(optInfo.acquisitionType,'pulse sequence')
+            %Store old sequence then delete to clear way for new sequence
+            oldSequence = h.pulseBlaster.userSequence;            
             h.pulseBlaster = deleteSequence(h.pulseBlaster);
+
+            %Store old total loop settings then set to no total loop
+            oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
             h.pulseBlaster.useTotalLoop = false;
-            switch rfStatus
-               case {'off','on'}
-                  if nargin > 6
-                     timePerDataPoint = varargin{3};
-                  else
-                     timePerDataPoint = .1;
-                  end
-                  if strcmpi(rfStatus,'on')
-                     addedChannel = rfName;
-                  else
-                     addedChannel = [];
-                  end
+
+            %Creates sequence depending on RF status
+            switch optInfo.rfStatus
+               case {'on',true,'sig'}
+
                   %Basic data collection
-                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM',addedChannel},500,'Initial buffer');
-                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ',addedChannel},timePerDataPoint*1e9,'Taking data');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','RF'},500,'Initial buffer');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF'},optInfo.timePerPoint*1e9,'Taking data');
 
-                  h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+               case {'off',false,'ref'}
 
-               case 'contrast'
-                  if nargin > 6
-                     timePerDataPoint = varargin{3};
-                  else
-                     timePerDataPoint = .25;
-                  end
+                  %Basic data collection
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM'},500,'Initial buffer');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},optInfo.timePerPoint*1e9,'Taking data');
+
+               case {'contrast','con'}
 
                   %ODMR sequence
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Initial buffer');
-                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},(timePerDataPoint*1e9)/2,'Reference');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},(optInfo.timePerPoint*1e9)/2,'Reference');
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Middle buffer signal off');
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
-                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF','Signal'},(timePerDataPoint*1e9)/2,'Signal');
-                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Final buffer');
-
-                  h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF','Signal'},(optInfo.timePerPoint*1e9)/2,'Signal');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Final buffer');                  
 
                otherwise
-                  error('RF status (5th argument) must be ''on'' ''off'' or ''contrast''')
+                  error('RF status (.rfStatus) must be "on", "off", or "contrast"')
             end
+
+            %Send new sequence to instrument
+            h.pulseBlaster = sendToInstrument(h.pulseBlaster);
          end
 
-         spatialAxes = string(sequence.axes);       
-
-         optimizedValue = zeros(1,numel(spatialAxes));
-         optimizedLocation = optimizedValue;
+         optInfo.stageAxes = string(optInfo.stageAxes);       
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
          for ii = 1:numel(spatialAxes)
-            %creates empty data vector
-            dataVector = cell(1,numel(sequence.steps{ii}));
 
-            rawData = cell(1,numel(sequence.steps{ii}));
+            %Creates empty cell array for storing data
+            rawData = cell(1,numel(optInfo.steps{ii}));
 
-            axisRow = strcmpi(h.PIstage.axisSum(:,1),spatialAxes(ii));
-            stepLocations = sequence.steps{ii} + h.PIstage.axisSum{axisRow,2};
+            %Gets row of the current axis
+            axisRow = strcmpi(h.PIstage.axisSum(:,1),optInfo.stageAxes(ii));
+            %Finds absolute axis locations using step info and current location
+            stepLocations = optInfo.steps{ii} + h.PIstage.axisSum{axisRow,2};
 
             for jj = 1:numel(sequence.steps{ii})
                %Moves to location for taking this data
-               h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),stepLocations(jj));
+               h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),stepLocations(jj));
 
                %Get data at this location
                [h,rawData{jj}] = getData(h,acquisitionType);
@@ -523,16 +494,36 @@ classdef experiment
                case 'pulse sequence'
                   switch rfStatus
                      case {'off','on'}
-                        dataVector = cellfun(@(x)x(1),rawData);
+                        dataVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
                      case 'contrast'
-                        dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData);
+                        dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
                   end
-               case 'scmos'
+               case 'scmos' %unimplemented
             end
             
-            [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,algorithmType);
-            optimizedValue(ii) = maxVal;
-            optimizedLocation(ii) = maxPosition;
+            %Use optimization algorithm to get max value and position
+            [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,optInfo.algorithmType);
+
+            %Store all values obtained if enabled
+            if optInfo.storeAllValues
+               h.optimizationInfo.allValuesRecord{ii,end+1} = dataVector;
+               %Prevent memory leak by deleting values if past 100,000 elements
+               if numel(h.optimizationInfo.allValuesRecord) > 1e5
+                  h.optimizationInfo.allValuesRecord(:,1:1e4) = [];
+               end
+            end
+
+            %Records maximum value and location
+           h.optimizationInfo.maxValueRecord(ii,end+1) = maxVal;
+           h.optimizationInfo.maxLocationRecord(ii,end+1) = maxPosition;
+
+           %Prevent memory leak by deleting values if past 100,000 elements
+           if numel(h.optimizationInfo.maxValueRecord) > 1e5
+              h.optimizationInfo.allValuesRecord(:,1:1e4) = [];
+              h.optimizationInfo.maxLocationRecord(:,1:1e4) = [];
+           end
+
+           %Move to maximum location
             h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
          end
 
@@ -542,6 +533,11 @@ classdef experiment
             h.pulseBlaster.userSequence = oldSequence;
             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
          end
+
+         %Set current time as time of last optimization
+         h.optimizationInfo.lastOptimizationTime = datetime;
+         %Request new postOptimizationValue for comparison
+         h.optimizationInfo.needNewValue = true;       
 
       end
 
@@ -561,9 +557,12 @@ classdef experiment
             'usePercentageDifference',false;...
             'needNewValue',false;...
             'lastOptimizationTime',[];...
-            'optimizationMaxValue',[];...
-            'optimizationMaxLocation',[];...
-            'postOptimizationValue',0};
+            'maxValueRecord',[];...
+            'allValuesRecord',{};...
+            'storeAllValues',false;...
+            'maxLocationRecord',[];...
+            'postOptimizationValue',0;...
+            'rfStatus','off'};
 
          %Checks if fields are present and gives default values
          h.optimizationInfo = mustContainField(h.optimizationInfo,optimizationDefaults(:,1),optimizationDefaults(:,2));
@@ -1154,6 +1153,11 @@ classdef experiment
 
       end
 
+      function h = subtractBaseline(h,baseline)
+         %Subtracts baseline value from all data within current scan value
+
+         h.data.values{h.odometer{:},ex.data.iteration(h.odometer{:})} = ex.data.values{h.odometer{:},ex.data.iteration(h.odometer{:})} - baseline;
+      end
    end
 
    methods

@@ -216,6 +216,74 @@ for ii = 1:nIterations
          ex = plotData(ex,currentData(1),'Average Contrast');
       end
 
+
+
+ 
+
+      %Create plot for contrast if set to that
+      if strcmpi(contrastVSReference,'con')
+         avgContrast = (averageData(1)-averageData(2))/averageData(1);
+         ex = plotData(ex,avgContrast,'Average Contrast');
+         curContrast = (currentData(1)-currentData(2))/currentData(1);
+         ex = plotData(ex,curContrast,'Current Iteration Contrast');
+      end
+
+      ex = plotData(ex,averageData(1),'Average Reference');
+      ex = plotData(ex,currentData(1),'Current Iteration Reference');
+
+      currentData = cellfun(@(x)x{1},ex.data.current,'UniformOutput',false);
+      prevData = cellfun(@(x)x{1},ex.data.previous,'UniformOutput',false);
+      newRefData = cell2mat(cellfun(@(x)x(1),currentData,'UniformOutput',false));
+      prevRefData = cell2mat(cellfun(@(x)x(1),prevData,'UniformOutput',false));
+      nPoints = ex.data.nPoints(:,ii)/expectedDataPoints;
+      nPoints(nPoints == 0) = 1;
+      plotTypes = {'average','new'};%'old' also viable
+      for plotName = plotTypes
+         c = findContrast(ex,[],plotName{1});
+         ex = plotData(ex,c,plotName{1});
+      end
+%       ex = plotData(ex,nPoints,'n points');
+%       ex = plotData(ex,ex.data.failedPoints,'n failed points');
+      ex = plotData(ex,newRefData,'new reference');
+%       ex = plotData(ex,prevRefData,'previous reference');
+
+
+
+
+
+
+      con = zeros(1,ex.scan.nSteps);
+
+      %The problem is that the odometer is 1 but the data point is 2?
+
+      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      avgerageData(ex.odometer) = currentData;
+      currentData = ex.data.values{ex.odometer,end};
+      currentData = (currentData(1)-currentData(2))/currentData(1);
+      iterationData(ex.odometer) = currentData;
+
+      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
+          %Bad usage of this just to get it going. Should be replacing individual data points
+          %Only works for 1D
+          if exist("averageFig",'var') && ishandle(averageFig)
+            close(averageFig)
+          end
+          if exist("iterationFig",'var') && ishandle(iterationFig)
+            close(iterationFig)
+          end
+          averageFig = figure(1);
+          averageAxes = axes(averageFig); %#ok<LAXES>
+          iterationFig = figure(2);
+          iterationAxes = axes(iterationFig); %#ok<LAXES>
+          xax = ex.scan.bounds(1):ex.scan.stepSize:ex.scan.bounds(2);
+          avgPlot = plot(averageAxes,xax,avgerageData);
+          iterationPlot = plot(iterationAxes,xax,iterationData);
+      else
+          avgPlot.YData = avgerageData;
+          iterationPlot.YData = iterationData;
+      end
+
       %If a new post-optimization value is needed, record current data
       if ex.optimizationInfo.needNewValue
          ex.optimizationInfo.postOptimizationValue = currentData;
