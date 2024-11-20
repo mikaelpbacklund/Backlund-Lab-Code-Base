@@ -6,21 +6,21 @@ RFamplitude = 10;
 scanBounds = [2.7 3];
 scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 1; %Number of iterations of scan to perform
+sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+nIterations = 2; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+baselineSubtraction = .12;%Amount to subtract from both reference and signal collected
 
 %Plotting
 plotAverageContrast = true;
 plotCurrentContrast = true;
-plotAverageReference = false;
+plotAverageReference = true;
 plotCurrentReference = true;
 
 %Stage optimization
-optimizationEnabled = true; %Set to false to disable stage optimization
+optimizationEnabled = false; %Set to false to disable stage optimization
 optimizationAxes = {'z'}; %The axes which will be optimized over
 optimizationSteps = {-2:0.25:2}; %Locations the stage will move relative to current location
 optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
@@ -173,7 +173,7 @@ try
 %Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
 
-avgerageData = zeros([ex.scan.nSteps 1]);
+averageData = zeros([ex.scan.nSteps 1]);
 
 for ii = 1:nIterations
    
@@ -185,7 +185,7 @@ for ii = 1:nIterations
    while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Checks if stage optimization should be done, then does it if so
-      if checkOptimization(ex),  ex = stageOptimization(ex);   end
+      if optimizationEnabled && checkOptimization(ex),  ex = stageOptimization(ex);   end
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
       ex = takeNextDataPoint(ex,'pulse sequence');
@@ -196,24 +196,24 @@ for ii = 1:nIterations
       %Create matrix where first row is ref, second is sig, and columns indicate iteration
       data = createDataMatrixWithIterations(ex);
       %Find average data across iterations by taking mean across all columns
-      avgerageData = mean(data,2);
+      averageData = mean(data,2);
       %Current data is last column
       currentData = data(:,end);
 
       %Find and plot reference or contrast
       if plotAverageContrast
-         averageContrast = (avgerageData(1) - avgerageData(2)) / avgerageData(1);
+         averageContrast = (averageData(1) - averageData(2)) / averageData(1);
          ex = plotData(ex,averageContrast,'Average Contrast');
       end
       if plotCurrentContrast
          currentContrast = (currentData(1) - currentData(2)) / currentData(1);
-         ex = plotData(ex,averageContrast,'Average Contrast');
+         ex = plotData(ex,currentContrast,'Current Contrast');
       end
       if plotAverageReference
-         ex = plotData(ex,averageData(1),'Average Contrast'); %#ok<*UNRCH>
+         ex = plotData(ex,averageData(1),'Average Reference'); %#ok<*UNRCH>
       end
       if plotCurrentReference
-         ex = plotData(ex,currentData(1),'Average Contrast');
+         ex = plotData(ex,currentData(1),'Current Reference');
       end
 
       %If a new post-optimization value is needed, record current data

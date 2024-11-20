@@ -5,12 +5,12 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-scanBounds = [20 500];%ns
+scanBounds = [12 512];%ns
 scanStepSize = 10;
 scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 1;
+nIterations = 3;
 RFFrequency = 2.0732;
-sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
 timeoutDuration = 10;
 forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
@@ -20,7 +20,7 @@ RFReduction = 0;
 
 %Lesser used settings
 RFAmplitude = 10;
-dataType = 'counter';
+dataType = 'analog';
 scanNSteps = [];%Will override step size if set
 nDataPointDeviationTolerance = .01;
 collectionDuration = (1/1.25)*1000;
@@ -133,14 +133,14 @@ for ii = 1:nIterations
 
       %The problem is that the odometer is 1 but the data point is 2?
 
-      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
+      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer{:}),2);
       currentData = (currentData(1)-currentData(2))/currentData(1);
-      avgData(ex.odometer) = currentData;
-      currentData = ex.data.values{ex.odometer,end};
+      avgData(ex.odometer{:}) = currentData;
+      currentData = ex.data.values{ex.odometer{:},end};
       currentData = (currentData(1)-currentData(2))/currentData(1);
-      iterationData(ex.odometer) = currentData;
+      iterationData(ex.odometer{:}) = currentData;
 
-      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
+      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer{:} == 1 && ii == 1)
           %Bad usage of this just to get it going. Should be replacing individual data points
           %Only works for 1D
           if exist("averageFig",'var') && ishandle(averageFig)

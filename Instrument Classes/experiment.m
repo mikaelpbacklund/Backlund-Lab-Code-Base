@@ -79,9 +79,8 @@ classdef experiment
          %Takes data and puts it in the current iteration spot for this
          %data point
          currentIteration = h.data.iteration(h.odometer{:});
-         h.odometer{end+1} = currentIteration;
-         h.data.values{h.odometer{:}} = dataOut;
-         h.data.nPoints(h.odometer{:}) = nPoints;
+         h.data.values{h.odometer{:},currentIteration} = dataOut;
+         h.data.nPoints(h.odometer{:},currentIteration) = nPoints;
       end
 
       function h = setInstrument(h,scanToChange)
@@ -374,6 +373,19 @@ classdef experiment
             h = setInstrument(h,ii);
          end
          h.odometer{end} = 0;
+
+         %Reset which points are completed for only current plots
+         if ~isempty(h.plots)
+             plotNames = fieldnames(h.plots);
+             isCurrent = contains(lower(plotNames),'current');
+             if any(isCurrent)
+                 plotNames = plotNames(isCurrent);
+                 for ii = 1:numel(plotNames)
+                     h.plots.(plotNames{ii}).completedPoints(:) = false;
+                 end
+             end
+         end
+
       end
 
       function h = resetAllData(h,resetValue)
@@ -399,6 +411,14 @@ classdef experiment
 
          h.data.nPoints = h.data.iteration';
          h.data.failedPoints = h.data.iteration';
+
+         %Reset which points are completed
+         if ~isempty(h.plots)
+             plotNames = fieldnames(h.plots);
+             for ii = 1:numel(plotNames)
+                 h.plots.(plotNames{ii}).completedPoints(:) = false;
+             end
+         end
       end
 
       function h = getInstrumentNames(h)
@@ -420,7 +440,7 @@ classdef experiment
 
          optInfo = h.optimizationInfo;%shorthand
 
-         optInfo.acquisitionType = experiment.discernExperimentType(acquisitionType);
+         optInfo.acquisitionType = experiment.discernExperimentType(optInfo.acquisitionType);
 
          if strcmp(acquisitionType,'none')
             error('Cannot perform stage optimization without acquiring data')
@@ -801,12 +821,26 @@ classdef experiment
                   if nargin >= 4 && ~isempty(varargin{1})
                      ylabel(h.plots.(plotName).axes,varargin{1})
                   end
-                  title(h.plots.(plotName).axes,strcat(plotTitle,' ',h.scan.notes))           
+                  title(h.plots.(plotName).axes,[plotTitle,', ',h.scan.notes])           
+               
+                  h.plots.(plotName).axes.XLim = xBounds;
+
+                  h.plots.(plotName).completedPoints = boolean(zeros(1,h.scan.nSteps));
+               end               
+
+               %Change current data point value
+               h.plots.(plotName).dataDisplay.YData(h.odometer{1}) = dataIn;   
+
+               %Set current data point to being completed
+               h.plots.(plotName).completedPoints(h.odometer{1}) = true;
+
+               %Replace value of all incomplete data points
+               completePoints = h.plots.(plotName).completedPoints;
+               if ~all(completePoints)
+                   meanVal = mean(h.plots.(plotName).dataDisplay.YData(completePoints));
+                   stdVal = std(h.plots.(plotName).dataDisplay.YData(completePoints));
+                   h.plots.(plotName).dataDisplay.YData(~completePoints) = meanVal-(stdVal*3);
                end
-
-               h.plots.(plotName).axes.XLim = xBounds;
-
-               h.plots.(plotName).dataDisplay.YData(h.odometer{:}) = dataIn;   
 
                return
          end
@@ -1156,7 +1190,7 @@ classdef experiment
       function h = subtractBaseline(h,baseline)
          %Subtracts baseline value from all data within current scan value
 
-         h.data.values{h.odometer{:},ex.data.iteration(h.odometer{:})} = ex.data.values{h.odometer{:},ex.data.iteration(h.odometer{:})} - baseline;
+         h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} - baseline;
       end
    end
 
