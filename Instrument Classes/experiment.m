@@ -12,6 +12,7 @@ classdef experiment
       notifications = false;
       data
       optimizationInfo
+      randomizeScanPoints = false;
    end
 
    properties (Hidden)
@@ -1284,6 +1285,13 @@ classdef experiment
       end
       function h = set.hamm(h,val)
          h = setInstrumentVal(h,'hamamatsu',val);
+      end
+
+      function s = get.ndYAG(h)
+         s = getInstrumentVal(h,'ndYAG');
+      end
+      function h = set.ndYAG(h,val)
+         h = setInstrumentVal(h,'ndYAG',val);
       end
    end
 
