@@ -7,11 +7,12 @@ scanBounds = [2.7 3];
 scanStepSize = .005; %Step size for RF frequency
 scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
-nIterations = 2; %Number of iterations of scan to perform
+nIterations = 1; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-baselineSubtraction = .12;%Amount to subtract from both reference and signal collected
+baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+collectionType = 'analog';%analog or counter
 
 %Plotting
 plotAverageContrast = true;
@@ -25,7 +26,7 @@ optimizationAxes = {'z'}; %The axes which will be optimized over
 optimizationSteps = {-2:0.25:2}; %Locations the stage will move relative to current location
 optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 timePerOpimizationPoint = .1; %Duration of each data point during optimization
-timeBetweenOptimizations = 180; %Seconds between optimizations (0 or Inf to disable)
+timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 percentageForcedOptimization = .75; %see below (0 to disable)
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
@@ -39,6 +40,9 @@ percentageForcedOptimization = .75; %see below (0 to disable)
 %This warning *should* be suppressed in the DAQ code but isn't for an unknown reason. This is not related to my code but
 %rather the data acquisition toolbox code which I obviously can't change
 warning('off','MATLAB:subscripting:noSubscriptsSpecified');
+
+%This warning is for unreachable code. This will usually happen in this file dependant on user settings at the start
+%#ok<*UNRCH>
 
 %Creates experiment object if none exist
 if ~exist('ex','var')
@@ -70,6 +74,13 @@ if isempty(ex.DAQ)
    fprintf('DAQ connected\n')
 end
 
+if optimizationEnabled && isempty(ex.PIstage)
+   fprintf('Connecting to PI stage...\n')
+   ex.PIstage = stage('PI_stage');
+   ex.PIstage = connect(ex.PIstage);
+   fprintf('PI stage connected\n')
+end
+
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
@@ -79,7 +90,7 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'analog';
+ex.DAQ.activeDataChannel = collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
@@ -136,11 +147,12 @@ ex.nPointsTolerance = nDataPointDeviationTolerance;
 %Information for stage optimization
 ex.optimizationInfo.algorithmType = 'max value';
 ex.optimizationInfo.acquisitionType = 'pulse blaster';
+ex.optimizationInfo.enableOptimization = optimizationEnabled;
 ex.optimizationInfo.stageAxes = optimizationAxes;
 ex.optimizationInfo.steps = optimizationSteps;
 ex.optimizationInfo.timePerPoint = timePerOpimizationPoint;
 ex.optimizationInfo.timeBetweenOptimizations = timeBetweenOptimizations;
-if isempty(timeBetweenOptimizations) || timeBetweenOptimizations == 0 || timeBetweenOptimizations == Inf
+if isempty(timeBetweenOptimizations) || timeBetweenOptimizations == Inf
    ex.optimizationInfo.useTimer = false;
 else
    ex.optimizationInfo.useTimer = true;
@@ -173,25 +185,26 @@ try
 %Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
 
-averageData = zeros([ex.scan.nSteps 1]);
-
 for ii = 1:nIterations
    
    %Reset current scan each iteration
    ex = resetScan(ex);
-
-   iterationData = zeros([ex.scan.nSteps 1]);
    
    while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Checks if stage optimization should be done, then does it if so
-      if optimizationEnabled && checkOptimization(ex),  ex = stageOptimization(ex);   end
+      if checkOptimization(ex),  ex = stageOptimization(ex);   end
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
       ex = takeNextDataPoint(ex,'pulse sequence');
 
       %Subtract baseline from ref and sig
       ex = subtractBaseline(ex,baselineSubtraction);
+
+      %If using counter, convert counts to counts/s
+      if strcmpi(collectionType,'counter')
+         ex = convertToRate(ex);
+      end
 
       %Create matrix where first row is ref, second is sig, and columns indicate iteration
       data = createDataMatrixWithIterations(ex);
@@ -201,24 +214,30 @@ for ii = 1:nIterations
       currentData = data(:,end);
 
       %Find and plot reference or contrast
+      yAxisLabel = 'Contrast';
       if plotAverageContrast
          averageContrast = (averageData(1) - averageData(2)) / averageData(1);
-         ex = plotData(ex,averageContrast,'Average Contrast');
+         ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel);
       end
       if plotCurrentContrast
          currentContrast = (currentData(1) - currentData(2)) / currentData(1);
-         ex = plotData(ex,currentContrast,'Current Contrast');
+         ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel);
+      end
+      if strcmpi(collectionType,'analog')
+         yAxisLabel = 'Reference (V)';
+      else
+         yAxisLabel = 'Reference (counts/s)';
       end
       if plotAverageReference
-         ex = plotData(ex,averageData(1),'Average Reference'); %#ok<*UNRCH>
+         ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel); 
       end
       if plotCurrentReference
-         ex = plotData(ex,currentData(1),'Current Reference');
+         ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel);
       end
 
       %If a new post-optimization value is needed, record current data
       if ex.optimizationInfo.needNewValue
-         ex.optimizationInfo.postOptimizationValue = currentData;
+         ex.optimizationInfo.postOptimizationValue = currentData(1);
          ex.optimizationInfo.needNewValue = false;
       end
       
@@ -234,10 +253,8 @@ for ii = 1:nIterations
    end
 end
 fprintf('Scan complete\n')
-catch ME   
+catch ME
     stop(ex.DAQ.handshake)
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)
-
-
