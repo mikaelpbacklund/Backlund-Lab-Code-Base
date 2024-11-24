@@ -1,46 +1,31 @@
-%Default ODMR script example
+function ex = ODMR(ex,p)
+%p is parameter structure
 
-%% User Inputs
-%General
-RFamplitude = 10;
-scanBounds = [2.7 3];
-scanStepSize = .005; %Step size for RF frequency
-scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
-nIterations = 1; %Number of iterations of scan to perform
-timeoutDuration = 10; %How long before auto-continue occurs
-forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-collectionType = 'analog';%analog or counter
+requiredParams = {'scanBounds','scanStepSize','collectionType'};
 
-%Plotting
-plotAverageContrast = true;
-plotCurrentContrast = true;
-plotAverageReference = true;
-plotCurrentReference = true;
+mustContainField(p,requiredParams)
 
-%Stage optimization
-optimizationEnabled = false; %Set to false to disable stage optimization
-optimizationAxes = {'z'}; %The axes which will be optimized over
-optimizationSteps = {-2:0.25:2}; %Locations the stage will move relative to current location
-optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
-timePerOpimizationPoint = .1; %Duration of each data point during optimization
-timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
-percentageForcedOptimization = .75; %see below (0 to disable)
+paramsWithDefaults = {'plotAverageContrast',true;...
+   'plotAverageReference',true;...
+   'plotCurrentContrast',true;...
+   'plotCurrentReference',true;...
+   'RFAmplitude',10;...
+   'scanNotes','ODMR';...
+   'sequenceTimePerDataPoint',.2;...
+   'nIterations',1;...
+   'timeoutDuration',10;...
+   'forcedDelayTime',.125;...
+   'nDataPointDeviationTolerance',.0001;...
+   'baselineSubtraction',0;...
+   'optimizationEnabled',false;...
+   'optimizationAxes',{'z'};...
+   'optimizationSteps',{-2:.25:2};...
+   'optimizationRFStatus','off';...
+   'timePerOpimizationPoint',.1;...
+   'timeBetweenOptimizations',180;...
+   'percentageForcedOptimization',.75};
 
-%percentageForcedOptimization is a more complex way of deciding when to do an optimization.
-%After every optimization, the reference value of the next data point is recorded. After every data point, if the
-%reference value is lower than X percent of that post-optimization value, a new optimization will be performed. This
-%means setting the value to 1 corresponds to running an optimization if the value obtained is lower at all than the
-%post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
-
-if isempty(ex)
-   
-
-ex = ODMR(ex,p);
-
-%% Backend
+mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2))
 
 %This warning *should* be suppressed in the DAQ code but isn't for an unknown reason. This is not related to my code but
 %rather the data acquisition toolbox code which I obviously can't change
@@ -50,7 +35,7 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 %#ok<*UNRCH>
 
 %Creates experiment object if none exist
-if ~exist('ex','var')
+if isempty(ex)
    ex = experiment;
 end
 
@@ -95,7 +80,7 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = collectionType;
+ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
@@ -123,7 +108,7 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffe
 
 %Gets duration of user sequence in order to change number of loops to match desired time for each data point
 ex.pulseBlaster = calculateDuration(ex.pulseBlaster,'user');
-ex.pulseBlaster.nTotalLoops = floor(sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
+ex.pulseBlaster.nTotalLoops = floor(p.sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
 
 %Sends the currently saved pulse sequence to the pulse blaster instrument itself
 ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
@@ -131,39 +116,39 @@ ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
 %Deletes any pre-existing scan
 ex.scan = [];
 
-scan.bounds = scanBounds; %RF frequency bounds
-scan.stepSize = scanStepSize; %Step size for RF frequency
+scan.bounds = p.scanBounds; %RF frequency bounds
+scan.stepSize = p.scanStepSize; %Step size for RF frequency
 scan.parameter = 'frequency'; %Scan frequency parameter
 scan.identifier = ex.SRS_RF.identifier; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
-scan.notes = scanNotes; %Notes describing scan (will appear in titles for plots)
+scan.notes = p.scanNotes; %Notes describing scan (will appear in titles for plots)
 
 %Add the current scan
 ex = addScans(ex,scan);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = forcedDelayTime;
+ex.forcedCollectionPauseTime = p.forcedDelayTime;
 
 %Number of failed collections before giving error
 ex.maxFailedCollections = 5;
 
 %Changes tolerance from .01 default to user setting
-ex.nPointsTolerance = nDataPointDeviationTolerance;
+ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 %Information for stage optimization
 ex.optimizationInfo.algorithmType = 'max value';
 ex.optimizationInfo.acquisitionType = 'pulse blaster';
-ex.optimizationInfo.enableOptimization = optimizationEnabled;
-ex.optimizationInfo.stageAxes = optimizationAxes;
-ex.optimizationInfo.steps = optimizationSteps;
-ex.optimizationInfo.timePerPoint = timePerOpimizationPoint;
-ex.optimizationInfo.timeBetweenOptimizations = timeBetweenOptimizations;
-if isempty(timeBetweenOptimizations) || timeBetweenOptimizations == Inf
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+ex.optimizationInfo.stageAxes = p.optimizationAxes;
+ex.optimizationInfo.steps = p.optimizationSteps;
+ex.optimizationInfo.timePerPoint = p.timePerOpimizationPoint;
+ex.optimizationInfo.timeBetweenOptimizations = p.timeBetweenOptimizations;
+if isempty(p.timeBetweenOptimizations) || p.timeBetweenOptimizations == Inf
    ex.optimizationInfo.useTimer = false;
 else
    ex.optimizationInfo.useTimer = true;
 end
-ex.optimizationInfo.percentageToForceOptimization = percentageForcedOptimization;
-if isempty(percentageForcedOptimization) || percentageForcedOptimization == 0
+ex.optimizationInfo.percentageToForceOptimization = p.percentageForcedOptimization;
+if isempty(p.percentageForcedOptimization) || p.percentageForcedOptimization == 0
    ex.optimizationInfo.usePercentageDifference = false;
 else
    ex.optimizationInfo.usePercentageDifference = true;
@@ -171,16 +156,16 @@ end
 ex.optimizationInfo.needNewValue = true;
 ex.optimizationInfo.lastOptimizationTime = [];
 ex.optimizationInfo.postOptimizationValue = 0;
-ex.optimizationInfo.rfStatus = optimizationRFStatus;
+ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
 %Asks for user input on whether to continue
-cont = checkContinue(timeoutDuration*2);
+cont = checkContinue(p.timeoutDuration*2);
 if ~cont
     return
 end
@@ -190,7 +175,7 @@ try
 %Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
 
-for ii = 1:nIterations
+for ii = 1:p.nIterations
    
    %Reset current scan each iteration
    ex = resetScan(ex);
@@ -204,7 +189,7 @@ for ii = 1:nIterations
       ex = takeNextDataPoint(ex,'pulse sequence');
 
       %Subtract baseline from ref and sig
-      ex = subtractBaseline(ex,baselineSubtraction);
+      ex = subtractBaseline(ex,p.baselineSubtraction);
 
       %If using counter, convert counts to counts/s
       if strcmpi(collectionType,'counter')
@@ -220,23 +205,23 @@ for ii = 1:nIterations
 
       %Find and plot reference or contrast
       yAxisLabel = 'Contrast';
-      if plotAverageContrast
+      if p.plotAverageContrast
          averageContrast = (averageData(1) - averageData(2)) / averageData(1);
          ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel);
       end
-      if plotCurrentContrast
+      if p.plotCurrentContrast
          currentContrast = (currentData(1) - currentData(2)) / currentData(1);
          ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel);
       end
-      if strcmpi(collectionType,'analog')
+      if strcmpi(p.collectionType,'analog')
          yAxisLabel = 'Reference (V)';
       else
          yAxisLabel = 'Reference (counts/s)';
       end
-      if plotAverageReference
+      if p.plotAverageReference
          ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel); 
       end
-      if plotCurrentReference
+      if p.plotCurrentReference
          ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel);
       end
 
@@ -250,8 +235,8 @@ for ii = 1:nIterations
 
    %Between each iteration, check for user input whether to continue scan
    %5 second timeout
-   if ii ~= nIterations
-       cont = checkContinue(timeoutDuration);
+   if ii ~= p.nIterations
+       cont = checkContinue(p.timeoutDuration);
        if ~cont
            break
        end
@@ -263,3 +248,4 @@ catch ME
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)
+end
