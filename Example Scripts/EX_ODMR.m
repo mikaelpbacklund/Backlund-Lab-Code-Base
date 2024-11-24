@@ -1,6 +1,5 @@
 %Default ODMR script example
 
-%% User Inputs
 %Required
 p.scanBounds = [2.7 3]; %Frequency bounds
 p.scanStepSize = .005; %Step size for RF frequency

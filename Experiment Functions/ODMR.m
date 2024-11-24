@@ -17,6 +17,7 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'forcedDelayTime',.125;...
    'nDataPointDeviationTolerance',.0001;...
    'baselineSubtraction',0;...
+   'maxFailedCollections',3;...
    'optimizationEnabled',false;...
    'optimizationAxes',{'z'};...
    'optimizationSteps',{-2:.25:2};...
@@ -38,10 +39,8 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 %This warning is for unreachable code. This will usually happen in this file dependant on user settings at the start
 %#ok<*UNRCH>
 
-%Creates experiment object if none exist
-if isempty(ex)
-   ex = experiment;
-end
+%Creates experiment object if none exists
+if isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster, srs rf, and daq with given configs
 instrumentNames = ["pulse blaster","srs rf","daq"];
@@ -143,6 +142,8 @@ ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
+ex.maxFailedCollections = p.maxFailedCollections;
+
 %Sends information to command window
 scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
@@ -152,82 +153,5 @@ if ~cont
     return
 end
 
-%% Running Scan
-try
-%Resets current data. [0,0] is for reference and signal counts
-ex = resetAllData(ex,[0,0]);
-
-for ii = 1:p.nIterations
-   
-   %Reset current scan each iteration
-   ex = resetScan(ex);
-   
-   while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
-
-      %Checks if stage optimization should be done, then does it if so
-      if checkOptimization(ex),  ex = stageOptimization(ex);   end
-
-      %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
-      ex = takeNextDataPoint(ex,'pulse sequence');
-
-      %Subtract baseline from ref and sig
-      ex = subtractBaseline(ex,p.baselineSubtraction);
-
-      %If using counter, convert counts to counts/s
-      if strcmpi(collectionType,'counter')
-         ex = convertToRate(ex);
-      end
-
-      %Create matrix where first row is ref, second is sig, and columns indicate iteration
-      data = createDataMatrixWithIterations(ex);
-      %Find average data across iterations by taking mean across all columns
-      averageData = mean(data,2);
-      %Current data is last column
-      currentData = data(:,end);
-
-      %Find and plot reference or contrast
-      yAxisLabel = 'Contrast';
-      if p.plotAverageContrast
-         averageContrast = (averageData(1) - averageData(2)) / averageData(1);
-         ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel);
-      end
-      if p.plotCurrentContrast
-         currentContrast = (currentData(1) - currentData(2)) / currentData(1);
-         ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel);
-      end
-      if strcmpi(p.collectionType,'analog')
-         yAxisLabel = 'Reference (V)';
-      else
-         yAxisLabel = 'Reference (counts/s)';
-      end
-      if p.plotAverageReference
-         ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel); 
-      end
-      if p.plotCurrentReference
-         ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel);
-      end
-
-      %If a new post-optimization value is needed, record current data
-      if ex.optimizationInfo.needNewValue
-         ex.optimizationInfo.postOptimizationValue = currentData(1);
-         ex.optimizationInfo.needNewValue = false;
-      end
-      
-   end
-
-   %Between each iteration, check for user input whether to continue scan
-   %5 second timeout
-   if ii ~= p.nIterations
-       cont = checkContinue(p.timeoutDuration);
-       if ~cont
-           break
-       end
-   end
-end
-fprintf('Scan complete\n')
-catch ME
-    stop(ex.DAQ.handshake)
-    rethrow(ME)
-end
-stop(ex.DAQ.handshake)
-end
+%Runs scan
+ex = runScan(ex,p);
