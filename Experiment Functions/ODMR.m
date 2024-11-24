@@ -23,7 +23,11 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'optimizationRFStatus','off';...
    'timePerOpimizationPoint',.1;...
    'timeBetweenOptimizations',180;...
-   'percentageForcedOptimization',.75};
+   'percentageForcedOptimization',.75;...
+   'pulseBlasterConfig','pulse_blaster_default';...
+   'SRSRFConfig','SRS_RF';...
+   'DAQConfig','daq_6361';...
+   'stageConfig','PI_stage'};
 
 mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2))
 
@@ -39,36 +43,14 @@ if isempty(ex)
    ex = experiment;
 end
 
-%If there is no pulseBlaster object, create a new one with the config file "pulse_blaster_default"
-if isempty(ex.pulseBlaster)
-   fprintf('Connecting to pulse blaster...\n')
-   ex.pulseBlaster = pulse_blaster('pulse_blaster_default');
-   ex.pulseBlaster = connect(ex.pulseBlaster);
-   fprintf('Pulse blaster connected\n')
-end
+%Loads pulse blaster, srs rf, and daq with given configs
+instrumentNames = ["pulse blaster","srs rf","daq"];
+instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
+ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
-%If there is no RF_generator object, create a new one with the config file "SRS_RF"
-%This is the "normal" RF generator that our lab uses, other specialty RF generators have their own configs
-if isempty(ex.SRS_RF)
-   fprintf('Connecting to SRS...\n')
-   ex.SRS_RF = RF_generator('SRS_RF');
-   ex.SRS_RF = connect(ex.SRS_RF);
-   fprintf('SRS connected\n')
-end
-
-%If there is no DAQ_controller object, create a new one with the config file "daq_6361"
-if isempty(ex.DAQ)
-   fprintf('Connecting to DAQ...\n')
-   ex.DAQ = DAQ_controller('daq_6361');
-   ex.DAQ = connect(ex.DAQ);
-   fprintf('DAQ connected\n')
-end
-
-if optimizationEnabled && isempty(ex.PIstage)
-   fprintf('Connecting to PI stage...\n')
-   ex.PIstage = stage('PI_stage');
-   ex.PIstage = connect(ex.PIstage);
-   fprintf('PI stage connected\n')
+%Loads stage if optimization is enabled
+if p.optimizationEnabled
+   ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
 end
 
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm

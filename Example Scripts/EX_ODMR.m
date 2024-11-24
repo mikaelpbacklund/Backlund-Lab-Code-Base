@@ -16,6 +16,12 @@ p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) col
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 
+%Config file names
+p.pulseBlasterConfig = 'pulse_blaster_default';
+p.SRSRFConfig = 'SRS_RF';
+p.DAQConfig = 'daq_6361';
+p.stageConfig = 'PI_stage';
+
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = true;
