@@ -799,7 +799,7 @@ classdef experiment
             if isa(h.scan.bounds,'cell') && ~h.useManualSteps
                if nargin >= 5 && ~isempty(varargin{2}) && isscalar(varargin{2})
                   xBounds = h.scan.bounds{varargin{2}};
-                  stepSize = h.scan.stepSize{varargin{2}};
+                  stepSize = h.scan.stepSize(varargin{2});
                else
                   xBounds = h.scan.bounds{1};
                   stepSize = h.scan.stepSize{1};

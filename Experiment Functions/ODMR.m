@@ -30,7 +30,7 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'DAQConfig','daq_6361';...
    'stageConfig','PI_stage'};
 
-mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2))
+p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
 %This warning *should* be suppressed in the DAQ code but isn't for an unknown reason. This is not related to my code but
 %rather the data acquisition toolbox code which I obviously can't change
@@ -40,7 +40,7 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 %#ok<*UNRCH>
 
 %Creates experiment object if none exists
-if isempty(ex),   ex = experiment;   end
+if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster, srs rf, and daq with given configs
 instrumentNames = ["pulse blaster","srs rf","daq"];
@@ -52,10 +52,11 @@ if p.optimizationEnabled
    ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
 end
 
+
 %Turns RF on, disables modulation, and sets amplitude to 10 dBm
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = RFamplitude;
+ex.SRS_RF.amplitude = p.RFAmplitude;
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter

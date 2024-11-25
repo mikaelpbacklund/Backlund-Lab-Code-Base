@@ -32,13 +32,13 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'DAQConfig','daq_6361';...
    'stageConfig','PI_stage'};
 
-mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2))
+p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
 %See ODMR example script for instrument loading information
 warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 
 %Creates experiment object if none exists
-if isempty(ex),   ex = experiment;   end
+if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Loads pulse blaster, srs rf, and daq with given configs
 instrumentNames = ["pulse blaster","srs rf","daq"];

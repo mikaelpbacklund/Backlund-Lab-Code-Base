@@ -11,14 +11,14 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'baselineSubtraction',0;...
    'boundsToUse',1};
 
-mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2))
+p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
 try
 
 %Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
 
-for ii = 1:nIterations
+for ii = 1:p.nIterations
 
    %Reset current scan each iteration
    ex = resetScan(ex);
@@ -36,7 +36,7 @@ for ii = 1:nIterations
       ex = subtractBaseline(ex,p.baselineSubtraction);
 
       %If using counter, convert counts to counts/s
-      if strcmpi(collectionType,'counter')
+      if strcmpi(p.collectionType,'counter')
          ex = convertToRate(ex);
       end
 
@@ -77,8 +77,8 @@ for ii = 1:nIterations
      
    end
 
-   if ii ~= nIterations
-       cont = checkContinue(timeoutDuration);
+   if ii ~= p.nIterations
+       cont = checkContinue(p.timeoutDuration);
        if ~cont
            break
        end

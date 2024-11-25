@@ -57,7 +57,7 @@ p.percentageForcedOptimization = .75; %see below (0 to disable)
 %means setting the value to 1 corresponds to running an optimization if the value obtained is lower at all than the
 %post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
 
-if isempty(ex),ex = []; end
+if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs deer
 ex = DEER(ex,p);
