@@ -3,11 +3,11 @@
 %% User Inputs
 %General
 RFamplitude = 10;
-scanBounds = [2.06 2.08];
-scanStepSize = .002; %Step size for RF frequency
+scanBounds = [2.85 2.88];
+scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'hyperfine ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
-nIterations = 5; %Number of iterations of scan to perform
+sequenceTimePerDataPoint = 100;%Before factoring in forced delay and other pauses
+nIterations = 1; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
