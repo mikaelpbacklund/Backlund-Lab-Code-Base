@@ -50,7 +50,7 @@ classdef DAQ_controller < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'channelInfo','clockPort','manufacturer','identifier'};
+         configFields = {'channelInfo','clockPort','manufacturer','identifier','sampleRate'};
          commandFields = {};
          numericalFields = {};%has units, conversion factor, and min/max         
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);

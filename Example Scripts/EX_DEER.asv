@@ -1,17 +1,21 @@
-%Runs a simple Rabi sequence with no τ compensation or stage optimization
+%Example DEER using template
 
-%Highly recommended to use a "time per data point" of at least 3 seconds
-%Lower than this is sensitive to jitters in number of points collected,
-%resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 400]; %RF duration bounds
-p.scanStepSize = .005; %Step size for RF duration
+p.scanType = 'duration';%Either frequency or duration
+p.scanBounds = [10 400]; %windfreak frequency (GHz) or duration (ns)
+p.scanStepSize = .005;
 p.collectionType = 'analog';%analog or counter
-p.RFFrequency = 2.87;
+p.RF2Frequency = 2;%GHz. Overwritten by scan if frequency selected
+p.RF2Duration = 100;%ns. Overwritten by scan if duration selected
+p.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
+p.RF1ResonanceFrequency = 2.87;
+p.piTime
+p.tauTime
+
 
 %General
-p.RFamplitude = 10;
+p.SRSAmplitude = 10;
 p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
@@ -54,3 +58,41 @@ if isempty(ex),ex = []; end
 
 %Runs ODMR using specified parameters
 ex = Rabi(ex,p);
+
+
+
+%% User Settings
+p.scanType = 'duration';%Either frequency or duration
+
+
+p.RF2Frequency = 2;%GHz. Overwritten by scan if frequency selected
+p.RF2Duration = 100;%ns. Overwritten by scan if duration selected
+p.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
+p.RF1ResonanceFrequency = 2.87;
+p.piTime = 100;
+p.tauTime = 500;
+scanStart = 40;%ns or GHz
+scanEnd = 100;%ns or GHz
+scanStepSize = 4;%ns or GHz
+
+%All parameters below this are optional in that they will revert to defaults if not specified
+scanNSteps = [];%will override step size
+p.timePerDataPoint = 5;%seconds
+p.collectionDuration = 800;
+p.collectionBufferDuration = 1000;
+p.intermissionBufferDuration = 2500;
+p.repolarizationDuration = 7000;
+p.extraRF =  6;
+p.AOM_DAQCompensation = -100;
+p.IQPreBufferDuration = 20;
+p.IQPostBufferDuration = 20;
+nIterations = 10;
+SRSAmplitude = 10;
+windfreakAmplitude = 10;
+dataType = 'counter';
+timeoutDuration = 10;
+forcedDelayTime = .25;
+nDataPointDeviationTolerance = .2;
+
+%Runs deer
+ex = DEER(ex,p);

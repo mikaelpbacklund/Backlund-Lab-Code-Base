@@ -12,6 +12,7 @@ classdef experiment
       notifications = false;
       data
       optimizationInfo
+      randomizeScanPoints = false;
    end
 
    properties (Hidden)
@@ -566,7 +567,8 @@ classdef experiment
          %performOptimization is boolean 
 
          %Required fields and default values
-         optimizationDefaults = {'algorithmType','max value';...
+         optimizationDefaults = {'enableOptimization',true;...
+            'algorithmType','max value';...
             'acquisitionType','pulse blaster';...
             'stageAxes',[];...
             'steps',[];...
@@ -587,14 +589,24 @@ classdef experiment
          %Checks if fields are present and gives default values
          h.optimizationInfo = mustContainField(h.optimizationInfo,optimizationDefaults(:,1),optimizationDefaults(:,2));
 
-         optInfo = h.optimizationInfo;%Shorthand
+         %Shorthand
+         optInfo = h.optimizationInfo;
+         totalOn = strcmpi(instrumentType.discernOnOff(optInfo.enableOptimization),'on');
+         timerOn = strcmpi(instrumentType.discernOnOff(optInfo.useTimer),'on');
+         percentageOn = strcmpi(instrumentType.discernOnOff(optInfo.usePercentageDifference),'on');
+
+         %If optimization as a whole has been disabled, immediately return false
+         if ~totalOn
+            performOptimization = false;
+            return
+         end
 
          %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
          %OR
          %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
-         if (optInfo.useTimer && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+         if (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
                || ...
-            (optInfo.usePercentageDifference && (isempty(optInfo.percentageToForceOptimization) || ...
+            (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
                h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
             performOptimization = true;
          else
@@ -1192,6 +1204,14 @@ classdef experiment
 
          h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} - baseline;
       end
+
+      function h = convertToRate(h)
+         %Divides current value by half the time, in seconds, of the data collection for sequence sent to pulse blaster
+         %Half the time because half is for reference, half for signal
+
+         h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}...
+            ./ ((h.pulseBlaster.sequenceSentToPulseBlaster.dataNanoseconds/2) * 1e9);
+      end
    end
 
    methods
@@ -1284,6 +1304,13 @@ classdef experiment
       end
       function h = set.hamm(h,val)
          h = setInstrumentVal(h,'hamamatsu',val);
+      end
+
+      function s = get.ndYAG(h)
+         s = getInstrumentVal(h,'ndYAG');
+      end
+      function h = set.ndYAG(h,val)
+         h = setInstrumentVal(h,'ndYAG',val);
       end
    end
 
