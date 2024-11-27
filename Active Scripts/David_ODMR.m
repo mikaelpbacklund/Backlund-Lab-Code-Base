@@ -2,7 +2,7 @@
 
 %Required
 p.scanBounds = [2.35 2.45]; %Frequency bounds
-p.scanStepSize = .0025; %Step size for RF frequency
+p.scanStepSize = .001; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
@@ -22,13 +22,16 @@ p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
-p.plotAverageContrast = true;
+p.plotAverageContrast = false;
 p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
 %Stage optimization
-p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-2:0.1:.2}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 

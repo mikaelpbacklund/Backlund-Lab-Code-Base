@@ -5,15 +5,15 @@
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 210]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
+p.scanBounds = [10 610]; %RF duration bounds
+p.scanStepSize = 25; %Step size for RF duration
 p.collectionType = 'counter';%analog or counter
-p.RFFrequency = 2.405;
+p.RFFrequency = 2.406;
 
 %General
 p.RFamplitude = 10;
 p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.nIterations = 10; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .2;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
@@ -32,7 +32,7 @@ p.stageConfig = 'PI_stage';
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
 
 %Stage optimization
@@ -41,7 +41,7 @@ p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 300; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationPercentage = false;

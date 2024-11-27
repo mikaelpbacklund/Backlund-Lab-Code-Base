@@ -75,9 +75,9 @@ for ii = 1:p.nIterations
       yAxisLabel = 'SNR (arbitrary units)';
       if p.plotAverageSNR
           if ~p.invertSignalForSNR
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1));
+              SNRVal = averageData(1) * ((averageData(1) - averageData(2)) / averageData(1));
           else
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
+              SNRVal = averageData(1) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
           end
          ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse); 
       end
@@ -85,7 +85,7 @@ for ii = 1:p.nIterations
           if ~p.invertSignalForSNR
               SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1));
               else
-              SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
+              SNRVal = currentData(1) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
           end
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse);
       end

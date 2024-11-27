@@ -50,8 +50,10 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Loads pulse blaster, srs rf, and daq with given configs
-instrumentNames = ["pulse blaster","srs rf","daq","windfreak"];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig),c2s(p.windfreakConfig)];
+instrumentNames = ["pulse blaster","srs rf","daq"];
+instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
+% instrumentNames = ["pulse blaster","srs rf","daq","windfreak"];
+% instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig),c2s(p.windfreakConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
 ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
@@ -68,8 +70,8 @@ ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RF1Amplitude;
 ex.SRS_RF.frequency = p.RF1ResonanceFrequency;
 
-ex.windfreak_RF.enabled = 'on';
-ex.windfreak_RF.amplitude = p.RF2Amplitude;
+% ex.windfreak_RF.enabled = 'on';
+% ex.windfreak_RF.amplitude = p.RF2Amplitude;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
@@ -109,7 +111,7 @@ end
 %Changes rf2 frequency if running duration scan (constant frequency)
 if strcmpi(p.scanType,'duration')
     [ex.pulseBlaster,scanInfo] = DEER_duration_template(ex.pulseBlaster,sentParams);
-    ex.windfreak_RF.frequency = scanInfo.RF2Frequency;
+    % ex.windfreak_RF.frequency = scanInfo.RF2Frequency;
 else
     [ex.pulseBlaster,scanInfo] = DEER_frequency_template(ex.pulseBlaster,sentParams);
 end
