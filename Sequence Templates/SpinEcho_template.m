@@ -43,7 +43,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
 %Creates single array for I/Q pre and post buffers

@@ -27,7 +27,8 @@ for ii = 1:p.nIterations
    while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
       %Checks if stage optimization should be done, then does it if so
-      if checkOptimization(ex),  ex = stageOptimization(ex);   end
+      [ex,doOptimization] = checkOptimization(ex);
+      if doOptimization,  ex = stageOptimization(ex);   end
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
       ex = takeNextDataPoint(ex,'pulse sequence');
@@ -70,7 +71,7 @@ for ii = 1:p.nIterations
       end
 
       %If a new post-optimization value is needed, record current data
-      if ex.optimizationInfo.needNewValue
+      if ex.optimizationInfo.enableOptimization && ex.optimizationInfo.needNewValue
          ex.optimizationInfo.postOptimizationValue = currentData(1);
          ex.optimizationInfo.needNewValue = false;
       end

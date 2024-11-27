@@ -1,31 +1,35 @@
-%Example Spin Echo using template
+%Example DEER using template
 
 %Required
-p.tauStart = 100;
-p.tauEnd = 1500;
-p.tauStepSize = 100;
-p.piTime = 62;
-p.RFResonanceFrequency = 2.405;
+p.scanType = 'duration';%Either frequency or duration
+p.scanBounds = [10 200]; %windfreak frequency (GHz) or duration (ns)
+p.scanStepSize = 10;
+p.collectionType = 'counter';%analog or counter
+p.RF2Frequency = .46541;%GHz. Overwritten by scan if frequency selected
+p.RF2Duration = 100;%ns. Overwritten by scan if duration selected
+p.nRF2Pulses = 1;%1 for centered on pi pulse, 2 for during tau
+p.RF1ResonanceFrequency = 2.405;
+p.piTime = 66;
+p.tauTime = 400;
 
-%All parameters below this are optional in that they will revert to defaults if not specified
-p.tauNSteps = [];%will override step size
-p.timePerDataPoint = 4;%seconds
-p.collectionDuration = 0;
-p.collectionBufferDuration = 1000;
+%General
+p.timePerDataPoint = 6;%Before factoring in forced delay and other pauses
+p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
+p.collectionBufferDuration = 1000;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 2500;
 p.repolarizationDuration = 7000;
 p.extraRF = 0;
-p.AOM_DAQCompensation = 0;
+p.AOM_DAQCompensation = 300;
 p.IQPreBufferDuration = 22;
 p.IQPostBufferDuration = 0;
-p.nIterations = 1;
-p.RFAmplitude = 10;
-p.dataType = 'counter';
-p.timeoutDuration = 10;
-p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .1;
+p.RF1Amplitude = 10;
+p.RF2Amplitude = 41;%19
+p.nIterations = 20; %Number of iterations of scan to perform
+p.timeoutDuration = 3; %How long before auto-continue occurs
+p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.maxFailedCollections = 3;
-p.baselineSubtraction = 1.5e4;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_DEER';
@@ -45,7 +49,7 @@ p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 300; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
@@ -56,5 +60,5 @@ p.percentageForcedOptimization = .75; %see below (0 to disable)
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs Spin Echo
-ex = SpinEcho(ex,p);
+%Runs deer
+ex = DEER(ex,p);

@@ -12,6 +12,7 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'AOMCompensation',0;...
    'RFReduction',0;...
    'RF1Amplitude',10;...
+   'RF2Amplitude',11;...
    'collectionDuration',0;...%default overwritten with daq rate
    'collectionBufferDuration',1000;...
    'intermissionBufferDuration',2500;...
@@ -53,6 +54,8 @@ instrumentNames = ["pulse blaster","srs rf","daq","windfreak"];
 instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig),c2s(p.windfreakConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
    ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
@@ -63,10 +66,10 @@ ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'on';
 ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RF1Amplitude;
-ex.SRS_RF.frequency = p.SRSFrequency;
+ex.SRS_RF.frequency = p.RF1ResonanceFrequency;
 
 ex.windfreak_RF.enabled = 'on';
-ex.windfreak_RF.amplitude = p.windfreakAmplitude;
+ex.windfreak_RF.amplitude = p.RF2Amplitude;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
@@ -82,15 +85,17 @@ end
 
 %Changes scan info names based on frequency or duration
 %Load empty parameter structure from template
-if strcmpi(scanType,'frequency')
+if strcmpi(p.scanType,'frequency')
     p.frequencyStart = p.scanBounds(1);
     p.frequencyEnd = p.scanBounds(2);
     p.frequencyStepSize = p.scanStepSize;
+    p.frequencyNSteps = [];
     [sentParams,~] = DEER_frequency_template([],[]);
 else 
     p.RF2DurationStart = p.scanBounds(1);
     p.RF2DurationEnd = p.scanBounds(2);
     p.RF2DurationStepSize = p.scanStepSize;
+    p.RF2DurationNSteps = [];
     [sentParams,~] = DEER_duration_template([],[]);
 end
 
@@ -102,7 +107,7 @@ for paramName = fieldnames(sentParams)'
 end
 
 %Changes rf2 frequency if running duration scan (constant frequency)
-if strcmpi(scanType,'duration')
+if strcmpi(p.scanType,'duration')
     [ex.pulseBlaster,scanInfo] = DEER_duration_template(ex.pulseBlaster,sentParams);
     ex.windfreak_RF.frequency = scanInfo.RF2Frequency;
 else

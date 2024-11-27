@@ -12,7 +12,7 @@ function h = standardTemplateModifications(h,intermission,repolarization,collect
 %that the final result is in the desired configuration
 
 
-
+assignin("base","userSequence",h.userSequence)
 if nargin > 5
     iqBuffers = varargin{1};
    foundAddress = findPulses(h,'activeChannels',{'RF'},'contains');
@@ -60,9 +60,9 @@ if AOM_DAQCompensation > 0
     
     n = 0;
     %Reduces repolarization duration based on compensation duration
-    for currentAddress = foundAddress
+    for ii = 1:numel(foundAddress)
        n = n+1;%Number of additional pulses added
-      h = modifyPulse(h,currentAddress+n,'duration',h.userSequence(currentAddress+n).duration - compDuration);
+      h = modifyPulse(h,foundAddress(ii)+n+1,'duration',h.userSequence(foundAddress(ii)+n+1).duration - compDuration);
     end
 else
     % Adds pulse with DAQ on to account for lag between DAQ and AOM
@@ -70,10 +70,12 @@ else
 
     n = 0;
     %Reduces data duration based on compensation duration
-    for currentAddress = foundAddress
+    for ii = 1:numel(foundAddress)
        n = n+1;%Number of additional pulses added
-      h = modifyPulse(h,currentAddress+n,'duration',h.userSequence(currentAddress+n).duration - compDuration);
+      h = modifyPulse(h,foundAddress(ii)+n,'duration',h.userSequence(foundAddress(ii)+n).duration - compDuration);
     end
 end
+
+assignin("base","userSequencePost",h.userSequence)
 
 end

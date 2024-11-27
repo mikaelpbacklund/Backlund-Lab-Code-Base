@@ -23,6 +23,7 @@ p.AOM_DAQCompensation = 0;
 p.IQPreBufferDuration = 0;
 p.IQPostBufferDuration = 0;
 p.RF1Amplitude = 10;
+p.RF2Amplitude = 11;
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
@@ -31,7 +32,7 @@ p.baselineSubtraction = 0;%Amount to subtract from both reference and signal col
 p.maxFailedCollections = 3;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_default';
+p.pulseBlasterConfig = 'pulse_blaster_DEER';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';

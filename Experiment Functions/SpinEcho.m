@@ -1,6 +1,6 @@
-function ex = Rabi(ex,p)
+function ex = SpinEcho(ex,p)
 
-requiredParams = {'scanBounds','scanStepSize','collectionType','RFFrequency'};
+requiredParams = {'scanBounds','scanStepSize','collectionType','RFResonanceFrequency','tauStart','tauEnd','tauStepSize','piTime'};
 
 mustContainField(p,requiredParams)
 
@@ -62,9 +62,10 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.modulationEnabled = 'on';
+ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RFAmplitude;
-ex.SRS_RF.frequency = p.RFFrequency;
+ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
@@ -76,27 +77,20 @@ if p.collectionDuration == 0
    p.collectionDuration = (1/ex.DAQ.sampleRate)*1e9;
 end
 
-%% Use template to create sequence and scan
-
 %Load empty parameter structure from template
-[parameters,~] = Rabi_template([],[]);
+[sentParams,~] = SpinEcho_template([],[]);
 
-%Set parameters
-%Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
-parameters.RFResonanceFrequency = p.RFFrequency;
-parameters.tauStart = p.scanBounds(1);
-parameters.tauEnd = p.scanBounds(2);
-parameters.timePerDataPoint = p.sequenceTimePerDataPoint;
-parameters.AOM_DAQCompensation = p.AOMCompensation;
-parameters.collectionBufferDuration = p.collectionBufferDuration;
-parameters.collectionDuration = p.collectionDuration;
-parameters.tauStepSize = p.scanStepSize;
-parameters.RFReduction = p.RFReduction;
+%Replaces values in sentParams with values in params if they aren't empty
+for paramName = fieldnames(sentParams)'
+   if ~isempty(p.(paramName{1}))
+      sentParams.(paramName{1}) = p.(paramName{1});
+   end
+end
 
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
+[ex.pulseBlaster,scanInfo] = SpinEcho_template(ex.pulseBlaster,sentParams);
 
 %Deletes any pre-existing scan
 ex.scan = [];
@@ -125,3 +119,7 @@ end
 
 %Runs scan
 ex = runScan(ex,p);
+
+
+
+end

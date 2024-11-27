@@ -45,21 +45,21 @@ if any(isempty({p.RF1ResonanceFrequency,p.RF2DurationStart,p.RF2DurationEnd,p.RF
    error('Parameter input must contain RF1ResonanceFrequency, RF2DurationStart, RF2DurationEnd, RF2Duration, and (RF2DurationNSteps or RF2DurationStepSize)')
 end
 
-if p.nRF2Pulses == 1  
-   if  p.RF2DurationEnd > p.tauTime + p.piTime || p.RF2DurationStart > p.tauTime + p.piTime
-      error('RF2 duration cannot be longer than τ duration (%d) + π duration (%d)',p.tauTime,p.piTime)
-   end
-   if (p.RF2DurationStart < p.piTime && p.RF2DurationEnd > p.piTime) ||...
-         (p.RF2DurationStart > p.piTime && p.RF2DurationEnd < p.piTime)
-      error('RF2 duration cannot be scanned through pi time (%d). Please make scan either entirely less or entirely greater than pi time',p.piTime)
-   end   
-elseif p.nRF2Pulses == 2
-   if  p.RF2DurationStart > p.tauTime + 30 || p.RF2DurationEnd > p.tauTime + 30
-      error('RF2 duration cannot be longer than τ duration (%d) + 30',p.tauTime)
-   end
-else
-   error('Number of RF2 pulses must be either 1 or 2')
-end
+% if p.nRF2Pulses == 1  
+%    if  p.RF2DurationEnd > p.tauTime + p.piTime || p.RF2DurationStart > p.tauTime + p.piTime
+%       error('RF2 duration cannot be longer than τ duration (%d) + π duration (%d)',p.tauTime,p.piTime)
+%    end
+%    if (p.RF2DurationStart < p.piTime && p.RF2DurationEnd > p.piTime) ||...
+%          (p.RF2DurationStart > p.piTime && p.RF2DurationEnd < p.piTime)
+%       error('RF2 duration cannot be scanned through pi time (%d). Please make scan either entirely less or entirely greater than pi time',p.piTime)
+%    end   
+% elseif p.nRF2Pulses == 2
+   % if  p.RF2DurationStart > p.tauTime/2 - 30 - (3/4)*p.piTime || p.RF2DurationEnd > p.tauTime/2 - 30 - (3/4)*p.piTime
+   %    error('RF2 duration cannot be longer than τ/2 duration (%d) - 30 - 3π/4 (%d)',p.tauTime/2,(3/4)*p.piTime)
+   % end
+% else
+%    error('Number of RF2 pulses must be either 1 or 2')
+% end
 
 %Creates single array for I/Q pre and post buffers
 IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
@@ -84,33 +84,45 @@ for rs = 1:2 %singal half and reference half
 
    %π/2 to create superposition
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');   
-   
-   if p.nRF2Pulses == 1   
 
-      if p.piTime > p.RF2DurationStart %All RF2 durations less than RF1 pi time
-         h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
-         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');
-         h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},99,'scanned rf2 + π y');
-         h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');         
-         h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
-      else
-         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
-         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
-         h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},totalPiTime,'π y + rf2');
-         h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
-         h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
-      end
-
+   h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
+   if p.nRF2Pulses == 1  
+      h = condensedAddPulse(h,{addedSignal},49,'faux scanned rf2');
    else
-
-      h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
-      h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+       h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+   end
       h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder of τ');
       h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
       h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
       h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
       h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder of τ');
-   end
+   
+   % if p.nRF2Pulses == 1   
+   % 
+   %    if p.piTime > p.RF2DurationStart %All RF2 durations less than RF1 pi time
+   %       h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
+   %       h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');
+   %       h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},99,'scanned rf2 + π y');
+   %       h = condensedAddPulse(h,{'RF','I',addedSignal},49,'inverse scanned remainder π');         
+   %       h = condensedAddPulse(h,{addedSignal},p.tauTime,'τ');
+   %    else
+   %       h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
+   %       h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+   %       h = condensedAddPulse(h,{'RF','I','RF2',addedSignal},totalPiTime,'π y + rf2');
+   %       h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+   %       h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder τ');
+   %    end
+   % 
+   % else
+   % 
+   %    h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
+   %    h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+   %    h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder of τ');
+   %    h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+   %    h = condensedAddPulse(h,{addedSignal},30,'30 ns of τ');
+   %    h = condensedAddPulse(h,{'RF2',addedSignal},49,'scanned rf2');
+   %    h = condensedAddPulse(h,{addedSignal},99,'inverse scanned remainder of τ');
+   % end
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
@@ -136,22 +148,22 @@ h = sendToInstrument(h);
 scannedBounds = [p.RF2DurationStart,p.RF2DurationEnd];
 
 %Bounds for compensation pulses to keep total length constant
-if p.nRF2Pulses == 1
-   if p.piTime > p.RF2DurationStart %short rf2
-      %Keep π constant  
-      remainderBounds = [floor((totalPiTime - p.RF2DurationStart)/2),floor((totalPiTime - p.RF2DurationEnd)/2)];
-
-   else %long rf2
-      %Keep τ constant  
-      remainderBounds = [(p.tauTime - p.RF2DurationStart),(p.tauTime - p.RF2DurationEnd)];
-
-   end
-else
+% if p.nRF2Pulses == 1
+   % if p.piTime > p.RF2DurationStart %short rf2
+   %    %Keep π constant  
+   %    remainderBounds = [floor((totalPiTime - p.RF2DurationStart)/2),floor((totalPiTime - p.RF2DurationEnd)/2)];
+   % 
+   % else %long rf2
+   %    %Keep τ constant  
+   %    remainderBounds = [(p.tauTime - p.RF2DurationStart),(p.tauTime - p.RF2DurationEnd)];
+   % 
+   % end
+% else
    %Keep τ constant  
    remainderModifiers = 30+sum(IQBuffers)+(3/4)*p.piTime;
    remainderBounds = [(p.tauTime - (p.RF2DurationStart+remainderModifiers)),(p.tauTime - (p.RF2DurationEnd+remainderModifiers))];   
    
-end
+% end
 
 %Gets addresses and sets bounds corresponding to those addresses
 scannedAddresses = findPulses(h,'notes','scanned rf2','contains');
@@ -170,7 +182,7 @@ scanInfo.nSteps = p.RF2DurationNSteps;
 end
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %.3f GHz, RF2: %d GHz)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Frequency);
+scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %g GHz, RF2: %g GHz)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Frequency);
 scanInfo.RF1Frequency = p.RF1ResonanceFrequency;
 scanInfo.RF2Frequency = p.RF2Frequency;
 

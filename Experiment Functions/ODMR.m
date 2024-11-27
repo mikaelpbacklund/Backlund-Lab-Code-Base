@@ -47,6 +47,8 @@ instrumentNames = ["pulse blaster","srs rf","daq"];
 instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
    ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);

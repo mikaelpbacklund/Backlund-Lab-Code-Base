@@ -100,6 +100,7 @@ classdef experiment
                end
             else
                newValue = currentScan.bounds(1) + currentScan.stepSize*(currentScan.odometer-1);%Computes new value
+               
             end
          else
              newValue = zeros([numel(currentScan.bounds) 1]);
@@ -114,8 +115,11 @@ classdef experiment
                      newValue(ii) = h.manualSteps{scanToChange}{ii}(currentScan.odometer);
                   end
                else
-                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(currentScan.odometer);
+                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(currentScan.odometer-1);
                end
+               assignin("base","newValue",newValue)
+               assignin("base","currBounds",currentScan.bounds)
+               assignin("base","currStepSize",currentScan.stepSize)
             end
          end
 
@@ -443,8 +447,13 @@ classdef experiment
 
          optInfo.acquisitionType = experiment.discernExperimentType(optInfo.acquisitionType);
 
-         if strcmp(acquisitionType,'none')
+         if strcmp(optInfo.acquisitionType,'none')
             error('Cannot perform stage optimization without acquiring data')
+         end
+         
+         if h.notifications
+             nTotalSteps = sum(cellfun(@(x)numel(x),optInfo.steps));
+            fprintf('Beginning optimization (%d steps, %.2f seconds per step)\n',nTotalSteps,optInfo.timePerPoint);
          end
 
          %If using pulse sequence to collect data, change sequence
@@ -492,7 +501,7 @@ classdef experiment
          optInfo.stageAxes = string(optInfo.stageAxes);       
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
-         for ii = 1:numel(spatialAxes)
+         for ii = 1:numel(optInfo.stageAxes)
 
             %Creates empty cell array for storing data
             rawData = cell(1,numel(optInfo.steps{ii}));
@@ -502,18 +511,18 @@ classdef experiment
             %Finds absolute axis locations using step info and current location
             stepLocations = optInfo.steps{ii} + h.PIstage.axisSum{axisRow,2};
 
-            for jj = 1:numel(sequence.steps{ii})
+            for jj = 1:numel(optInfo.steps{ii})
                %Moves to location for taking this data
                h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),stepLocations(jj));
 
                %Get data at this location
-               [h,rawData{jj}] = getData(h,acquisitionType);
+               [h,rawData{jj}] = getData(h,optInfo.acquisitionType);
             end
 
             %After acquiring data, use below algorithms to get single value to fit for each location
-            switch acquisitionType
+            switch optInfo.acquisitionType
                case 'pulse sequence'
-                  switch rfStatus
+                  switch optInfo.rfStatus
                      case {'off','on'}
                         dataVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
                      case 'contrast'
@@ -545,11 +554,11 @@ classdef experiment
            end
 
            %Move to maximum location
-            h.PIstage = absoluteMove(h.PIstage,spatialAxes(ii),maxPosition);
+            h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),maxPosition);
          end
 
          %Set pulse blaster back to previous sequence
-         if strcmpi(acquisitionType,'pulse sequence')
+         if strcmpi(optInfo.acquisitionType,'pulse sequence')
             h.pulseBlaster.useTotalLoop = oldUseTotalLoop;
             h.pulseBlaster.userSequence = oldSequence;
             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
@@ -558,11 +567,15 @@ classdef experiment
          %Set current time as time of last optimization
          h.optimizationInfo.lastOptimizationTime = datetime;
          %Request new postOptimizationValue for comparison
-         h.optimizationInfo.needNewValue = true;       
+         h.optimizationInfo.needNewValue = true;      
+
+         if h.notifications
+            fprintf('Optimization complete\n')
+         end
 
       end
 
-      function performOptimization = checkOptimization(h)
+      function [h,performOptimization] = checkOptimization(h)
          %Checks if stage optimization should occur based on time and percentage difference criteria
          %performOptimization is boolean 
 
@@ -591,6 +604,7 @@ classdef experiment
 
          %Shorthand
          optInfo = h.optimizationInfo;
+
          totalOn = strcmpi(instrumentType.discernOnOff(optInfo.enableOptimization),'on');
          timerOn = strcmpi(instrumentType.discernOnOff(optInfo.useTimer),'on');
          percentageOn = strcmpi(instrumentType.discernOnOff(optInfo.usePercentageDifference),'on');
@@ -604,10 +618,10 @@ classdef experiment
          %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
          %OR
          %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
-         if (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+         if all(h.odometer{:} == 0) || (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
                || ...
             (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
-               h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
+               h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}(1) < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
             performOptimization = true;
          else
             performOptimization = false;
@@ -1210,7 +1224,7 @@ classdef experiment
          %Half the time because half is for reference, half for signal
 
          h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}...
-            ./ ((h.pulseBlaster.sequenceSentToPulseBlaster.dataNanoseconds/2) * 1e9);
+            ./ ((h.pulseBlaster.sequenceDurations.sent.dataNanoseconds/2) * 1e-9);
       end
    end
 
@@ -1317,6 +1331,8 @@ classdef experiment
    methods (Static)
       function [maxValue,maxPosition] = optimizationAlgorithm(dataVector,positionVector,algorithmType)
          %Runs whatever algorithm to find where stage should move
+
+         dataVector = cell2mat(dataVector);
 
          switch lower(algorithmType)
             case 'max value'
