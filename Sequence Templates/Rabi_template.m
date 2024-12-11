@@ -12,7 +12,9 @@ defaultParameters.timePerDataPoint = 1;
 defaultParameters.collectionDuration = 800;%Matches sample rate
 defaultParameters.collectionBufferDuration = 1000;
 defaultParameters.repolarizationDuration = 7000;
-defaultParameters.intermissionBufferDuration = 2500;
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
+defaultParameters.intermissionBufferDuration = 1000;
 defaultParameters.RFReduction = 0;
 defaultParameters.AOM_DAQCompensation = 0;
 
@@ -58,7 +60,8 @@ h = condensedAddPulse(h,{'RF','Signal'},99,'τ with-RF time');%Scanned
 h = condensedAddPulse(h,{'AOM','Data','Signal'},p.collectionDuration,'Signal Data collection');
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation);
+h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
+    p.collectionBufferDuration,p.AOM_DAQCompensation,[],p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
 h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);

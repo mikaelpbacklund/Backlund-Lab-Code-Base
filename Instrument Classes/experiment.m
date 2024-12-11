@@ -117,9 +117,6 @@ classdef experiment
                else
                   newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(currentScan.odometer-1);
                end
-               assignin("base","newValue",newValue)
-               assignin("base","currBounds",currentScan.bounds)
-               assignin("base","currStepSize",currentScan.stepSize)
             end
          end
 
@@ -219,7 +216,8 @@ classdef experiment
             return
          end
 
-         if ~isfield(scanInfo,'stepSize') && ~isfield(scanInfo,'nSteps')
+         if (~isfield(scanInfo,'stepSize') || isempty(scanInfo.stepSize))...
+                 && (~isfield(scanInfo,'nSteps') && ~isempty(scanInfo.nSteps))
             error('Scan must contain either stepSize or nSteps field')
          end
 
@@ -238,7 +236,7 @@ classdef experiment
          b = [scanInfo.bounds];
          if ~isa(b,'cell'),     b = {b};      end
 
-         if isfield(scanInfo,'stepSize')
+         if isfield(scanInfo,'stepSize') && ~isempty(scanInfo.stepSize)
             s = [scanInfo.stepSize];
             n = cellfun(@(x)abs(x(2)-x(1)),b);
 
@@ -480,7 +478,7 @@ classdef experiment
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM'},500,'Initial buffer');
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},optInfo.timePerPoint*1e9,'Taking data');
 
-               case {'contrast','con'}
+                case {'contrast','con','snr','signaltonoise','signal to noise','noise'}
 
                   %ODMR sequence
                   h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Initial buffer');
@@ -523,10 +521,18 @@ classdef experiment
             switch optInfo.acquisitionType
                case 'pulse sequence'
                   switch optInfo.rfStatus
-                     case {'off','on'}
+                      case {'off','on',true,false,'ref','sig'}
                         dataVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     case 'contrast'
+                        dataVector = cell2mat(dataVector);
+                     case {'con','contrast'}
                         dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                        dataVector = cell2mat(dataVector);
+                      case {'snr','signaltonoise','signal to noise','noise'}
+                          conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                          refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                          conVector = cell2mat(conVector);
+                          refVector = cell2mat(refVector);
+                          dataVector = conVector .* (refVector .^ (1/2));
                   end
                case 'scmos' %unimplemented
             end
@@ -822,9 +828,14 @@ classdef experiment
                xBounds = h.scan.bounds;
                stepSize = h.scan.stepSize;
             end
+
+            
             
             %x axis isn't the same. Assumed to be different plot entirely
-               if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= xBounds)) || ...
+               if (~isfield(h.plots,plotName) || ~isfield(h.plots.(plotName),'axes') || ~isfield(h.plots.(plotName),'dataDisplay'))||...
+                       (~isvalid(h.plots.(plotName).axes) || ~isvalid(h.plots.(plotName).dataDisplay)) ||...
+                       (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= xBounds) ||...
+                       (~h.useManualSteps && numel(h.plots.(plotName).dataDisplay.YData) ~= h.scan.nSteps))  || ...
                      (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
                   replot = true;
                end
@@ -1331,8 +1342,6 @@ classdef experiment
    methods (Static)
       function [maxValue,maxPosition] = optimizationAlgorithm(dataVector,positionVector,algorithmType)
          %Runs whatever algorithm to find where stage should move
-
-         dataVector = cell2mat(dataVector);
 
          switch lower(algorithmType)
             case 'max value'

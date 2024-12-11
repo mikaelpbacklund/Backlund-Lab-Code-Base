@@ -1,31 +1,32 @@
 %Example Spin Echo using template
 
 %Required
-p.tauStart = 100;
-p.tauEnd = 1500;
-p.tauStepSize = 100;
-p.piTime = 62;
-p.RFResonanceFrequency = 2.405;
+p.tauStart = 110;
+p.tauEnd = 1510;
+p.tauStepSize = 25;
+p.piTime = 76;
+p.RFResonanceFrequency = 2.4055;
 
 %All parameters below this are optional in that they will revert to defaults if not specified
 p.tauNSteps = [];%will override step size
 p.timePerDataPoint = 4;%seconds
 p.collectionDuration = 0;
-p.collectionBufferDuration = 1000;
+p.collectionBufferDuration = 800;
 p.intermissionBufferDuration = 2500;
 p.repolarizationDuration = 7000;
-p.extraRF = 0;
-p.AOM_DAQCompensation = 0;
+p.extraRF = 10;
+p.AOM_DAQCompensation = 700;
 p.IQPreBufferDuration = 22;
 p.IQPostBufferDuration = 0;
 p.nIterations = 1;
 p.RFAmplitude = 10;
-p.dataType = 'counter';
-p.timeoutDuration = 10;
+p.collectionType = 'counter';
+p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 1.5e4;
+p.perSecond = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_DEER';
@@ -47,6 +48,11 @@ p.optimizationRFStatus = 'off'; %'off', 'on', or 'con'
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
+
+% Note from Kyle: I added these to prevent an error when running the
+% script, not sure if these should be the default values
+p.useOptimizationTimer = false;
+p.useOptimizationPercentage = 0;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the

@@ -10,13 +10,19 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotCurrentReference',true;...
    'plotAverageSNR',false;...
    'plotCurrentSNR',false;...
+   'plotCurrentPercentageDataPoints',false;...
+   'plotAveragetPercentageDataPoints',false;...
    'invertSignalForSNR',false;...
    'baselineSubtraction',0;...
-   'boundsToUse',1};
+   'boundsToUse',1;...
+   'perSecond',true;...
+   'nIterations',1};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
 try
+
+    close('all')
 
 %Resets current data. [0,0] is for reference and signal counts
 ex = resetAllData(ex,[0,0]);
@@ -40,7 +46,7 @@ for ii = 1:p.nIterations
       ex = subtractBaseline(ex,p.baselineSubtraction);
 
       %If using counter, convert counts to counts/s
-      if strcmpi(p.collectionType,'counter')
+      if strcmpi(p.collectionType,'counter') && p.perSecond
          ex = convertToRate(ex);
       end
 
@@ -50,6 +56,8 @@ for ii = 1:p.nIterations
       averageData = mean(data,2);
       %Current data is last column
       currentData = data(:,end);
+      %Gets data points
+      dataPoints = ex.data.nPoints(ex.odometer{:},:);
 
       %Find and plot reference or contrast
       yAxisLabel = 'Contrast';
@@ -63,8 +71,10 @@ for ii = 1:p.nIterations
       end
       if strcmpi(p.collectionType,'analog')
          yAxisLabel = 'Reference (V)';
-      else
+      elseif strcmpi(p.collectionType,'counter') && p.perSecond
          yAxisLabel = 'Reference (counts/s)';
+      else
+          yAxisLabel = 'Reference (counts)';
       end
       if p.plotAverageReference
          ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel,p.boundsToUse); 
@@ -89,6 +99,13 @@ for ii = 1:p.nIterations
           end
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse);
       end
+      yAxisLabel = 'Number of Data Points';
+      if p.plotAveragePercentageDataPoints
+         ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse); 
+      end
+      if p.plotCurrentPercentageDataPoints
+         ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse);
+      end
 
       %If a new post-optimization value is needed, record current data
       if ex.optimizationInfo.enableOptimization && ex.optimizationInfo.needNewValue
@@ -103,11 +120,14 @@ for ii = 1:p.nIterations
        if ~cont
            break
        end
+       fprintf('Beginning iteration %d\n',ii+1)
    end
 end
 fprintf('Scan complete\n')
 catch ME   
+    assignin("base","ex",ex)
     stop(ex.DAQ.handshake)
+    warning("Error occurred at %s",string(datetime))
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)

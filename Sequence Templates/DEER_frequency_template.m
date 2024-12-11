@@ -23,6 +23,8 @@ defaultParameters.extraRF = 0;
 defaultParameters.AOM_DAQCompensation = 0;
 defaultParameters.IQPreBufferDuration = 0;
 defaultParameters.IQPostBufferDuration = 0;
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -130,7 +132,8 @@ for rs = 1:2 %singal half and reference half
 end
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
+h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
+    p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
 h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);

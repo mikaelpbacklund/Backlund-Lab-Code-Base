@@ -190,9 +190,9 @@ classdef DAQ_controller < instrumentType
                   sig = sum(counterDifference(signalOn & dataOn));
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
-               if ref > 0
-                   assignin("base","unsortedData",unsortedData)
-               end
+               % if ref > 0
+               %     assignin("base","unsortedData",unsortedData)
+               % end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)

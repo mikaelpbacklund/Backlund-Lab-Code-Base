@@ -2,19 +2,30 @@
 %ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 %% User Inputs
-scanBounds = {[-100 -50]};
-scanAxes = {'y'};
-scanStepSize = {.25};
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-nIterations = 1;
+scanBounds = {[6700 6900]};
+scanAxes = {'z'};
+scanStepSize = {2.5};
+sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+p.nIterations = 1;
 contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.406;
+RFfrequency = 2.41;
 
 %Uncommonly changed parameters
 dataType = 'counter';%'counter' or 'analog'
 RFamplitude = 10;
 timeoutDuration = 5;
 forcedDelayTime = .125;
+
+p.baselineSubtraction = 0;
+p.plotAverageContrast = false;
+p.plotAverageReference = false;
+p.plotAverageSNR = false;
+p.plotCurrentContrast = true;
+p.plotCurrentReference = true;
+p.plotCurrentSNR = true;
+p.collectionType = 'counter';
+p.boundsToUse = 1;
+p.perSecond = true;
 
 nDataPointDeviationTolerance = .00015;
 scanNotes = 'Stage scan';
@@ -121,15 +132,7 @@ if ~cont
     return
 end
 
-p.baselineSubtraction = 0;
-p.plotAverageContrast = false;
-p.plotAverageReference = false;
-p.plotAverageSNR = false;
-p.plotCurrentContrast = true;
-p.plotCurrentReference = true;
-p.plotCurrentSNR = true;
-p.collectionType = 'counter';
-p.boundsToUse = 1;
+
 ex.optimizationInfo.enableOptimization = false;
 
 ex = runScan(ex,p);

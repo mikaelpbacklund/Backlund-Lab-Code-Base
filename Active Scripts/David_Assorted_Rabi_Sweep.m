@@ -5,38 +5,45 @@
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 110]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
+p.scanBounds = [1000 10000]; %RF duration bounds
+p.scanStepSize = 500; %Step size for RF duration
 p.collectionType = 'counter';%analog or counter
 p.RFFrequency = 2.4055;
+p.piTime = 76;
+p.pulseNotes = 'Repolarization';
 
 %General
 p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.sequenceTimePerDataPoint = 10;%Before factoring in forced delay and other pauses
+p.nIterations = 10; %Number of iterations of scan to perform
 p.timeoutDuration = 3; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 1000;%How long to wait between end of RF pulse and beginning of data collection
-p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
-p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.collectionBufferDuration = 250;%How long to wait between end of RF pulse and beginning of data collection
+p.AOMCompensation = 550;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.RFReduction = 10;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
+p.dataOnBuffer = 800;
+p.extraBuffer = 100;
+p.intermissionBufferDuration = 1000;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_DEER';
+p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
-p.plotCurrentContrast = false;
-p.plotCurrentReference = false;
-p.plotCurrentSNR = false;
 p.plotAverageContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = true;
+p.plotCurrentReference = false;
 p.plotAverageSNR = true;
+p.plotCurrentSNR = false;
+p.plotAveragePercentageDataPoints = false;
+p.plotCurrentPercentageDataPoints = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
@@ -44,7 +51,7 @@ p.optimizationAxes = {'y','z'}; %The axes which will be optimized over
 p.optimizationSteps = {-.5:0.1:.5,-.5:0.5:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'snr'; %'off', 'on', 'snr', or 'con'
 p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 90; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationPercentage = false;
@@ -58,4 +65,4 @@ p.useOptimizationPercentage = false;
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs Rabi using specified parameters
-ex = Rabi(ex,p);
+ex = Random_Scanning_Using_Rabi(ex,p);

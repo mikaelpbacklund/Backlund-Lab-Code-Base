@@ -11,7 +11,7 @@ p.collectionType = 'analog';%analog or counter
 p.RFFrequency = 2.87;
 
 %General
-p.RFamplitude = 10;
+p.RFAmplitude = 10;
 p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs

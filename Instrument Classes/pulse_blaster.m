@@ -240,8 +240,6 @@ classdef pulse_blaster < instrumentType
                current.contextInfo = loopTracker(end);
                loopTracker(end) = [];
             end
-            assignin("base","current",current)
-            assignin("base","opCode",opCode)
             %Sends the current instruction to the pulse blaster
             [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
                opCode-1,current.contextInfo,round(current.duration));

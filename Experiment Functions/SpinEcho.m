@@ -1,6 +1,6 @@
 function ex = SpinEcho(ex,p)
 
-requiredParams = {'scanBounds','scanStepSize','collectionType','RFResonanceFrequency','tauStart','tauEnd','tauStepSize','piTime'};
+requiredParams = {'tauStart','tauEnd','tauStepSize','collectionType','RFResonanceFrequency','piTime'};
 
 mustContainField(p,requiredParams)
 

@@ -1,22 +1,23 @@
 %Default ODMR script example
 
 %Required
-p.scanBounds = [2.35 2.45]; %Frequency bounds
-p.scanStepSize = .001; %Step size for RF frequency
+p.scanBounds = [2.39 2.42]; %Frequency bounds
+p.scanStepSize = .0005; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
-p.RFamplitude = 10;
+p.RFAmplitude = -12;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+p.perSecond = true;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_default';
+p.pulseBlasterConfig = 'pulse_blaster_DEER';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
@@ -36,7 +37,7 @@ p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-2:0.1:.2}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 600; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.

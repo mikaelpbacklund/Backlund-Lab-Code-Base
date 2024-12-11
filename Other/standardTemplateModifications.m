@@ -1,7 +1,9 @@
 function h = standardTemplateModifications(h,intermission,repolarization,collectionBuffer,AOM_DAQCompensation,varargin)
 %Runs a standard suite of modifications to the pulse sequence
 %Used primarily in templates
-%Optional argument is for IQ buffers and should be in the form of a 1x2 double i.e. [15 30] for [before after]
+%Optional argument 1 is for IQ buffers and should be in the form of a 1x2 double i.e. [15 30] for [before after]
+%Optional argument 2 is duration of buffer where DAQ read is on but laser is off
+%before repolarization
 
 %The following addBuffer functions are done for more or less every template. They add (in order):
 % a blank buffer between signal and referenece to separate the two fully, a
@@ -11,9 +13,7 @@ function h = standardTemplateModifications(h,intermission,repolarization,collect
 %pulse (caused by differences in cable length and other minor electrical discrepancies). They are added in an order such
 %that the final result is in the desired configuration
 
-
-assignin("base","userSequence",h.userSequence)
-if nargin > 5
+if nargin > 5 && ~isempty(varargin{1})
     iqBuffers = varargin{1};
    foundAddress = findPulses(h,'activeChannels',{'RF'},'contains');
    h = addBuffer(h,foundAddress,iqBuffers,{'I','Q','Signal'},[],'I/Q buffer');
@@ -57,12 +57,12 @@ compDuration = abs(AOM_DAQCompensation);
 if AOM_DAQCompensation > 0
     %Adds pulse with AOM on to account for lag between AOM and DAQ
     h = addBuffer(h,foundAddress,compDuration,{'AOM','Signal'},'before','AOM/DAQ delay compensation');
-    
-    n = 0;
+
+    foundAddress = findPulses(h,'notes','Repolarization','matches');
+
     %Reduces repolarization duration based on compensation duration
     for ii = 1:numel(foundAddress)
-       n = n+1;%Number of additional pulses added
-      h = modifyPulse(h,foundAddress(ii)+n+1,'duration',h.userSequence(foundAddress(ii)+n+1).duration - compDuration);
+      h = modifyPulse(h,foundAddress(ii),'duration',repolarization - compDuration);
     end
 else
     % Adds pulse with DAQ on to account for lag between DAQ and AOM
@@ -76,6 +76,28 @@ else
     end
 end
 
-assignin("base","userSequencePost",h.userSequence)
+if nargin > 6 && ~isempty(varargin{2}) && varargin{2} ~= 0
+    %Find last data collection pulse
+    %Add buffer after that copies signal and data but not laser
+    dataAddresses = findPulses(h,'activeChannels',{'Data'},'contains');
+    nonConsecutive = diff(dataAddresses);
+    nonConsecutive = nonConsecutive ~= 1;
+    nonConsecutive(end+1) = true;
+    dataAddresses = dataAddresses(nonConsecutive);
+    if AOM_DAQCompensation > 0
+        previousDuration = h.userSequence(dataAddresses(1)).duration - AOM_DAQCompensation;
+        for ii = 1:numel(dataAddresses)
+            h = modifyPulse(h,dataAddresses,'duration',previousDuration);
+        end
+    end
+    %Add additional 1 us buffer of nothing between data collection and
+    %repolarization
+    if nargin > 7 && ~isempty(varargin{3})
+        h = addBuffer(h,dataAddresses,varargin{3},{'Signal'},'after','Extra buffer');
+    end
+    additionalPulsesAdded = 1:length(dataAddresses);
+    dataAddresses = dataAddresses + additionalPulsesAdded - 1;
+    h = addBuffer(h,dataAddresses,varargin{2},{'Data','Signal'},'after','Data on, repolarization buffer');
+end
 
 end

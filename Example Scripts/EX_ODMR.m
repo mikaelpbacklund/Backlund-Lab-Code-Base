@@ -6,7 +6,7 @@ p.scanStepSize = .005; %Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General
-p.RFamplitude = 10;
+p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 p.sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform

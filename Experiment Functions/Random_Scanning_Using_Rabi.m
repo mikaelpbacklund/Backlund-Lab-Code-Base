@@ -1,7 +1,6 @@
-function ex = DEER(ex,p)
+function ex = Random_Scanning_Using_Rabi(ex,p)
 
-requiredParams = {'scanBounds','scanStepSize','collectionType','scanType','RF1ResonanceFrequency',...
-   'tauTime','piTime','RF2Frequency','RF2Duration','nRF2Pulses'};
+requiredParams = {'scanBounds','scanStepSize','collectionType','RFFrequency','pulseNotes'};
 
 mustContainField(p,requiredParams)
 
@@ -9,23 +8,12 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotAverageReference',true;...
    'plotCurrentContrast',true;...
    'plotCurrentReference',true;...
-   'plotCurrentPercentageDataPoints',false;...
-   'plotAveragetPercentageDataPoints',false;...
    'AOMCompensation',0;...
    'RFReduction',0;...
-   'RF1Amplitude',10;...
-   'RF2Amplitude',11;...
+   'RFAmplitude',10;...
    'collectionDuration',0;...%default overwritten with daq rate
    'collectionBufferDuration',1000;...
-   'intermissionBufferDuration',2500;...
-   'repolaizationDuration',7000;...
-   'extraRF',0;...
-   'dataOnBuffer',0;...
-   'extraBuffer',0;...
-   'AOM_DAQCompensation',0;...
-   'IQPreBufferDuration',0;...
-   'IQPostBufferDuration',0;...
-   'timePerDataPoint',3;...
+   'sequenceTimePerDataPoint',3;...
    'nIterations',1;...
    'timeoutDuration',10;...
    'forcedDelayTime',.125;...
@@ -39,11 +27,11 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'timePerOpimizationPoint',.1;...
    'timeBetweenOptimizations',180;...
    'percentageForcedOptimization',.75;...
+   'perSecond',true;...
    'pulseBlasterConfig','pulse_blaster_default';...
    'SRSRFConfig','SRS_RF';...
    'DAQConfig','daq_6361';...
-   'stageConfig','PI_stage';...
-   'windfreakConfig','windfreak_RF'};%this one
+   'stageConfig','PI_stage'};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
@@ -54,28 +42,30 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Loads pulse blaster, srs rf, and daq with given configs
-% instrumentNames = ["pulse blaster","srs rf","daq"];
-% instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
-instrumentNames = ["pulse blaster","srs rf","daq","windfreak"];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig),c2s(p.windfreakConfig)];
+instrumentNames = ["pulse blaster","srs rf","daq"];
+instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
-
-ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
 
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
-   ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
+   ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);   
 end
+
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+ex.optimizationInfo.stageAxes = p.optimizationAxes;
+ex.optimizationInfo.steps = p.optimizationSteps;
+ex.optimizationInfo.timePerPoint = p.timePerOpimizationPoint;
+ex.optimizationInfo.timeBetweenOptimizations = p.timeBetweenOptimizations;
+ex.optimizationInfo.percentageToForceOptimization = p.percentageForcedOptimization;
+ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
+ex.optimizationInfo.useTimer = p.useOptimizationTimer;
+ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'on';
-ex.SRS_RF.modulationType = 'iq';
-ex.SRS_RF.amplitude = p.RF1Amplitude;
-ex.SRS_RF.frequency = p.RF1ResonanceFrequency;
-
-ex.windfreak_RF.enabled = 'on';
-% ex.windfreak_RF.amplitude = p.RF2Amplitude;
+ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.amplitude = p.RFAmplitude;
+ex.SRS_RF.frequency = p.RFFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
@@ -89,39 +79,43 @@ end
 
 %% Use template to create sequence and scan
 
-%Changes scan info names based on frequency or duration
 %Load empty parameter structure from template
-if strcmpi(p.scanType,'frequency')
-    p.frequencyStart = p.scanBounds(1);
-    p.frequencyEnd = p.scanBounds(2);
-    p.frequencyStepSize = p.scanStepSize;
-    p.frequencyNSteps = [];
-    [sentParams,~] = DEER_frequency_template([],[]);
-else 
-    p.RF2DurationStart = p.scanBounds(1);
-    p.RF2DurationEnd = p.scanBounds(2);
-    p.RF2DurationStepSize = p.scanStepSize;
-    p.RF2DurationNSteps = [];
-    [sentParams,~] = DEER_duration_template([],[]);
-end
+[parameters,~] = Rabi_template([],[]);
 
-%Replaces values in sentParams with values in params if they aren't empty
-for paramName = fieldnames(sentParams)'
-   if ~isempty(p.(paramName{1}))
-      sentParams.(paramName{1}) = p.(paramName{1});
-   end
-end
+%Set parameters
+%Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
+parameters.RFResonanceFrequency = p.RFFrequency;
+parameters.tauStart = p.scanBounds(1);
+parameters.tauEnd = p.scanBounds(2);
+parameters.timePerDataPoint = p.sequenceTimePerDataPoint;
+parameters.AOM_DAQCompensation = p.AOMCompensation;
+parameters.collectionBufferDuration = p.collectionBufferDuration;
+parameters.collectionDuration = p.collectionDuration;
+parameters.tauStepSize = p.scanStepSize;
+parameters.RFReduction = p.RFReduction;
+parameters.repolarizationBuffer = 100;
+parameters.extraBuffer = p.extraBuffer;
+parameters.dataOnBuffer = p.dataOnBuffer;
+parameters.intermissionBufferDuration = p.intermissionBufferDuration;
 
-%Changes rf2 frequency if running duration scan (constant frequency)
-if strcmpi(p.scanType,'duration')
-    [ex.pulseBlaster,scanInfo] = DEER_duration_template(ex.pulseBlaster,sentParams);
-    ex.windfreak_RF.frequency = scanInfo.RF2Frequency;
-else
-    [ex.pulseBlaster,scanInfo] = DEER_frequency_template(ex.pulseBlaster,sentParams);
-end
+%Sends parameters to template
+%Creates and sends pulse sequence to pulse blaster
+%Gets scan information
+[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
 
 %Deletes any pre-existing scan
 ex.scan = [];
+tauAddresses = scanInfo.address;
+
+scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'matches');
+scanInfo.bounds = cell(1,numel(scanInfo.address));
+[scanInfo.bounds{:}] = deal(p.scanBounds);
+scanInfo.stepSize = ones(1,numel(scanInfo.address));
+scanInfo.stepSize(:) = p.scanStepSize;
+scanInfo.nSteps = [];
+for ii = 1:numel(tauAddresses)
+    ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauAddresses(ii),'duration',p.piTime+p.RFReduction);
+end
 
 %Adds scan to experiment based on template output
 ex = addScans(ex,scanInfo);
