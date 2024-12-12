@@ -2,8 +2,10 @@
 
 %Required
 p.scanType = 'frequency';%Either frequency or duration
-p.scanBounds = [460e-3 470e-3]; %windfreak frequency (GHz) or duration (ns)
-p.scanStepSize = .25e-3;
+p.scanBounds = [425e-3 500e-3]; %windfreak frequency (GHz) or duration (ns)
+p.scanStepSize = 1e-3;
+% p.scanBounds = [100 500]; %windfreak frequency (GHz) or duration (ns)
+% p.scanStepSize = 20;
 p.collectionType = 'counter';%analog or counter
 p.RF2Frequency = .464;%GHz. Overwritten by scan if frequency selected
 p.RF2Duration = 400;%ns. Overwritten by scan if duration selected
@@ -13,7 +15,7 @@ p.piTime = 76;
 p.tauTime = 550;
 
 %General
-p.timePerDataPoint = 10;%Before factoring in forced delay and other pauses
+p.timePerDataPoint = 20;%Before factoring in forced delay and other pauses
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;
@@ -44,7 +46,7 @@ p.stageConfig = 'PI_stage';
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = true;
-p.plotAverageReference = false;
+p.plotAverageReference = true;
 p.plotCurrentReference = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
@@ -54,7 +56,7 @@ p.plotCurrentPercentageDataPoints = true;
 %Stage optimization
 p.optimizationEnabled = true; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
+p.optimizationSteps = {-.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 300; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)

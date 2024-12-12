@@ -733,7 +733,8 @@ classdef experiment
                   else
                      h.forcedCollectionPauseTime = originalPauseTime;
                      stop(h.DAQ.handshake)
-                     error('Failed %d times to obtain correct number of data points',nPauseIncreases)
+                     error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                         nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
 
                   end
 
@@ -746,6 +747,12 @@ classdef experiment
                   %reference data points, not total/2
                   if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
                      dataOut(1:2) = dataOut(1:2) ./ (h.DAQ.dataPointsTaken/2);
+                  end
+                  if h.DAQ.handshake.UserData.currentCounts > 3e9
+                      printOut(h.DAQ,'Counts nearing max value. Resetting counter')
+                      stop(h.DAQ.handshake)
+                      resetcounters(h.DAQ.handshake)
+                      start(h.DAQ.handshake)
                   end
                else
                   %Takes data and puts it in the current iteration spot for this

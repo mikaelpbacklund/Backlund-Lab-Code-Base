@@ -190,9 +190,13 @@ classdef DAQ_controller < instrumentType
                   sig = sum(counterDifference(signalOn & dataOn));
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
-               % if ref > 0
-               %     assignin("base","unsortedData",unsortedData)
-               % end
+               handshake.UserData.currentCounts = unsortedData(end,collectionInfo.dataChannelNumber);
+               if ref < 0 || sig < 0
+                   assignin("base","rawDataFromDAQ",unsortedData)
+                   warning('Negative counts obtained, discarding data')
+                   ref = 0;
+                   sig = 0;
+               end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)
@@ -334,9 +338,9 @@ classdef DAQ_controller < instrumentType
             h.handshake.UserData.reference = 0;
             h.handshake.UserData.signal = 0;
             h.handshake.UserData.nPoints = 0;
+            h.handshake.UserData.currentCounts = 0;   
             %Turn on collection
-            if ~h.handshake.Running, start(h.handshake,"continuous"), end
-            
+            if ~h.handshake.Running, start(h.handshake,"continuous"), end     
          else
             if h.handshake.Running, stop(h.handshake), end
             resetcounters(h.handshake)

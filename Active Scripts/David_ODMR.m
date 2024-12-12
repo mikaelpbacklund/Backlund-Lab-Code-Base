@@ -6,13 +6,13 @@ p.scanStepSize = .0005; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
-p.RFAmplitude = -12;
+p.RFAmplitude = -20;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
+p.nIterations = 10; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
 
@@ -23,8 +23,8 @@ p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
-p.plotAverageContrast = false;
-p.plotCurrentContrast = true;
+p.plotAverageContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSNR = false;
