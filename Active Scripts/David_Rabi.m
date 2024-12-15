@@ -8,7 +8,7 @@
 p.scanBounds = [10 110]; %RF duration bounds
 p.scanStepSize = 4; %Step size for RF duration
 p.collectionType = 'counter';%analog or counter
-p.RFFrequency = 2.4055;
+p.RFResonanceFrequency = 2.4055;
 
 %General
 p.RFAmplitude = 10;
@@ -20,6 +20,9 @@ p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number mea
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
+p.dataOnBuffer = 0;
+p.extraBuffer = 0;
+p.intermissionBuffer = 1000;
 p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter

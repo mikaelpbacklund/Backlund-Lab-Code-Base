@@ -10,15 +10,16 @@ defaultParameters.tauStart = [];
 defaultParameters.tauEnd = [];
 defaultParameters.tauNSteps = [];
 defaultParameters.tauStepSize = [];
-defaultParameters.timePerDataPoint = 1;
+defaultParameters.sequenceTimePerDataPoint = 1;
 defaultParameters.collectionDuration = 1000;
 defaultParameters.collectionBufferDuration = 100;
 defaultParameters.repolarizationDuration = 7000;
 defaultParameters.intermissionBufferDuration = 1000;
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;
 defaultParameters.extraRF = 0;
-defaultParameters.AOM_DAQCompensation = 0;
-defaultParameters.IQPreBufferDuration = 0;
-defaultParameters.IQPostBufferDuration = 0;
+defaultParameters.AOMCompensation = 0;
+defaultParameters.IQBuffers = [0,0];
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -46,12 +47,9 @@ if isempty(p.tauNSteps)
    p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
-%Creates single array for I/Q pre and post buffers
-IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
-
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
-exportedTauEnd = p.tauEnd - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauStart = p.tauStart - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauEnd = p.tauEnd - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
 
 %Error check for τ duration
 if min([exportedTauStart,exportedTauEnd]) <= 0
@@ -100,10 +98,11 @@ for rs = 1:2 %singal half and reference half
 end
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
+h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
+    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);

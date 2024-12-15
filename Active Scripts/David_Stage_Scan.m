@@ -129,7 +129,8 @@ ex.maxFailedCollections = 3;
 ex.nPointsTolerance = nDataPointDeviationTolerance;
 
 %Sends information to command window
-% scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
+scanStartInfo(ex.scan.nSteps,...
+    ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
 cont = checkContinue(timeoutDuration*2);
 if ~cont

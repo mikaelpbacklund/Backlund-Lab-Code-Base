@@ -20,9 +20,8 @@ defaultParameters.collectionBufferDuration = 1000;
 defaultParameters.repolarizationDuration = 7000;
 defaultParameters.intermissionBufferDuration = 2500;
 defaultParameters.extraRF = 0;
-defaultParameters.AOM_DAQCompensation = 0;
-defaultParameters.IQPreBufferDuration = 0;
-defaultParameters.IQPostBufferDuration = 0;
+defaultParameters.AOMCompensation = 0;
+defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
 
@@ -62,9 +61,6 @@ end
 % else
 %    error('Number of RF2 pulses must be either 1 or 2')
 % end
-
-%Creates single array for I/Q pre and post buffers
-IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
 
 
 %% Sequence Creation
@@ -139,7 +135,7 @@ end
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers,p.dataOnBuffer,p.extraBuffer);
+    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
 h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
@@ -163,7 +159,7 @@ scannedBounds = [p.RF2DurationStart,p.RF2DurationEnd];
    % end
 % else
    %Keep τ constant  
-   remainderModifiers = 30+sum(IQBuffers)+(3/4)*p.piTime;
+   remainderModifiers = 30+sum(p.IQBuffers)+(3/4)*p.piTime;
    remainderBounds = [(p.tauTime - (p.RF2DurationStart+remainderModifiers)),(p.tauTime - (p.RF2DurationEnd+remainderModifiers))];   
    
 % end

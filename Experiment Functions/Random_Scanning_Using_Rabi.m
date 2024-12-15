@@ -1,6 +1,6 @@
 function ex = Random_Scanning_Using_Rabi(ex,p)
 
-requiredParams = {'scanBounds','scanStepSize','collectionType','RFFrequency','pulseNotes'};
+requiredParams = {'scanBounds','scanStepSize','collectionType','RFResonanceFrequency','pulseNotes'};
 
 mustContainField(p,requiredParams)
 
@@ -13,6 +13,10 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'RFAmplitude',10;...
    'collectionDuration',0;...%default overwritten with daq rate
    'collectionBufferDuration',1000;...
+   'repolarizationDuration',7000;...
+   'intermissionBufferDuration',1000;...
+   'dataOnBuffer',0;...
+   'extraBuffer',0;...
    'sequenceTimePerDataPoint',3;...
    'nIterations',1;...
    'timeoutDuration',10;...
@@ -27,6 +31,8 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'timePerOpimizationPoint',.1;...
    'timeBetweenOptimizations',180;...
    'percentageForcedOptimization',.75;...
+   'useOptimizationTimer',false;...
+   'useOptimizationPercentage',false;...
    'perSecond',true;...
    'pulseBlasterConfig','pulse_blaster_default';...
    'SRSRFConfig','SRS_RF';...
@@ -81,28 +87,19 @@ end
 %% Use template to create sequence and scan
 
 %Load empty parameter structure from template
-[parameters,~] = Rabi_template([],[]);
+[sentParams,~] = Rabi_template([],[]);
 
-%Set parameters
-%Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
-parameters.RFResonanceFrequency = p.RFFrequency;
-parameters.tauStart = p.scanBounds(1);
-parameters.tauEnd = p.scanBounds(2);
-parameters.timePerDataPoint = p.sequenceTimePerDataPoint;
-parameters.AOM_DAQCompensation = p.AOMCompensation;
-parameters.collectionBufferDuration = p.collectionBufferDuration;
-parameters.collectionDuration = p.collectionDuration;
-parameters.tauStepSize = p.scanStepSize;
-parameters.RFReduction = p.RFReduction;
-parameters.repolarizationBuffer = 100;
-parameters.extraBuffer = p.extraBuffer;
-parameters.dataOnBuffer = p.dataOnBuffer;
-parameters.intermissionBufferDuration = p.intermissionBufferDuration;
+%Replaces values in sentParams with values in params if they aren't empty
+for paramName = fieldnames(sentParams)'
+   if ~isempty(p.(paramName{1}))
+      sentParams.(paramName{1}) = p.(paramName{1});
+   end
+end
 
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
+[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,sentParams);
 
 %Deletes any pre-existing scan
 ex.scan = [];

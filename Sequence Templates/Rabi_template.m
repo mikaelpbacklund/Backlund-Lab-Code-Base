@@ -4,11 +4,10 @@ function [varargout] = Rabi_template(h,p)
 
 %Creates default parameter structure
 defaultParameters.RFResonanceFrequency = [];
-defaultParameters.tauStart = [];
-defaultParameters.tauEnd = [];
-defaultParameters.tauNSteps = [];
-defaultParameters.tauStepSize = [];
-defaultParameters.timePerDataPoint = 1;
+defaultParameters.scanBounds = [];
+defaultParameters.scanNSteps = [];
+defaultParameters.scanStepSize = [];
+defaultParameters.sequenceTimePerDataPoint = 1;
 defaultParameters.collectionDuration = 800;%Matches sample rate
 defaultParameters.collectionBufferDuration = 100;
 defaultParameters.repolarizationDuration = 7000;
@@ -16,7 +15,7 @@ defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
 defaultParameters.intermissionBufferDuration = 1000;
 defaultParameters.RFReduction = 0;
-defaultParameters.AOM_DAQCompensation = 0;
+defaultParameters.AOMCompensation = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -35,13 +34,13 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tauNSteps) && isempty(p.tauStepSize))
-   error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
+if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNSteps) && isempty(p.scanStepSize))
+   error('Parameter input must contain RFResonanceFrequency, scanBounds, and (scanNSteps or scanStepSize)')
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs((p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize))+1;
 end
 
 %% Sequence Creation
@@ -61,10 +60,10 @@ h = condensedAddPulse(h,{'AOM','Data','Signal'},p.collectionDuration,'Signal Dat
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOM_DAQCompensation,[],p.dataOnBuffer,p.extraBuffer);
+    p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
@@ -76,9 +75,9 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = [p.tauStart p.tauEnd];
+   scanInfo.bounds{ii} = p.scanBounds;
 end
-scanInfo.nSteps = p.tauNSteps;
+scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('Rabi (RF: %.3f GHz)',p.RFResonanceFrequency);

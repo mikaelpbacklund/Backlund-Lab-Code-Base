@@ -4,11 +4,12 @@
 p.tauStart = 110;
 p.tauEnd = 1510;
 p.tauStepSize = 25;
+p.collectionType = 'counter';
 p.piTime = 76;
 p.RFResonanceFrequency = 2.4055;
-
-%All parameters below this are optional in that they will revert to defaults if not specified
 p.tauNSteps = [];%will override step size
+
+%All parameters below this are optional in that they will revert to defaults if not specified 
 p.timePerDataPoint = 4;%seconds
 p.collectionDuration = 0;
 p.collectionBufferDuration = 100;
@@ -16,11 +17,9 @@ p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
 p.extraRF = 10;
 p.AOM_DAQCompensation = 700;
-p.IQPreBufferDuration = 22;
-p.IQPostBufferDuration = 0;
+p.IQBuffers = [0 0];
 p.nIterations = 1;
 p.RFAmplitude = 10;
-p.collectionType = 'counter';
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
