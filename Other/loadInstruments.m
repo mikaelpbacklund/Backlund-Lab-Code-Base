@@ -37,13 +37,13 @@ end
 
 
    function ex = connectToInstrument(ex,informalName,className,experimentPropertyName)
-      if isempty(ex.(experimentPropertyName))
+      if isempty(ex.(experimentPropertyName)) || ex.(experimentPropertyName).connected == 0
          fprintf('Connecting to %s...\n',informalName)
          ex.(experimentPropertyName) = eval(sprintf('%s(instrumentConfigs(ii))',className));
          ex.(experimentPropertyName) = connect(ex.(experimentPropertyName));
          fprintf('%s connected\n',informalName)
       elseif giveAlreadyPresentWarning
-         warning('%s already present')
+         warning('%s already present',informalName)
       end
    end
 

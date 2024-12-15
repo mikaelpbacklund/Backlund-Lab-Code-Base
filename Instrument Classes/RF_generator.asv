@@ -94,16 +94,7 @@ classdef RF_generator < instrumentType
 %          h = queryModulationType(h);
       end
 
-      function h = disconnect(h)
-         if ~h.connected    
-             return;   
-         end
-         if ~isempty(h.handshake)
-            h.handshake = [];
-         end
-         h.connected = false;
-      end
-
+      function h = 
       function h = toggle(h,setState)
          h.enabled = setState;
       end

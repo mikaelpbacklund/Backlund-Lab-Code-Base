@@ -56,7 +56,7 @@ classdef DAQ_controller < instrumentType
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
       end
       
-      function h = connect(h)         
+      function h = connect(h)  
          if h.connected
             warning('DAQ is already connected')
             return
@@ -243,6 +243,17 @@ classdef DAQ_controller < instrumentType
 
          end
 
+      end
+      
+      function h = disconnect(h)
+
+         if ~h.connected    
+             return;   
+         end
+         if ~isempty(h.handshake)
+            h.handshake = [];
+         end
+         h.connected = false;
       end
       
       function h = addChannel(h,channelInfo)
