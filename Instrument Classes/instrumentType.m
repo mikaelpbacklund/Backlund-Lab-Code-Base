@@ -1,7 +1,8 @@
 classdef instrumentType < handle
    properties      
+      uncommonProperties %Structure containing properties that are uncommonly accessed and would clutter property list
       notifications = false
-      presets      
+      presets
       %Below suppresses warnings from references to property that isn't
       %defined here. It is suppressed as not all functions are for all
       %instruments and there is therefore some lacking overlap
@@ -15,12 +16,11 @@ classdef instrumentType < handle
    identifier
    end
 
-   properties (Hidden)
-      connectionType%Not necessary for every instrument and only used for backend
-   end
-
    methods
       function h = instrumentType
+         h.uncommonProperties.connectionType = [];
+         h.uncommonProperties.bypassPreCheck = false; %Bypasses
+         h.uncommonProperties.bypassPostCheck = false;
       end
       
       function printOut(h,printMessage)
@@ -71,7 +71,7 @@ classdef instrumentType < handle
          
          %If there is only 1 field name of the output (meaning only 1 input
          %name), return the variable directly rather than in a structure
-         if numel(fieldnames(s)) == 1
+         if isscalar(fieldnames(s))
             s = s.(m);
          end
       end
@@ -119,7 +119,7 @@ classdef instrumentType < handle
          
          %Gives option to input its own information, otherwise follows
          %standard naming convention to get relevant info
-         if nargin == 4
+         if nargin > 3 && ~isempty(varargin{1})
             attributeInfo = varargin{1};
          end
          
@@ -149,39 +149,60 @@ classdef instrumentType < handle
             if isfield(h.(attribute),'tolerance') %Not everything has tolerance
                attributeInfo.tolerance = h.attInfoStr.('tolerance');
             else
-               attributeInfo.tolerance = abs(setState)*.0001;
-            end            
+               attributeInfo.tolerance = abs(setState)*.00001;
+            end        
          end
-         
-         %Gets current data and sets the output to that
-         [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
-         updatedVal = numericalData./attributeInfo.conversionFactor;
 
-         %If it is a query, only one reading is performed
-         if strcmp(setState,'query');     return;    end
-         
-         %Attribute already what the input is, no change needed
-         if setState <= updatedVal + attributeInfo.tolerance && setState >=updatedVal - attributeInfo.tolerance %#ok<BDSCI> 
-            printOut(h,sprintf('%s already %g %s',attribute,updatedVal,attributeInfo.units))
-            return
-         end
+         %Reads data to check if current setting matches input given
+         if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query') 
+            [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+            
+            %This is remarkably stupid where the write units of the instrument
+            %are not the same as the read units. Only the windfreak RF
+            %generator does this, but it has to be corrected here otherwise
+            %the readout is wrong
+            if nargin > 4 && ~isempty(varargin{2})
+               numericalData = numericalData * varargin{2};
+            end
+            updatedVal = numericalData./attributeInfo.conversionFactor;
+
+            %If it is a query, only one reading is performed
+            if strcmpi(setState,'query');     return;    end   
+
+            %Attribute already what the input is, no change needed
+            if setState <= updatedVal + attributeInfo.tolerance && setState >=updatedVal - attributeInfo.tolerance %#ok<BDSCI>
+               printOut(h,sprintf('%s already %g %s',attribute,updatedVal,attributeInfo.units))
+               return
+            end                     
+         end         
          
          %Check attribute bounds then set new attribute if it is within those bounds
          if attributeInfo.minimum < setState && setState <= attributeInfo.maximum
             numericalInput = setState*attributeInfo.conversionFactor;
             h = writeNumber(h,attribute,numericalInput);%Dependent on instrument
          else
-            error('%s must be between %g and %g %s',...
-               attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units)
+            error('%s must be between %g and %g %s (%g given)',...
+               attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units,setState)
+         end
+         
+         %If bypassing check after reading, set output to whatever input was given
+         if h.uncommonProperties.bypassPostCheck
+            updatedVal = setState;
+            return
          end
          
          [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+
+         %See previous note about unit mismatch
+         if nargin > 4 && ~isempty(varargin{2})
+             numericalData = numericalData * varargin{2};
+         end
          
          %Checks if new reading matches input value
          if numericalData > numericalInput + attributeInfo.tolerance || numericalData < numericalInput - attributeInfo.tolerance 
-            assignin('base','numericalInput',numericalInput)
-            assignin('base','numericalData',numericalData)
-            assignin("base","tolerance",attributeInfo.tolerance)
+             assignin("base","numericalInput",numericalInput)
+             assignin("base","numericalData",numericalData)
+             assignin("base","tol",attributeInfo.tolerance)
              h.failCase(attribute,numericalInput,numericalData);            
          else
             updatedVal = numericalData/attributeInfo.conversionFactor;
@@ -215,21 +236,30 @@ classdef instrumentType < handle
             toggleCommand = attributeInfo.toggleOff;
          end
          
-         [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
-         foundState = instrumentType.discernOnOff(toggleStatus);
-         
-         if strcmp(setState,'query')
-            return
-         end
-         
-         if strcmp(setState,toggleStatus)
-            className = class(h);
-            className(className=='_') = ' ';
-            printOut(h,sprintf('%s already %s',className,h.status))
-            return
+         %Reads data to check if current setting matches input given
+         if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query')
+            [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
+            foundState = instrumentType.discernOnOff(toggleStatus);
+
+            if strcmp(setState,'query')
+               return
+            end
+
+            if strcmp(setState,toggleStatus)
+               className = class(h);
+               className(className=='_') = ' ';
+               printOut(h,sprintf('%s already %s',className,h.status))
+               return
+            end
          end
          
          h = writeToggle(h,toggleCommand);
+
+         %Bypass check after if enabled
+         if h.uncommonProperties.bypassPostCheck 
+            foundState = instrumentType.discernOnOff(setState);
+            return
+         end
          
          [h,toggleStatus] = readToggle(h,attributeInfo.query);
          toggleStatus = instrumentType.discernOnOff(toggleStatus);
@@ -287,7 +317,7 @@ classdef instrumentType < handle
       end
       
       function [h,outputInfo] = readInstrument(h,varargin)
-         if isempty(h.connectionType), error('No connection type given (com, serialport'); end
+         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, serialport'); end
 
          %If there is a second argument given, send a write command to the instrument prior to reading
          if nargin > 1
@@ -295,7 +325,7 @@ classdef instrumentType < handle
          end
 
          %Dependent on connection type and whether query command is given, send commands to instrument to obtain data
-         switch lower(h.connectionType)
+         switch lower(h.uncommonProperties.connectionType)
              case {'com','visadev'}
                if nargin > 1
                   writeline(h.handshake,queryCommand)
@@ -310,10 +340,10 @@ classdef instrumentType < handle
       end
 
       function h = writeInstrument(h,commandInput)
-         if isempty(h.connectionType), error('No connection type given (com, serialport'); end
+         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, serialport'); end
 
          %Dependent on connection type, send command to instrument
-         switch lower(h.connectionType)
+         switch lower(h.uncommonProperties.connectionType)
              case {'com','visadev'}
                writeline(h.handshake,commandInput)               
             case 'serialport'
@@ -428,10 +458,6 @@ classdef instrumentType < handle
             s(indexToAdd+1:end+1) = s(indexToAdd:end);
          end
 
-         assignin("base","indexToAdd",indexToAdd)
-         assignin("base","valuesToAdd",valuesToAdd)
-         assignin("base","s",s)
-
          if isempty(s)
              s = valuesToAdd;
          end
@@ -444,7 +470,7 @@ classdef instrumentType < handle
          switch lower(userIdentifier)
             case {'srs','srs_rf','srs rf','srsrf'}
                properIdentifier = 'SRS RF';
-            case {'wf','windfreak','wind freak','wind_freak'}
+            case {'wf','windfreak','wind freak','wind_freak','wf rf','wf_rf'}
                properIdentifier = 'WF RF';
             case {'pulse_blaster','pulse blaster','pb','pulseblaster','spincore'}
                properIdentifier = 'Pulse Blaster';
@@ -452,7 +478,7 @@ classdef instrumentType < handle
                properIdentifier = 'PI Stage';
             case {'daq','data','data acquisition','data_acquisition','dataacquisition','ni','ni daq','ni_daq','nidaq'}
                properIdentifier = 'NI DAQ';
-            case {'hamm','ham','hamamatsu','hammcam','hamcam'}
+             case {'hamm','ham','hamamatsu','hammcam','hamcam','cam','camera'}
                properIdentifier = 'Hamamatsu';
             case {'ddl','dynamic delay line','dynamicdelayline','dynamic_delay_line'}
                properIdentifier = 'DDL';

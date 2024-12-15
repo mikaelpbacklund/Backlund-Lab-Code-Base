@@ -6,10 +6,6 @@ classdef DAQ_controller < instrumentType
 
    %To change ports in use, you need to disconnect the DAQ, change the
    %config, then reconnect
-   
-   %TO CHANGE: 
-   %add presets for dataChannel, maxRate (embedded),
-   %continuousCollection, and differentiateSignal (embedded)
 
    properties (Dependent)
       %User editable, stored within handshake
@@ -50,16 +46,13 @@ classdef DAQ_controller < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'channelInfo','clockPort','manufacturer'};
+         configFields = {'channelInfo','clockPort','manufacturer','identifier','sampleRate'};
          commandFields = {};
          numericalFields = {};%has units, conversion factor, and min/max         
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
-
-         %Set identifier as given name
-         h.identifier = configFileName;
       end
       
-      function h = connect(h)         
+      function h = connect(h)  
          if h.connected
             warning('DAQ is already connected')
             return
@@ -102,6 +95,10 @@ classdef DAQ_controller < instrumentType
          
          %Finds the non-simulated device and stores that as the name
          h.daqName = c(~isSimulated);
+
+         if numel(h.daqName) > 1
+             error('Multiple DAQs detected')
+         end
          
          %Stores list of names of ports corresponding to various types of
          %inputs
@@ -161,17 +158,16 @@ classdef DAQ_controller < instrumentType
             %while differentiation of S/R is enabled, stop this function
             if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
                   || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable < 5
-               return
+                return
             end
             
             %Read off the data from the device in matrix form
-            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
-            
+            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix");             
             
             if strcmpi(collectionInfo.dataType,'EdgeCount')
                %Take difference between each data point and the prior one.
                %This is what is used to actually measure count increases
-                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));
+                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));                
                 
                 %Create logical vector corresponding to whether a
                 %difference should be counted or not
@@ -190,10 +186,17 @@ classdef DAQ_controller < instrumentType
                   sig = sum(counterDifference(signalOn & dataOn));
                   ref = sum(counterDifference(~signalOn & dataOn));
                end
+               handshake.UserData.currentCounts = unsortedData(end,collectionInfo.dataChannelNumber);
+               if ref < 0 || sig < 0
+                   assignin("base","rawDataFromDAQ",unsortedData)
+                   warning('Negative counts obtained, discarding data')
+                   ref = 0;
+                   sig = 0;
+               end
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)
-                   assignin('base','unsortedData',unsortedData)
+%                    assignin('base','unsortedData',unsortedData)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
                        ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
@@ -219,7 +222,10 @@ classdef DAQ_controller < instrumentType
             %Increase number of data points taken. Used primarily for
             %analog to find average voltage
             handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
+            elseif ~isfield(handshake.UserData,'nPoints')
+                handshake.UserData.nPoints = 0;
             end
+
              catch ME
                  if ~isfield(handshake.UserData,'numErrors')
                      handshake.UserData.numErrors = 1;
@@ -233,6 +239,17 @@ classdef DAQ_controller < instrumentType
 
          end
 
+      end
+      
+      function h = disconnect(h)
+
+         if ~h.connected    
+             return;   
+         end
+         if ~isempty(h.handshake)
+            h.handshake = [];
+         end
+         h.connected = false;
       end
       
       function h = addChannel(h,channelInfo)
@@ -328,9 +345,9 @@ classdef DAQ_controller < instrumentType
             h.handshake.UserData.reference = 0;
             h.handshake.UserData.signal = 0;
             h.handshake.UserData.nPoints = 0;
+            h.handshake.UserData.currentCounts = 0;   
             %Turn on collection
-            if ~h.handshake.Running, start(h.handshake,"continuous"), end
-            
+            if ~h.handshake.Running, start(h.handshake,"continuous"), end     
          else
             if h.handshake.Running, stop(h.handshake), end
             resetcounters(h.handshake)
@@ -339,7 +356,7 @@ classdef DAQ_controller < instrumentType
       end
       
       function varargout = readData(h)
-         if h.handshake.UserData.differentiateSignal
+         if strcmp(h.differentiateSignal,'on')
             varargout{1} = h.handshake.UserData.reference;
             varargout{2} = h.handshake.UserData.signal;
          elseif strcmp(h.continuousCollection,'on')
@@ -374,7 +391,10 @@ classdef DAQ_controller < instrumentType
       end      
 
       function set.continuousCollection(h,val)
-         h = setParameter(h,val,'continuousCollection'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'continuousCollection');
+         if strcmpi(instrumentType.discernOnOff(val),'off')
+             h = setParameter(h,'off','differentiateSignal');%#ok<NASGU>
+         end
       end
       function val = get.continuousCollection(h)
          val = getParameter(h,'continuousCollection');
@@ -388,7 +408,10 @@ classdef DAQ_controller < instrumentType
       end
 
       function set.differentiateSignal(h,val)
-         h = setParameter(h,val,'differentiateSignal'); %#ok<NASGU>
+         h = setParameter(h,instrumentType.discernOnOff(val),'differentiateSignal');
+         if strcmpi(instrumentType.discernOnOff(val),'on')
+             h = setParameter(h,'on','continuousCollection');%#ok<NASGU>
+         end
       end
       function val = get.differentiateSignal(h)
          val = getParameter(h,'differentiateSignal');

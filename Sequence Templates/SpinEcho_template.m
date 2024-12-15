@@ -3,30 +3,29 @@ function [varargout] = SpinEcho_template(h,p)
 %h is pulse blaster object, p is parameters structure
 %τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
 
-parameterFieldNames = ["RFResonanceFrequency","piTime","tauStart","tauEnd","tauNSteps","tauStepSize",...
-   "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration"];
+%Creates default parameter structure
+defaultParameters.RFResonanceFrequency = [];
+defaultParameters.piTime = [];
+defaultParameters.tauStart = [];
+defaultParameters.tauEnd = [];
+defaultParameters.tauNSteps = [];
+defaultParameters.tauStepSize = [];
+defaultParameters.sequenceTimePerDataPoint = 1;
+defaultParameters.collectionDuration = 1000;
+defaultParameters.collectionBufferDuration = 100;
+defaultParameters.repolarizationDuration = 7000;
+defaultParameters.intermissionBufferDuration = 1000;
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;
+defaultParameters.extraRF = 0;
+defaultParameters.AOMCompensation = 0;
+defaultParameters.IQBuffers = [0,0];
+
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
-if isempty(h)
-   %Creates default parameter structure
-   parameterStructure.RFResonanceFrequency = [];
-   parameterStructure.piTime = [];
-   parameterStructure.tauStart = [];
-   parameterStructure.tauEnd = [];
-   parameterStructure.tauNSteps = [];
-   parameterStructure.tauStepSize = [];
-   parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 1000;
-   parameterStructure.collectionBufferDuration = 1000;
-   parameterStructure.repolarizationDuration = 7000;
-   parameterStructure.intermissionBufferDuration = 2500;
-   parameterStructure.extraRF = 0;
-   parameterStructure.AOM_DAQCompensation = 0;
-   parameterStructure.IQPreBufferDuration = 0;
-   parameterStructure.IQPostBufferDuration = 0;
-
-   varargout{1} = parameterStructure;%returns default parameter structure as first output
+if isempty(h)   
+   varargout{1} = defaultParameters;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
    return
@@ -45,15 +44,12 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
-%Creates single array for I/Q pre and post buffers
-IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
-
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.tauStart - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
-exportedTauEnd = p.tauEnd - (sum(IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauStart = p.tauStart - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauEnd = p.tauEnd - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
 
 %Error check for τ duration
 if min([exportedTauStart,exportedTauEnd]) <= 0
@@ -102,10 +98,11 @@ for rs = 1:2 %singal half and reference half
 end
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
+h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
+    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);

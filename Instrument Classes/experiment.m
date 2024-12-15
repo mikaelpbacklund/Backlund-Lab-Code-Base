@@ -1,7 +1,4 @@
 classdef experiment
-   %To do:
-   %Multi-dimensional scans
-   %Scan multiple variables at once (e.g. x and y spatial axes or RF frequency and pulse duration)
 
    properties
       scan %Structure containing info specific to each scan within the broader operation
@@ -12,10 +9,14 @@ classdef experiment
       forcedCollectionPauseTime = .1;%To fully compensate for DAQ and pulse blaster and prevent periodic changes in data collected
       nPointsTolerance = .01;
       maxFailedCollections = 9;
+      notifications = false;
+      data
+      optimizationInfo
+      randomizeScanPoints = false;
    end
 
    properties (Hidden)
-       debugging
+      debugging
    end
 
    properties (Dependent)
@@ -37,19 +38,19 @@ classdef experiment
    properties (SetAccess = protected, GetAccess = public)
       %Read-only
       instrumentIdentifiers
-      data %Stores data for each data point within a scan including its iteration
+      instrumentClasses
       instrumentCells
    end
 
    methods
 
-       function h= takeNextDataPoint(h,acquisitionType)
+      function h= takeNextDataPoint(h,acquisitionType)
          %Check if valid configuration (always need PB and DAQ, sometimes
          %needs RF or stage, rarely needs laser)
 
          %If the odometer is at the max value, end this function without
          %incrementing anything
-         if all(h.odometer == [h.scan.nSteps])
+         if all(cell2mat(h.odometer) == [h.scan.nSteps])
             return
          end
 
@@ -59,7 +60,10 @@ classdef experiment
          %Determine which scans need to be changed. Scans whose odometer
          %value isn't changed don't need to be set again. Often gets 1
          %value corresponding to the most nested scan being incremented
-         needChanging = find(newOdometer ~= h.odometer);
+         needChanging = find(cell2mat(newOdometer) ~= cell2mat(h.odometer));
+
+         %Sets odometer to the incremented value
+         h.odometer = newOdometer;
 
          for ii = needChanging
             %Sets the instrument's parameter to the value determined by
@@ -67,70 +71,62 @@ classdef experiment
             h = setInstrument(h,ii);
          end
 
-         %Sets odometer to the incremented value
-         h.odometer = newOdometer;
-
-         %If no acquisition type given, do not acquire data
-         if strcmpi(acquisitionType,'none') || strcmpi(acquisitionType,'')
-             return
-         end
-
          %Actually takes the data using selected acquisition type
          [h,dataOut,nPoints] = getData(h,acquisitionType);
 
          %Increments number of data points taken by 1
-         h.data.iteration(h.odometer) = h.data.iteration(h.odometer) + 1;
+         h.data.iteration(h.odometer{:}) = h.data.iteration(h.odometer{:}) + 1;
 
          %Takes data and puts it in the current iteration spot for this
          %data point
-         h.data.values{h.odometer,h.data.iteration(h.odometer)} = dataOut;
-         h.data.nPoints(h.odometer,h.data.iteration(h.odometer)) = nPoints;         
+         currentIteration = h.data.iteration(h.odometer{:});
+         h.data.values{h.odometer{:},currentIteration} = dataOut;
+         h.data.nPoints(h.odometer{:},currentIteration) = nPoints;
       end
 
       function h = setInstrument(h,scanToChange)
          currentScan = h.scan(scanToChange);%Pulls current scan to change
+         currentScan.odometer = h.odometer{scanToChange};
+
+         currentScan.identifier = instrumentType.giveProperIdentifier(currentScan.identifier);
 
          if ~isa(currentScan.bounds,'cell')%Cell indicates multiple new values
             if h.useManualSteps
                newValue = h.manualSteps{scanToChange};
-               if h.odometer(scanToChange) == 0
+               if currentScan.odometer == 0
                   newValue = newValue(1);
                else
-                  newValue = newValue(h.odometer(scanToChange));
+                  newValue = newValue(currentScan.odometer);
                end
             else
-               newValue = currentScan.bounds(1) + currentScan.stepSize*(h.odometer(scanToChange)-1);%Computes new value
+               newValue = currentScan.bounds(1) + currentScan.stepSize*(currentScan.odometer-1);%Computes new value
+               
             end
          else
-            for ii = 1:numel(currentScan.bounds)
-               newValue = zeros([numel(currentScan.bounds) 1]);
+             newValue = zeros([numel(currentScan.bounds) 1]);
+            for ii = 1:numel(currentScan.bounds)               
                if h.manualSteps
                   %Get the manual steps for the current scan, for
                   %the address dictated by the loop, for the
                   %current step of that scan
-                  if h.odometer(scanToChange) == 0
+                  if currentScan.odometer == 0
                      newValue(ii) = h.manualSteps{scanToChange}{ii}(1);
                   else
-                     newValue(ii) = h.manualSteps{scanToChange}{ii}(h.odometer(scanToChange));
+                     newValue(ii) = h.manualSteps{scanToChange}{ii}(currentScan.odometer);
                   end
                else
-                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(h.odometer(scanToChange));
+                  newValue(ii) = currentScan.bounds{ii}(1) + currentScan.stepSize(ii)*(currentScan.odometer-1);
                end
             end
-         end 
+         end
 
          if strcmp(currentScan.identifier,'forcedCollectionPauseTime')
-             h.forcedCollectionPauseTime = newValue;
-%              if mod(h.odometer,2) == 1
-%                  h.SRS_RF.amplitude = 10;
-%              else
-%                  h.SRS_RF.amplitude = 9;
-%              end
-             return
+            h.forcedCollectionPauseTime = newValue;
+            return
          end
 
          %Sets instrument to whatever was found above
-         relevantInstrument = h.instrumentCells{findInstrument(h,currentScan.identifier)};         
+         relevantInstrument = h.instrumentCells{findInstrument(h,currentScan.identifier)};
 
          %Does heavy lifting of actually sending commands to instrument
          switch class(relevantInstrument)
@@ -139,9 +135,8 @@ classdef experiment
                switch lower(currentScan.parameter)
                   case 'frequency'
                      relevantInstrument.frequency = newValue;
-                     pause(.1)
-                   case 'amplitude'
-                      relevantInstrument.amplitude = newValue;
+                  case 'amplitude'
+                     relevantInstrument.amplitude = newValue;
                end
 
             case 'pulse_blaster'
@@ -165,9 +160,11 @@ classdef experiment
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
                      relevantInstrument = sendToInstrument(relevantInstrument);
+                   otherwise
+                       error('unknown scan parameter')
                end
 
-            case 'stage'               
+            case 'stage'
                if isscalar(newValue) %Only 1 axis
                   relevantInstrument = absoluteMove(relevantInstrument,currentScan.parameter,newValue);
                else %Multiple axes moving simultaneously
@@ -176,7 +173,7 @@ classdef experiment
                      currentAxis = axisNames(ii);
                      relevantInstrument = absoluteMove(relevantInstrument,currentAxis,newValue(ii));
                   end
-               end               
+               end
          end
 
          %Feeds instrument info back out
@@ -194,15 +191,17 @@ classdef experiment
          %Optional:
          %Scan label (arbitrary, used for display)
 
+         mustContainField(scanInfo,{'bounds','parameter'})
+         if any(cellfun(@isempty,{scanInfo.identifier})) || any(cellfun(@isempty,{scanInfo.parameter}))
+            error('All fields must contain non-empty values for each scan')
+         end
+
+         %Sets identifier to proper name
+         scanInfo.identifier = instrumentType.giveProperIdentifier(scanInfo.identifier);
+
          %If you are using a manual scan, much of the scan addition process
          %is different
          if h.useManualSteps
-            mustContainField(scanInfo,{'bounds','parameter'})
-            if any(cellfun(@isempty,{scanInfo.identifier})) || any(cellfun(@isempty,{scanInfo.parameter}))
-               error('All fields must contain non-empty values for each scan')
-            end
-            scanInfo = mustContainField(scanInfo,'notes',[scanInfo.identifier ' ' scanInfo.parameter]);
-
             %Computes bounds and number of steps for each scan dimension
             n = cellfun(@numel,h.manualSteps);
             b(:,1) = cellfun(@min,h.manualSteps);
@@ -217,19 +216,8 @@ classdef experiment
             return
          end
 
-         %Scan must have bounds, parameter, and instrument name
-         mustContainField(scanInfo,{'bounds','parameter'})
-
-         %Checks for any empty values
-         if any(cellfun(@isempty,{scanInfo.bounds})) || any(cellfun(@isempty,{scanInfo.identifier})) || any(cellfun(@isempty,{scanInfo.parameter}))
-            error('All fields must contain non-empty values for each scan')
-         end
-
-         %Scan can optionally have notes field. If it does not, default is
-         %derived from instrument and parameter names
-         scanInfo = mustContainField(scanInfo,'notes',{[scanInfo.identifier ' ' scanInfo.parameter]});
-
-         if ~isfield(scanInfo,'stepSize') && ~isfield(scanInfo,'nSteps')
+         if (~isfield(scanInfo,'stepSize') || isempty(scanInfo.stepSize))...
+                 && (~isfield(scanInfo,'nSteps') && ~isempty(scanInfo.nSteps))
             error('Scan must contain either stepSize or nSteps field')
          end
 
@@ -238,9 +226,9 @@ classdef experiment
          %like assigning a variable before taking each element or
          %needing a for loop to assign every element in a field
          %Note on note: I don't remember what I was doing here****
-%          if any(cellfun(@isempty,{scanInfo.stepSize}))
-%             error('All fields must contain non-empty values for each scan')
-%          end
+         %          if any(cellfun(@isempty,{scanInfo.stepSize}))
+         %             error('All fields must contain non-empty values for each scan')
+         %          end
          % if any(cellfun(@isempty,{scanInfo.stepSize}))
          %    error('All fields must contain non-empty values for each scan')
          % end
@@ -248,9 +236,9 @@ classdef experiment
          b = [scanInfo.bounds];
          if ~isa(b,'cell'),     b = {b};      end
 
-         if isfield(scanInfo,'stepSize')
+         if isfield(scanInfo,'stepSize') && ~isempty(scanInfo.stepSize)
             s = [scanInfo.stepSize];
-            n = cellfun(@(x)x(2)-x(1),b);
+            n = cellfun(@(x)abs(x(2)-x(1)),b);
 
             if isscalar(n)
                n = n(1) ./ s;
@@ -285,31 +273,11 @@ classdef experiment
          end
       end
 
-      function h = validateExperimentalConfiguration(h,acquisitionType)
-         %Checks instrument cells and scan settings to see if the necessary
-         %connections have been made
+      function h = validateExperimentalConfiguration(h)
+         %Deprecated function previously checking if correct instruments were connected
 
-         return %**********very temporary
-
-         h = getInstrumentNames(h);
-
-         switch lower(acquisitionType)
-            case 'pulse sequence'
-               checkInstrument(h,'pulse_blaster',acquisitionType)
-               checkInstrument(h,'DAQ_controller',acquisitionType)
-            case 'scmos'
-            otherwise
-               error('acquisitionType must be ''pulse sequence'' or ''sCMOS''')
-         end
-
-         %If there isn't a scan, nothing else required to check
-         if isempty(h.scan)
-            return
-         end
-
-         for ii = {h.scan.identifier}
-            checkInstrument(h,ii{1})
-         end
+         return 
+         
       end
 
       function dataMatrix = createDataMatrixWithIterations(h,varargin)
@@ -322,37 +290,45 @@ classdef experiment
          %2nd argument is cell corresponding to the specific data point
          %within the scan
          if nargin > 1 && ~isempty(varargin{1})
-            dataPoint = varargin{1};
+            dataPoint = num2cell(varargin{1});
          else
             dataPoint = h.odometer;
          end
-     
-         if h.data.iteration(dataPoint) == 0
-             dataMatrix = nan;
+
+         currentIteration = h.data.iteration(dataPoint{:});
+         if currentIteration == 0
+            dataMatrix = nan;
+            return
+         elseif currentIteration == 1
+             dataMatrix = h.data.values{dataPoint{:}}';
              return
          end
 
-         %Gets the data for all iterations of the current point according to the odometer or optional input
-         currentData = h.data.values(dataPoint,:);
+         if ~isa(h.data.values,'cell')
+             dataMatrix = h.data.values(dataPoint{:},:);
+             return
+         end
+
+         %Gets the data for all iterations of the current point according to the odometer or optional input          
+         currentData = squeeze(h.data.values(dataPoint{:},:));      
 
          %Deletes all the data points that are empty
          currentData(isempty(currentData)) = [];
 
          %Used to find dimensionality
-         comparisonMatrix = squeeze(currentData{1});
+         comparisonMatrix = currentData{1};
 
          if any(size(comparisonMatrix) == 1) %Only happens for a vector
 
-             %Creates 2 dimensional matrix where first dimension is of size
-             %of data vector while second dimension is of number of
-             %iterations
-             dataMatrix = zeros([numel(comparisonMatrix) numel(currentData)]);
+            %Creates 2 dimensional matrix where first dimension is of size
+            %of data vector while second dimension is of number of
+            %iterations
+            dataMatrix = zeros([numel(comparisonMatrix) currentIteration]);
 
-             
-             for i = 1:numel(currentData)
-                 dataMatrix(:,i) = currentData{i};
-             end
-             return
+            for ii = 1:numel(currentData)
+               dataMatrix(:,ii) = currentData{ii};
+            end
+            return
          end
 
          s.type = '()';
@@ -365,9 +341,9 @@ classdef experiment
          dataMatrix = zeros([size(comparisonMatrix) numel(currentData)]);
 
          %Converts the "cell" dimension into an additional matrix dimension
-         for i = 1:numel(currentData)%For each cell
-             s.subs{end} = i;
-             dataMatrix = subsasgn(dataMatrix,s,currentData{i});
+         for ii = 1:numel(currentData)%For each cell
+            s.subs{end} = ii;
+            dataMatrix = subsasgn(dataMatrix,s,currentData{ii});
          end
       end
 
@@ -375,28 +351,39 @@ classdef experiment
          %Sets the scan to the starting value for each dimension of the
          %scan
          h = getInstrumentNames(h);
-         h.odometer = ones(1,numel(h.scan));
+         h.odometer = num2cell(ones(1,numel(h.scan)));
          for ii = 1:numel(h.odometer)
             h = setInstrument(h,ii);
          end
-         h.odometer(end) = 0;         
+         h.odometer{end} = 0;
+
+         %Reset which points are completed for only current plots
+         if ~isempty(h.plots)
+             plotNames = fieldnames(h.plots);
+             isCurrent = contains(lower(plotNames),'current');
+             if any(isCurrent)
+                 plotNames = plotNames(isCurrent);
+                 for ii = 1:numel(plotNames)
+                     h.plots.(plotNames{ii}).completedPoints(:) = false;
+                 end
+             end
+         end
+
       end
 
       function h = resetAllData(h,resetValue)
          %Resets all stored data within the experiment object
 
-         %If the reset value isn't a cell, make it a 1x1 cell
-%          if ~isa(resetValue,'cell')
-%             a{1} = resetValue;
-%             resetValue = a;
-%          end
-
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
-         h.data.iteration = squeeze(zeros(1,h.scan.nSteps(1)));
+         if isscalar(h.scan)
+            h.data.iteration = zeros(1,h.scan.nSteps);
+         else
+            h.data.iteration = zeros([h.scan.nSteps]);
+         end
 
          %Makes cell array of equivalent size to above
-         h.data.values = num2cell(h.data.iteration)';%***** check '
+         h.data.values = num2cell(h.data.iteration)';
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -407,248 +394,400 @@ classdef experiment
 
          h.data.nPoints = h.data.iteration';
          h.data.failedPoints = h.data.iteration';
+
+         %Reset which points are completed
+         if ~isempty(h.plots)
+             plotNames = fieldnames(h.plots);
+             for ii = 1:numel(plotNames)
+                 h.plots.(plotNames{ii}).completedPoints(:) = false;
+             end
+         end
       end
 
       function h = getInstrumentNames(h)
          %For each instrument get the "proper" identifier
          if isempty(h.instrumentCells)
             h.instrumentIdentifiers = [];
+            h.instrumentClasses = [];
          else
             h.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),h.instrumentCells,'UniformOutput',false);
-         end 
+            h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
+         end         
       end
 
-      function h = stageOptimization(h,algorithmType,acquisitionType,sequence,varargin)
-         %sequence.steps: cell array of vectors corresponding to the steps for
-         %each axis
-         %sequence.axes: axes that should be moved during optimization
-         %sequence.consecutive: boolean for running axes consecutively or like
-         %a scan
+      function h = stageOptimization(h)
 
-         %*****Make sequence, RF status, and data cell all part of settings
-         %input to cut down on number of inptus
+         %Steps input should be cell array with number of elements equivalent to number of axes in sequence.axes
+         %Each element should be a vector of relative positions that should be tested
+         %e.g. {[-1,-.75,-.5,-.25,0,.25,.5,.75,1],[-2,-1.5,-1,-.5,0,.25,.5]} for {'x','y'}
 
-         if nargin > 4
-            rfStatus = varargin{1};
+         optInfo = h.optimizationInfo;%shorthand
+
+         optInfo.acquisitionType = experiment.discernExperimentType(optInfo.acquisitionType);
+
+         if strcmp(optInfo.acquisitionType,'none')
+            error('Cannot perform stage optimization without acquiring data')
+         end
+         
+         if h.notifications
+             nTotalSteps = sum(cellfun(@(x)numel(x),optInfo.steps));
+            fprintf('Beginning optimization (%d steps, %.2f seconds per step)\n',nTotalSteps,optInfo.timePerPoint);
          end
 
-         %Steps must be pre-programmed
-         mustContainField(sequence,{'steps','axes','consecutive'})
+         %If using pulse sequence to collect data, change sequence
+         if strcmp(optInfo.acquisitionType,'pulse sequence')
+            %Store old sequence then delete to clear way for new sequence
+            oldSequence = h.pulseBlaster.userSequence;            
+            h.pulseBlaster = deleteSequence(h.pulseBlaster);
 
-         %steps input should look like:
-         %[-2,-1.5,-1,-.5,0,.5,1,1.5,2]
-         %Find current position then add steps to that to get the actual
-         %values
-         axisNumbers = zeros(1,numel(sequence.axes));
-         for ii = 1:numel(sequence.steps)
-            %Gets the number corresponding to the axis
-            axisNumbers(ii) = find(strcmpi(sequence.axes{ii},h.PIstage.axisSum(:,1)));
-            if isempty(axisNumbers(ii))
-               error('%d axis in optimization sequence doesn''t correspond to any axis in the stage object',axisNumbers(ii))
+            %Store old total loop settings then set to no total loop
+            oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
+            h.pulseBlaster.useTotalLoop = false;
+
+            %Creates sequence depending on RF status
+            switch optInfo.rfStatus
+               case {'on',true,'sig'}
+
+                  %Basic data collection
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','RF'},500,'Initial buffer');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF'},optInfo.timePerPoint*1e9,'Taking data');
+
+               case {'off',false,'ref'}
+
+                  %Basic data collection
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM'},500,'Initial buffer');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},optInfo.timePerPoint*1e9,'Taking data');
+
+                case {'contrast','con','snr','signaltonoise','signal to noise','noise'}
+
+                  %ODMR sequence
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Initial buffer');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ'},(optInfo.timePerPoint*1e9)/2,'Reference');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{},2500,'Middle buffer signal off');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'AOM','DAQ','RF','Signal'},(optInfo.timePerPoint*1e9)/2,'Signal');
+                  h.pulseBlaster = condensedAddPulse(h.pulseBlaster,{'Signal'},2500,'Final buffer');                  
+
+               otherwise
+                  error('RF status (.rfStatus) must be "on", "off", or "contrast"')
             end
-            %Makes steps into absolute locations instead of relative for ease
-            %of input later
-            sequence.steps{ii} = sequence.steps{ii} + h.PIstage.axisSum{axisNumbers(ii),2};
+
+            %Send new sequence to instrument
+            h.pulseBlaster = sendToInstrument(h.pulseBlaster);
          end
 
-         switch lower(acquisitionType)
-            case 'pulse sequence'
-               %Stores old information about pulse sequence for retrieval
-               %after optimization
-               oldSequence = h.pulseBlaster.userSequence;
-               oldUseTotalLoop = h.pulseBlaster.useTotalLoop;
-               h.pulseBlaster.userSequence = [];
-               h.pulseBlaster.useTotalLoop = false;
+         optInfo.stageAxes = string(optInfo.stageAxes);       
 
-               if ~exist('rfStatus','var')
-                  assignin('base','rfStatus',rfStatus)
-                  error('RF status (6th argument) must be ''on'' ''off'' or ''contrast''')
-               end
-               switch rfStatus
-                  case {'off','on'}
-                     channels{1} = {'laser'};
-                     channels{2} = {'laser','data'};
-                     if strcmpi(rfStatus,'on')
-                        channels{1}{end+1} = 'rf';
-                        channels{2}{end+1} = 'rf';
-                     end
+         %Performs stage movement, gets data for each location, then moves to best location along each axis
+         for ii = 1:numel(optInfo.stageAxes)
 
-                     clear pulseInfo
-                     pulseInfo.activeChannels = channels{1};
-                     pulseInfo.duration = 500;
-                     pulseInfo.notes = 'Initial buffer';
-                     h.pulseBlaster = addPulse(h.pulseBlaster,pulseInfo);
+            %Creates empty cell array for storing data
+            rawData = cell(1,numel(optInfo.steps{ii}));
 
-                     clear pulseInfo
-                     pulseInfo.activeChannels = channels{2};
-                     pulseInfo.duration = 1e7; %10 milliseconds
-                     pulseInfo.notes = 'Taking data';
-                     h.pulseBlaster = addPulse(h.pulseBlaster,pulseInfo);
+            %Gets row of the current axis
+            axisRow = strcmpi(h.PIstage.axisSum(:,1),optInfo.stageAxes(ii));
+            %Finds absolute axis locations using step info and current location
+            stepLocations = optInfo.steps{ii} + h.PIstage.axisSum{axisRow,2};
 
-                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+            for jj = 1:numel(optInfo.steps{ii})
+               %Moves to location for taking this data
+               h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),stepLocations(jj));
 
-                  case 'contrast'
-                  otherwise
-                     assignin('base','rfStatus',rfStatus)
-                     error('RF status (6th argument) must be ''on'' ''off'' or ''contrast''')
-               end
-            case 'scmos'
+               %Get data at this location
+               [h,rawData{jj}] = getData(h,optInfo.acquisitionType);
+            end
 
-         end
-
-
-         if sequence.consecutive
-            %Default way, runs each axis consecutively
-
-            for ii = 1:numel(sequence.axes)
-               spatialAxis = sequence.axes{ii};
-               dataVector = zeros(1,numel(sequence.steps{ii}));
-               for jj = 1:numel(sequence.steps{ii})
-                  %Moves to location for taking this data
-                  h.PIstage = absoluteMove(h.PIstage,spatialAxis,sequence.steps{ii}(jj));
-
-                  %Get data at this location
-                  [h,dataOut] = getData(h,acquisitionType);
-                  switch rfStatus
-                     case {'off','on'}
-                        dataVector(jj) = dataOut(1);
-                     case 'contrast'
-                        dataVector(jj) = (dataOut(1) - dataOut(2))/dataOut(1);
+            %After acquiring data, use below algorithms to get single value to fit for each location
+            switch optInfo.acquisitionType
+               case 'pulse sequence'
+                  switch optInfo.rfStatus
+                      case {'off','on',true,false,'ref','sig'}
+                        dataVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                        dataVector = cell2mat(dataVector);
+                     case {'con','contrast'}
+                        dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                        dataVector = cell2mat(dataVector);
+                      case {'snr','signaltonoise','signal to noise','noise'}
+                          conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                          refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                          conVector = cell2mat(conVector);
+                          refVector = cell2mat(refVector);
+                          dataVector = conVector .* (refVector .^ (1/2));
                   end
+               case 'scmos' %unimplemented
+            end
+            
+            %Use optimization algorithm to get max value and position
+            [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,optInfo.algorithmType);
+
+            %Store all values obtained if enabled
+            if optInfo.storeAllValues
+               h.optimizationInfo.allValuesRecord{ii,end+1} = dataVector;
+               %Prevent memory leak by deleting values if past 100,000 elements
+               if numel(h.optimizationInfo.allValuesRecord) > 1e5
+                  h.optimizationInfo.allValuesRecord(:,1:1e4) = [];
                end
-
-               assignin('base',"dataVector",dataVector)
-
-               [~,maxPosition] = experiment.optimizationAlgorithm(dataVector,sequence.steps{ii},algorithmType);
-               h.PIstage = absoluteMove(h.PIstage,spatialAxis,maxPosition);
-
-               assignin('base',"maxPosition",maxPosition)
-               assignin('base',"stepLocations",sequence.steps{ii})
             end
 
-         else
+            %Records maximum value and location
+           h.optimizationInfo.maxValueRecord(ii,end+1) = maxVal;
+           h.optimizationInfo.maxLocationRecord(ii,end+1) = maxPosition;
 
+           %Prevent memory leak by deleting values if past 100,000 elements
+           if numel(h.optimizationInfo.maxValueRecord) > 1e5
+              h.optimizationInfo.allValuesRecord(:,1:1e4) = [];
+              h.optimizationInfo.maxLocationRecord(:,1:1e4) = [];
+           end
+
+           %Move to maximum location
+            h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),maxPosition);
          end
 
          %Set pulse blaster back to previous sequence
-         if strcmpi(acquisitionType,'pulse sequence')
+         if strcmpi(optInfo.acquisitionType,'pulse sequence')
             h.pulseBlaster.useTotalLoop = oldUseTotalLoop;
             h.pulseBlaster.userSequence = oldSequence;
             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
          end
 
+         %Set current time as time of last optimization
+         h.optimizationInfo.lastOptimizationTime = datetime;
+         %Request new postOptimizationValue for comparison
+         h.optimizationInfo.needNewValue = true;      
+
+         if h.notifications
+            fprintf('Optimization complete\n')
+         end
+
+      end
+
+      function [h,performOptimization] = checkOptimization(h)
+         %Checks if stage optimization should occur based on time and percentage difference criteria
+         %performOptimization is boolean 
+
+         %Required fields and default values
+         optimizationDefaults = {'enableOptimization',true;...
+            'algorithmType','max value';...
+            'acquisitionType','pulse blaster';...
+            'stageAxes',[];...
+            'steps',[];...
+            'timePerPoint',.1;...
+            'timeBetweenOptimizations',120;...%0 means run optimization every time
+            'useTimer',false;...
+            'percentageToForceOptimization',.75;...
+            'usePercentageDifference',false;...
+            'needNewValue',false;...
+            'lastOptimizationTime',[];...
+            'maxValueRecord',[];...
+            'allValuesRecord',{};...
+            'storeAllValues',false;...
+            'maxLocationRecord',[];...
+            'postOptimizationValue',0;...
+            'rfStatus','off'};
+
+         %Checks if fields are present and gives default values
+         h.optimizationInfo = mustContainField(h.optimizationInfo,optimizationDefaults(:,1),optimizationDefaults(:,2));
+
+         %Shorthand
+         optInfo = h.optimizationInfo;
+
+         totalOn = strcmpi(instrumentType.discernOnOff(optInfo.enableOptimization),'on');
+         timerOn = strcmpi(instrumentType.discernOnOff(optInfo.useTimer),'on');
+         percentageOn = strcmpi(instrumentType.discernOnOff(optInfo.usePercentageDifference),'on');
+
+         %If optimization as a whole has been disabled, immediately return false
+         if ~totalOn
+            performOptimization = false;
+            return
+         end
+
+         %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
+         %OR
+         %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
+         if all(h.odometer{:} == 0) || (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+               || ...
+            (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
+               h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}(1) < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
+            performOptimization = true;
+         else
+            performOptimization = false;
+         end
       end
 
       function [h,dataOut,nPointsTaken] = getData(h,acquisitionType)
-          nPointsTaken = 0;%default to 0
+
+         %Gets "correct" name for experiment type
+         acquisitionType = experiment.discernExperimentType(acquisitionType);
+
+         %Don't collect data if set to none
+         if strcmpi(acquisitionType,'none')
+            return
+         end
+
+         nPointsTaken = 0;%default to 0
          switch lower(acquisitionType)
             case 'pulse sequence'
 
-                nPauseIncreases = 0;
-                originalPauseTime = h.forcedCollectionPauseTime;
-                %For slightly changing sequence to get better results
-                bufferPulses = findPulses(h.pulseBlaster,'active channels','data','contains') - 1;
-                bufferDuration = h.pulseBlaster.userSequence(bufferPulses(1)).duration;
+               nPauseIncreases = 0;
+               originalPauseTime = h.forcedCollectionPauseTime;
+               %For slightly changing sequence to get better results
+               bufferPulses = findPulses(h.pulseBlaster,'active channels','data','contains') - 1;
+               bufferDuration = h.pulseBlaster.userSequence(bufferPulses(1)).duration;
 
-                while true
-                    %Reset DAQ in preparation for measurement
-                    h.DAQ = resetDAQ(h.DAQ);
-                    h.DAQ.takeData = true;
+               while true
+                  %Reset DAQ in preparation for measurement
+                  h.DAQ = resetDAQ(h.DAQ);
+                  h.DAQ.takeData = true;
 
-                    pause(h.forcedCollectionPauseTime/2)
+                  pause(h.forcedCollectionPauseTime/2)
 
-                    %Start sequence
-                    runSequence(h.pulseBlaster)
+                  %Start sequence
+                  runSequence(h.pulseBlaster)
 
-                    %Wait until pulse blaster says it is done running
-                    while pbRunning(h.pulseBlaster)
-                        pause(.001)
-                    end
+                  n = 0;
 
-                    %Stop sequence. This allows pulse blaster to run the same
-                    %sequence again by calling the runSequence function
-                    stopSequence(h.pulseBlaster)
+                  %Wait until pulse blaster says it is done running
+                  while pbRunning(h.pulseBlaster)
+                      if strcmpi(h.DAQ.continuousCollection,'off')                          
+                          n = n+1;
+                          if n == 1
+                              dataOut = readData(h.DAQ);
+                          else
+                        dataOut = dataOut + readData(h.DAQ);
+                          end
+                      else
+                          pause(.001)
+                      end                     
+                  end
 
-                    pause(h.forcedCollectionPauseTime)
+                  %Stop sequence. This allows pulse blaster to run the same
+                  %sequence again by calling the runSequence function
+                  stopSequence(h.pulseBlaster)
 
-                    % Add something for outliers (more than 3 std devs
-                    % away) ***********
+                  pause(h.forcedCollectionPauseTime)
 
-                    h.DAQ.takeData = false;                    
-                    nPointsTaken = h.DAQ.dataPointsTaken;
-                    expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
-                    expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
-                    
-                    if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) && nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
-                        h.data.failedPoints(h.odometer,h.data.iteration(h.odometer)+1) = nPauseIncreases;
-                        if nPauseIncreases ~= 0
-                            h.forcedCollectionPauseTime = originalPauseTime;   
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration,false);
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration,false);
-                            h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-                        end
-                        break
-                    elseif nPauseIncreases < h.maxFailedCollections%SHOULD BE A PROPERTY OF EXPERIMENT******
-                        nPauseIncreases = nPauseIncreases + 1;
-%                         warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-%                             (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)                        
-                        h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
-                        %Usually hits aom/daq compensation but thats fine                        
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(1),'duration',bufferDuration + (2*nPauseIncreases),false);
-                        h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(2),'duration',bufferDuration + (2*nPauseIncreases),false);
-                        h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-                        pause(.1)%For next data point to come in before discarding the read
-                        %Discards any data that might have "carried
-                        %over" from the previous data point
-                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
-                    else
+                  % Add something for outliers (more than 3 std devs
+                  % away) ***********
+
+                  h.DAQ.takeData = false;
+
+                  if strcmpi(h.DAQ.continuousCollection,'off')
+                      dataOut = dataOut./n;
+                      break
+                  end
+                  nPointsTaken = h.DAQ.dataPointsTaken;
+                  expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                  expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
+
+                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) &&...
+                          nPointsTaken < expectedDataPoints *(1+h.nPointsTolerance)
+                          if ~all(cell2mat(h.odometer) == 0)
+                            h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
+                          end
+                     if nPauseIncreases ~= 0
                         h.forcedCollectionPauseTime = originalPauseTime;
-                        stop(h.DAQ.handshake)
-                        error('Failed %d times to obtain correct number of data points',nPauseIncreases)
+                        for ii = 1:numel(bufferPulses)
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                        end
+                        h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                     end
+                     break
+                  elseif nPauseIncreases < h.maxFailedCollections
+                     nPauseIncreases = nPauseIncreases + 1;
+                     if h.notifications
+                        warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                           (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
+                     end
+                     h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
+                     %Usually hits aom/daq compensation but thats fine
+                     for ii = 1:numel(bufferPulses)
+                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                     end
+                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                     pause(.1)%For next data point to come in before discarding the read
+                     %Discards any data that might have "carried
+                     %over" from the previous data point
+                     if h.DAQ.handshake.NumScansAvailable > 0
+                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                     end
+                  else
+                     h.forcedCollectionPauseTime = originalPauseTime;
+                     stop(h.DAQ.handshake)
+                     error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                         nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
 
-                    end
+                  end
 
-                end
+               end
 
-                if strcmp(h.DAQ.differentiateSignal,'on')
-                    dataOut(1) = h.DAQ.handshake.UserData.reference;
-                    dataOut(2) = h.DAQ.handshake.UserData.signal;
-                    if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
-                        dataOut(1:2) = dataOut(1:2) ./ h.DAQ.dataPointsTaken;
-                    end
-                else
-                    %Takes data and puts it in the current iteration spot for this
-                    %data point
-                    dataOut{1} = readData(h.DAQ);
-                end
+               if strcmpi(h.DAQ.continuousCollection,'on')
+                  dataOut(1) = h.DAQ.handshake.UserData.reference;
+                  dataOut(2) = h.DAQ.handshake.UserData.signal;
+                  %FIX THIS**** Should be dividing by signal data points or
+                  %reference data points, not total/2
+                  if strcmp(h.DAQ.dataAcquirementMethod,'Voltage')
+                     dataOut(1:2) = dataOut(1:2) ./ (h.DAQ.dataPointsTaken/2);
+                  end
+                  if h.DAQ.handshake.UserData.currentCounts > 3e9
+                      printOut(h.DAQ,'Counts nearing max value. Resetting counter')
+                      stop(h.DAQ.handshake)
+                      resetcounters(h.DAQ.handshake)
+                      start(h.DAQ.handshake)
+                  end
+               else
+                  %Takes data and puts it in the current iteration spot for this
+                  %data point
+                  
+               end
 
-             case 'scmos'
-                 %Takes image using the camera and the current settings
-                 [dataOut,frameStacks] = takeImage(h.hamm); %#ok<ASGLU>
+            case 'scmos'
+               %Takes image and outputs as data
 
-                 % %Adds frame stacks to data output
-                 % for ii = 1:numel(frameStacks)
-                 %     dataOut{end+1} = frameStacks{ii}; %#ok<AGROW>
-                 % end
+               %Output of takeImage is a cell array for meanImages where each cell is the average image for each set of
+               %bounds while frameStacks if a cell array where each cell is a 3D array where each 2D slice is one frame
+               %from the camera and each cell corresponds to a different set of bounds
+
+               %Takes image using the camera and the current settings
+               [meanImages,frameStacks] = takeImage(h.hamm);
+
+               %First column of cell array is the mean images
+               %Second column is the frame stacks
+               dataOut = meanImages;
+               if ~isempty(frameStacks)
+                  dataOut(:,2) = frameStacks;
+               end
+
+               %If only one output (mean image with 1 set of bounds), convert output to matrix
+               if isscalar(dataOut)
+                  dataOut = dataOut{1};
+               end
+
+               %List number of points taken as frames per trigger
+               nPointsTaken = h.hamm.framesPerTrigger;
          end
       end
 
       function h = plotData(h,dataIn,plotName,varargin)
-          %4th argument is y axis label for 1D plot
+         %4th argument is y axis label if desired
+         %5th argument is selecting which set of bounds to use if multiple are present (defaults to first)
+         %6th argument is boolean to flip scan axes (1st scan made y, 2nd made x)
+         %7th argument is update location. Defaults to current odometer location
+         %Expects matrix of numbers, no cell or strings etc.
+         %Does not work for 2D scans using manual steps
 
-          %Prevents errors in variable name by swapping space with
-          %underscore
-          plotTitle = plotName;
-          plotName(plotName==' ') = '_';
+         %Prevents errors in variable name by swapping space with
+         %underscore
+         plotTitle = plotName;
+         plotName(plotName==' ') = '_';
 
-          %Creates a figure if one does not already exist
-          if ~isfield(h.plots,plotName) ||  ~isfield(h.plots.(plotName),'figure') || ~ishandle(h.plots.(plotName).figure)
-              h.plots.(plotName).figure = figure('Name',plotTitle,'NumberTitle','off');
-          end
+         %Creates a figure if one does not already exist
+         if ~isfield(h.plots,plotName) ||  ~isfield(h.plots.(plotName),'figure') || ~ishandle(h.plots.(plotName).figure)
+            h.plots.(plotName).figure = figure('Name',plotTitle,'NumberTitle','off');
+         end
 
-          %Creates axes if one does not already exist
-          if ~isfield(h.plots.(plotName),'axes') || ~isvalid(h.plots.(plotName).axes)
-              h.plots.(plotName).axes = axes(h.plots.(plotName).figure);
+         %Creates axes if one does not already exist
+         if ~isfield(h.plots.(plotName),'axes') || ~isvalid(h.plots.(plotName).axes)
+            h.plots.(plotName).axes = axes(h.plots.(plotName).figure);
          end
 
          %If there is already some kind of data displayed (line or image)
@@ -658,100 +797,139 @@ classdef experiment
             replot = false;
          end
 
-         if isvector(dataIn) %1D
-            if numel(h.scan.nSteps) ~= 1
-               error('plotData function only works for 1D data when there is only 1 scan dimension')
-            end
-            if numel(dataIn) ~= h.scan.nSteps
-               error(strcat('plotData function only works for 1D data when the number',...
-                  ' of data points in the scan matches the number of data points given in argument 2'))
-            end
+         %Check for 1D vs 2D
+         %Find where CData is different and replace
 
-            if isa(h.scan.bounds,'cell') %REALLY BAD FIX HERE******
-                %x axis isn't the same. Assumed to be different plot entirely
-            if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds{1})) || ...
-                  (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
-               replot = true;
-            end
+         if isscalar(h.scan) %1D data
 
-            if replot
-               %Creates x axis from manual steps or from scan settings
-               if h.useManualSteps
-                  xAxis = h.manualSteps;
+            %If multiple sets of bounds, choose first or based on 5th argument
+            if isa(h.scan.bounds,'cell') && ~h.useManualSteps
+               if nargin >= 5 && ~isempty(varargin{2}) && isscalar(varargin{2})
+                  xBounds = h.scan.bounds{varargin{2}};
+                  stepSize = h.scan.stepSize(varargin{2});
                else
-                  xAxis = h.scan.bounds{1}(1):h.scan.stepSize:h.scan.bounds{1}(2);
+                  xBounds = h.scan.bounds{1};
+                  stepSize = h.scan.stepSize{1};
                end
-
-               %Creates the actual plot as a line
-               h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,dataIn);
-
-               %Add x and, optionally, y labels
-               xlabel(h.plots.(plotName).axes,h.scan.parameter)
-               if nargin > 3
-                  ylabel(h.plots.(plotName).axes,varargin{1})
-               end
-            else
-               h.plots.(plotName).dataDisplay.YData = dataIn;
-            end
-            else
-                %x axis isn't the same. Assumed to be different plot entirely
-            if (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= h.scan.bounds)) || ...
-                  (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
-               replot = true;
-            end
-
-            if replot
-               %Creates x axis from manual steps or from scan settings
-               if h.useManualSteps
-                  xAxis = h.manualSteps;
-               else
-                  xAxis = h.scan.bounds(1):h.scan.stepSize:h.scan.bounds(2);
-               end
-
-               %Creates the actual plot as a line
-               h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,dataIn);
-
-               %Add x and, optionally, y labels
-               xlabel(h.plots.(plotName).axes,h.scan.parameter)
-               if nargin > 3
-                  ylabel(h.plots.(plotName).axes,varargin{1})
-               end
-            else
-               h.plots.(plotName).dataDisplay.YData = dataIn;
-            end
+            elseif ~h.useManualSteps
+               xBounds = h.scan.bounds;
+               stepSize = h.scan.stepSize;
             end
 
             
+            
+            %x axis isn't the same. Assumed to be different plot entirely
+               if (~isfield(h.plots,plotName) || ~isfield(h.plots.(plotName),'axes') || ~isfield(h.plots.(plotName),'dataDisplay'))||...
+                       (~isvalid(h.plots.(plotName).axes) || ~isvalid(h.plots.(plotName).dataDisplay)) ||...
+                       (~h.useManualSteps && any(h.plots.(plotName).axes.XLim ~= xBounds) ||...
+                       (~h.useManualSteps && numel(h.plots.(plotName).dataDisplay.YData) ~= h.scan.nSteps))  || ...
+                     (h.useManualSteps && h.plots.(plotName).dataDisplay.XData ~= h.manualSteps)
+                  replot = true;
+               end
 
-         else %image
+               if replot
+                  %Creates x axis from manual steps or from scan settings
+                  if h.useManualSteps
+                     xAxis = h.manualSteps;
+                  else
+                     xAxis = xBounds(1):stepSize:xBounds(2);
+                  end
 
-            %Different image bounds
-            if ~replot && (size(dataIn,1) ~= h.plots.(plotName).dataDisplay.YData(2) || ...
-                  size(dataIn,2) ~= h.plots.(plotName).dataDisplay.XData(2))
-               replot = true;
-            end
+                  emptyData = zeros(1,h.scan.nSteps);
 
-            if replot
-               h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,dataIn);
-               h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
-               h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
+                  %Creates the actual plot as a line
+                  h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,emptyData);
+
+                  %Add x and, optionally, y labels
+                  xlabel(h.plots.(plotName).axes,h.scan.parameter)
+                  if nargin >= 4 && ~isempty(varargin{1})
+                     ylabel(h.plots.(plotName).axes,varargin{1})
+                  end
+                  title(h.plots.(plotName).axes,[plotTitle,', ',h.scan.notes])           
+               
+                  h.plots.(plotName).axes.XLim = xBounds;
+
+                  h.plots.(plotName).completedPoints = boolean(zeros(1,h.scan.nSteps));
+               end               
+
+               %Change current data point value
+               h.plots.(plotName).dataDisplay.YData(h.odometer{1}) = dataIn;   
+
+               %Set current data point to being completed
+               h.plots.(plotName).completedPoints(h.odometer{1}) = true;
+
+               %Replace value of all incomplete data points
+               completePoints = h.plots.(plotName).completedPoints;
+               if ~all(completePoints)
+                   meanVal = mean(h.plots.(plotName).dataDisplay.YData(completePoints));
+                   stdVal = std(h.plots.(plotName).dataDisplay.YData(completePoints));
+                   h.plots.(plotName).dataDisplay.YData(~completePoints) = meanVal-(stdVal*3);
+               end
+
+               return
+         end
+
+         %For 2D data
+
+         if h.useManualSteps
+            error('plotData function does not work for 2D data using manual steps')
+         end
+
+         for ii = 1:2
+            %Gets bounds and step size for both scans
+            if isa(h.scan(ii).bounds,'cell')
+               if nargin >= 5 && ~isempty(varargin{2}) && isscalar(varargin{2})
+                  imageBounds{ii} = h.scan(ii).bounds{varargin{2}}; %#ok<*AGROW>
+                  stepSize(ii) = h.scan(ii).stepSize{varargin{2}};
+                  nSteps(ii) = h.scan(ii).nSteps{varargin{2}};
+               else
+                  imageBounds{ii} = h.scan(ii).bounds{1};
+                  stepSize(ii) = h.scan(ii).stepSize{1};
+                  nSteps(ii) = h.scan(ii).nSteps{1};
+               end
             else
-                h.plots.(plotName).dataDisplay.CData = dataIn;
+               imageBounds{ii} = h.scan(ii).bounds;
+               stepSize(ii) = h.scan(ii).stepSize;
+               nSteps(ii) = h.scan(ii).nSteps;
             end
+            params{ii} = h.scan(ii).parameter;
+         end
 
+         %Flip scan order (make scan 2 x and scan 1 y)
+         if nargin >= 6 && ~isempty(varargin{3}) && varargin{3}
+            imageBounds = flip(imageBounds);
+            stepSize = flip(stepSize);
+            nSteps = flip(nSteps);
+            params = flip(params);
+         end         
+         
+         if ~replot && (any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{1}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{2}))
+            replot = true;
+         end
+
+         if replot
+            emptyImage = zeros(nSteps(1),nSteps(2));
+            h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,emptyImage);
+            axis(h.plots.(plotName).axes,'square')%Makes pixel size square, not stretched out
+            % h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
+            h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
+            xlabel(h.plots.(plotName).axes,params{1})
+            ylabel(h.plots.(plotName).axes,params{2})
+            title(h.plots.(plotName).axes,[plotTitle,' - ', h.scan(1).notes])
+            h.plots.(plotName).dataDisplay.XData = imageBounds{1};
+            h.plots.(plotName).dataDisplay.YData = imageBounds{2};
+            h.plots.(plotName).axes.XLim = imageBounds{1};
+            h.plots.(plotName).axes.YLim = imageBounds{2};
+            %The following makes the image look nicer, otherwise it cuts the edge points in half
+            h.plots.(plotName).axes.XLim(1) = h.plots.(plotName).axes.XLim(1) - stepSize(1)/2;
+            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(2) + stepSize(1)/2;
+            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(1) - stepSize(2)/2;
+            h.plots.(plotName).axes.YLim(2) = h.plots.(plotName).axes.YLim(2) + stepSize(2)/2;           
             
          end
-%          if replot
-%             %Sets the plot title to include the given plotName and any scan
-%             %notes
-%             if ~isempty(h.scan) && ~isempty(h.scan.notes) && ~strcmp(h.scan.notes,'')
-%                title(h.plots.(plotName).axes,strcat(plotTitle,' (',h.scan.notes,')'))
-%             else
-%                title(h.plots.(plotName).axes,plotTitle)
-%             end
-%          else
-%             h.plots.(plotName).dataDisplay.CData = dataIn;
-%          end
+
+         %Adds data for current odometer location
+         h.plots.(plotName).dataDisplay.CData(h.odometer{:}) = dataIn;
 
       end
 
@@ -771,8 +949,8 @@ classdef experiment
             case {'new','current','recent'}
                %Permutes data such that the first dimension is the "iteration" dimension
                chosenData = permute(h.data.values,[ndims(h.data.values),1:ndims(h.data.values)-1]);
-               chosenData = chosenData(h.data.iteration)
-               chosenData = cellfun(@(x)x{1},h.data.current,'UniformOutput',false);
+               chosenData = chosenData(h.data.iteration);
+               chosenData = cellfun(@(x)x{1},chosenData,'UniformOutput',false);
             case {'previous','prior','old'}
                chosenData = cellfun(@(x)x{1},h.data.previous,'UniformOutput',false);
                chosenData = cellfun(@(x,y)x./(y-1),chosenData,num2cell(h.data.iteration),'UniformOutput',false);
@@ -788,28 +966,7 @@ classdef experiment
          if any(~isnan(c))
             c(isnan(c)) = mean(c(~isnan(c)));
          else
-             c(1:end) = 0;
-         end
-      end
-
-      function checkInstrument(h,instrumentName,varargin)
-         %Checks if designated object is present and, if it is, whether it
-         %is connected
-         if nargin == 3
-            acquisitionType = varargin{1};
-            if ~ismember(instrumentName,h.instrumentClasses)
-               error('%s object required to perform ''%s'' data acquisition',instrumentName,acquisitionType)
-            end
-            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
-               error('%s must be connected to perform ''%s'' data acquisition',instrumentName,acquisitionType)
-            end
-         else
-            if ~ismember(instrumentName,h.instrumentClasses)
-               error('%s object required to perform scan on %s',instrumentName,instrumentName)
-            end
-            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
-               error('%s must be connected to perform scan on %s',instrumentName,instrumentName)
-            end
+            c(1:end) = 0;
          end
       end
 
@@ -907,7 +1064,7 @@ classdef experiment
                h = relativeMove(h.PIstage,'y',-params.separationDistance);
 
                %Takes image used to determine distance
-               im = takeImage(h.hamm);               
+               im = takeImage(h.hamm);
 
                %Gets position estimate using 1D gaussian fits for each axis
                %(see function)
@@ -990,7 +1147,7 @@ classdef experiment
                   else
                      h.PIstage = relativeMove(h.PIstage,'y',estimatedIntercept-params.radius(ii));
                   end
-                  
+
                end
          end
 
@@ -1030,9 +1187,22 @@ classdef experiment
          end
 
          outlierArray = isoutlier(dataset,"mean","ThresholdFactor",outlierThreshold,ndims(dataset));
-         
+
       end
-   
+
+      function h = subtractBaseline(h,baseline)
+         %Subtracts baseline value from all data within current scan value
+
+         h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} - baseline;
+      end
+
+      function h = convertToRate(h)
+         %Divides current value by half the time, in seconds, of the data collection for sequence sent to pulse blaster
+         %Half the time because half is for reference, half for signal
+
+         h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}...
+            ./ ((h.pulseBlaster.sequenceDurations.sent.dataNanoseconds/2) * 1e-9);
+      end
    end
 
    methods
@@ -1052,22 +1222,24 @@ classdef experiment
          if sum(objectMatch) > 2
             error('More than 1 instrument with identifier %s present')
          end
-    
+
       end
 
       function s = getInstrumentVal(h,instrumentName)
-          properIdentifier = instrumentType.giveProperIdentifier(instrumentName);
-          instrumentLocation = findInstrument(h,properIdentifier);
-          if ~any(instrumentLocation)
-              s = [];
-          else
+         instrumentLocation = findInstrument(h,instrumentName);
+         if ~any(instrumentLocation)
+            s = [];
+         else
             s = h.instrumentCells{instrumentLocation};
-          end
+         end
       end
 
-      function h = setInstrumentVal(h,instrumentProperName,val)
-         instrumentLocation = findInstrument(h,instrumentProperName);
+      function h = setInstrumentVal(h,instrumentName,val)
+         instrumentLocation = findInstrument(h,instrumentName);
          if sum(instrumentLocation) == 0
+            if ~any(strcmp({'RF_generator','stage','pulse_blaster','laser','kinesis_piezo','deformable_mirror','DAQ_controller','cam'},class(val)))
+               error('Cannot set %s as it does not exist',instrumentName)
+            end
             h.instrumentCells{end+1} = val;
          else
             h.instrumentCells{instrumentLocation} = val;
@@ -1080,49 +1252,56 @@ classdef experiment
          s = getInstrumentVal(h,'pulse blaster');
       end
       function h = set.pulseBlaster(h,val)
-         h = setInstrumentVal(h,'pulse blaster',val);  
+         h = setInstrumentVal(h,'pulse blaster',val);
       end
 
       function s = get.PIstage(h)
          s = getInstrumentVal(h,'stage');
       end
       function h = set.PIstage(h,val)
-         h = setInstrumentVal(h,'stage',val);  
+         h = setInstrumentVal(h,'stage',val);
       end
 
       function s = get.SRS_RF(h)
          s = getInstrumentVal(h,'srs');
       end
       function h = set.SRS_RF(h,val)
-         h = setInstrumentVal(h,'srs',val);        
+         h = setInstrumentVal(h,'srs',val);
       end
 
       function s = get.windfreak_RF(h)
          s = getInstrumentVal(h,'wf');
       end
       function h = set.windfreak_RF(h,val)
-         h = setInstrumentVal(h,'wf',val);        
+         h = setInstrumentVal(h,'wf',val);
       end
 
       function s = get.DAQ(h)
          s = getInstrumentVal(h,'daq');
       end
       function h = set.DAQ(h,val)
-         h = setInstrumentVal(h,'daq',val);   
+         h = setInstrumentVal(h,'daq',val);
       end
 
       function s = get.DDL(h)
          s = getInstrumentVal(h,'ddl');
       end
       function h = set.DDL(h,val)
-         h = setInstrumentVal(h,'ddl',val);  
+         h = setInstrumentVal(h,'ddl',val);
       end
 
       function s = get.hamm(h)
-         s = getInstrumentVal(h,'hamm');
+         s = getInstrumentVal(h,'hamamatsu');
       end
       function h = set.hamm(h,val)
-         h = setInstrumentVal(h,'hamm',val);  
+         h = setInstrumentVal(h,'hamamatsu',val);
+      end
+
+      function s = get.ndYAG(h)
+         s = getInstrumentVal(h,'ndYAG');
+      end
+      function h = set.ndYAG(h,val)
+         h = setInstrumentVal(h,'ndYAG',val);
       end
    end
 
@@ -1153,6 +1332,7 @@ classdef experiment
       end
 
       function newValues = incrementOdometer(oldValues,maxValues)
+         oldValues = cell2mat(oldValues);
          if all(oldValues == maxValues)
             error('Odometer overflow. Attempted to increment value beyond maximum for all scans')
          end
@@ -1186,7 +1366,8 @@ classdef experiment
                break
             end
          end
-
+         %Odometer should be in form of a cell instead of matrix since this is how matlab can use it as an index
+         newValues = num2cell(newValues);
       end
 
       function [xEst,yEst] = double1DGaussian(im,percentileCutoff,cutoffForGaussianAmplitudeRatio,varargin)
@@ -1240,6 +1421,18 @@ classdef experiment
          end
       end
 
-      
+      function formalName = discernExperimentType(userInput)
+         switch userInput
+            case {'pulse sequence','sequence','pulses','daq','pulse blaster','pb'}
+               formalName = 'pulse sequence';
+            case {'scmos','cam','camera'}
+               formalName = 'scmos';
+            case {'none',''}
+               formalName = 'none'; %no data collection
+            otherwise
+               error('Invalid experiment type. Must be "pulse sequence" or "scmos"')
+         end
+      end
+
    end
 end

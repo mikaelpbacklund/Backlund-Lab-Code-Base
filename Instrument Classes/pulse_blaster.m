@@ -10,7 +10,7 @@ classdef pulse_blaster < instrumentType
       sendUponAddition%Send sequence to pulse blaster when running addPulse
    end
 
-   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
+   properties (SetAccess = {?pulse_blaster ?instrumentType ?experiment}, GetAccess = public)
       %Read-only for user, derived from config or functions     
       commands
       clockSpeed%MHz
@@ -54,14 +54,11 @@ classdef pulse_blaster < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'clockSpeed','nChannels','formalDirectionNames',...
+         configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames',...
             'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
          commandFields = {'library','api','type','name'};%Use commands to hold dll info
          numericalFields = {};      
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
-
-         %Set identifier as given name
-         h.identifier = configFileName;
       end
 
       function h = connect(h)
@@ -83,6 +80,16 @@ classdef pulse_blaster < instrumentType
          h.identifier = 'pulse blaster';
       end
 
+      function h = disconnect(h)
+         if ~h.connected    
+             return;   
+         end
+         if ~isempty(h.commands)
+            h.commands = [];
+         end
+         h.connected = false;
+      end
+      
       function h = addPulse(h,pulseInfo,varargin)
 
          %Adds a pulse to the sequence. If a third argument is given,
@@ -243,8 +250,6 @@ classdef pulse_blaster < instrumentType
                current.contextInfo = loopTracker(end);
                loopTracker(end) = [];
             end
-            assignin("base","current",current)
-            assignin("base","opCode",opCode)
             %Sends the current instruction to the pulse blaster
             [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
                opCode-1,current.contextInfo,round(current.duration));
@@ -253,13 +258,22 @@ classdef pulse_blaster < instrumentType
          [~] = calllib(h.commands.name,'pb_stop_programming');
       end
 
-      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue,adjustSequenceBoolean)
+      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue,varargin)
          arguments
             h
             addressNumber {mustBeNumeric}
             fieldToModify {mustBeA(fieldToModify,["string","char"])}
-            modifiedValue
-            adjustSequenceBoolean
+            modifiedValue           
+         end
+         arguments (Repeating)
+            varargin
+         end
+
+         %Default to adjusting the sequence if not given
+         if nargin >= 5
+            boolAdjust = varargin{1};
+         else
+            boolAdjust = true;
          end
 
          if any(addressNumber > numel(h.userSequence))
@@ -313,7 +327,7 @@ classdef pulse_blaster < instrumentType
                end
 
          end
-         if adjustSequenceBoolean
+         if boolAdjust
             h = calculateDuration(h,'user');
          end
 
@@ -692,14 +706,15 @@ classdef pulse_blaster < instrumentType
       end
 
       function h = addBuffer(h,pulseAddresses,bufferDuration,channelsToCopy,varargin)
-         %Argument 5 is notes, argument 6 is before/after
+         %Argument 7 is notes, argument 6 is before/after
+         %Beofre/after only needed if a single value is given
 
          channelsToCopy = interpretName(h,channelsToCopy,'Channel');
 
          if ~all(bufferDuration == 0)
             for ii = 1:numel(pulseAddresses)
 
-               currentAddress = pulseAddresses(end-(ii-1));
+               currentAddress = pulseAddresses(end-(ii-1)); %Goes backwards to keep easy indexing
                pulseInfo = [];
                pulseInfo.activeChannels = {};
 
@@ -711,29 +726,29 @@ classdef pulse_blaster < instrumentType
                end
 
                %Add notes if given
-               if nargin >= 5
-                  pulseInfo.notes = varargin{1};
+               if nargin >= 6
+                  pulseInfo.notes = varargin{2};
                end
 
-               if numel(bufferDuration) ~= 1
-                  %First buffer duration is the "before" and second is
-                  %"after"
+               if ~isscalar(bufferDuration)
+                  %First buffer duration is the "before" and second is "after"
+                  %Perform "after" buffer first to keep indexing simple
                   if bufferDuration(2) ~= 0
-                     pulseInfo.duration = bufferDuration(2);
+                     pulseInfo.duration = bufferDuration(2);                     
                      h = addPulse(h,pulseInfo,currentAddress+1);
                   end
                   if bufferDuration(1) ~= 0
-                     pulseInfo.duration = bufferDuration(1);
+                     pulseInfo.duration = bufferDuration(1);                    
                      h = addPulse(h,pulseInfo,currentAddress);
                   end
-               else
-                  if nargin ~= 6
+               else %Only 1 duration given
+                  if nargin < 5
                      error('If only a single duration is given, the location of the buffer must be specified as "before" or "after"')
                   end
-                  pulseInfo.duration = bufferDuration;
-                  if strcmpi(varargin{2},'before')
+                  pulseInfo.duration = bufferDuration;                  
+                  if strcmpi(varargin{1},'before')
                      h = addPulse(h,pulseInfo,currentAddress);
-                  elseif strcmpi(varargin{2},'after')
+                  elseif strcmpi(varargin{1},'after')
                      h = addPulse(h,pulseInfo,currentAddress+1);
                   else
                      error('If only a single duration is given, the location of the buffer must be specified as "before" or "after"')
@@ -741,7 +756,7 @@ classdef pulse_blaster < instrumentType
                end
             end
          end
-         h = adjustSequence(h);
+         h = adjustSequence(h);         
       end
 
       function [h,scanInfo] = loadTemplate(h,templateName,params)

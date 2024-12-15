@@ -2,34 +2,32 @@ function [varargout] = XYn_m_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
-%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
+%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)
 
-parameterFieldNames = ["RFResonanceFrequency","piTime","tauStart","tauEnd","tauNSteps","tauStepSize",...
-   "timePerDataPoint","collectionDuration","collectionBufferDuration","repolarizationDuration",...
-   "intermissionBufferDuration","extraRF","AOM_DAQCompensation","IQPreBufferDuration","IQPostBufferDuration",...
-   "setsXYN","nXY"];
+%Creates default parameter structure
+parameterStructure.RFResonanceFrequency = [];
+parameterStructure.piTime = [];
+parameterStructure.tauStart = [];
+parameterStructure.tauEnd = [];
+parameterStructure.tauNSteps = [];
+parameterStructure.tauStepSize = [];
+parameterStructure.setsXYN = [];
+parameterStructure.nXY = 8;%default number of XY pulses per set
+parameterStructure.sequenceTimePerDataPoint = 1;
+parameterStructure.collectionDuration = 1000;
+parameterStructure.collectionBufferDuration = 1000;
+parameterStructure.repolarizationDuration = 7000;
+parameterStructure.intermissionBufferDuration = 2500;
+parameterStructure.RFReduction = 0;
+parameterStructure.AOMCompensation = 0;
+parameterStructure.IQBuffers = [0 0];
+parameterStructure.dataOnBuffer = 0;
+parameterStructure.extraBuffer = 0;
+
+parameterFieldNames = string(fieldnames(parameterStructure));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   %Creates default parameter structure
-   parameterStructure.RFResonanceFrequency = [];
-   parameterStructure.piTime = [];
-   parameterStructure.tauStart = [];
-   parameterStructure.tauEnd = [];
-   parameterStructure.tauNSteps = [];
-   parameterStructure.tauStepSize = [];
-   parameterStructure.setsXYN = [];
-   parameterStructure.nXY = 8;%default number of XY pulses per set   
-   parameterStructure.timePerDataPoint = 1;
-   parameterStructure.collectionDuration = 1000;
-   parameterStructure.collectionBufferDuration = 1000;
-   parameterStructure.repolarizationDuration = 7000;
-   parameterStructure.intermissionBufferDuration = 2500;
-   parameterStructure.extraRF = 0;
-   parameterStructure.AOM_DAQCompensation = 0;
-   parameterStructure.IQPreBufferDuration = 0;
-   parameterStructure.IQPostBufferDuration = 0;
-
    varargout{1} = parameterStructure;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
@@ -52,12 +50,9 @@ if isempty(p.tauNSteps)
    p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
 end
 
-%Creates single array for I/Q pre and post buffers
-IQBuffers = [p.IQPreBufferDuration,p.IQPostBufferDuration];
-
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-scanInfo.reducedTauTime = sum(IQBuffers)+p.piTime+p.extraRF;
-scanInfo.reducedTauByTwoTime = sum(IQBuffers)+(3/4)*p.piTime+p.extraRF;
+scanInfo.reducedTauTime = sum(p.IQBuffers)+p.piTime+p.RFReduction;
+scanInfo.reducedTauByTwoTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFReduction;
 exportedTauStart = p.tauStart - scanInfo.reducedTauTime;
 exportedTauEnd = p.tauEnd - scanInfo.reducedTauTime;
 exportedTauByTwoStart = (p.tauStart/2) - scanInfo.reducedTauByTwoTime;
@@ -65,7 +60,7 @@ exportedTauByTwoEnd = (p.tauEnd/2) - scanInfo.reducedTauByTwoTime;
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
-   error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extra RF)')
+   error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)')
 end
 
 %% Sequence Creation
@@ -75,8 +70,8 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = round(p.piTime/2 + p.extraRF);
-totalPiTime = p.piTime + p.extraRF;
+halfTotalPiTime = round(p.piTime/2 + p.RFReduction);
+totalPiTime = p.piTime + p.RFReduction;
 
 for rs = 1:2 %singal half and reference half
    %Adds whether signal channel is on or off
@@ -124,13 +119,14 @@ end
 
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,p.collectionBufferDuration,p.AOM_DAQCompensation,IQBuffers);
+h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
+    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
 nTau = ((p.setsXYN*p.nXY)+1);
 scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
-h.nTotalLoops = round(p.timePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
+h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
 %Sends the completed sequence to the pulse blaster

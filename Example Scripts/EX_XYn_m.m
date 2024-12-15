@@ -1,170 +1,68 @@
-%Example Spin Echo using template
+%Example XYN-m using template
 
-%% User Settings
-params.nXY = 8;
-params.setsXYN = 6;
-params.RFResonanceFrequency = 2.0465;
-params.piTime = 95;
-params.tauStart = 300;
-params.tauEnd = 760;
-params.tauStepSize = 20;
-%All parameters below this are optional in that they will revert to defaults if not specified
-params.tauNSteps = [];%will override step size
-params.timePerDataPoint = 10;%seconds
-params.collectionDuration = 800;
-params.collectionBufferDuration = 1000;
-params.intermissionBufferDuration = 2500;
-params.repolarizationDuration = 7000;
-params.extraRF =  6;
-params.AOM_DAQCompensation = 400;
-params.IQPreBufferDuration = 30;
-params.IQPostBufferDuration = 30;
-nIterations = 100;
-RFAmplitude = 10;
-dataType = 'analog';
-timeoutDuration = 10;
-forcedDelayTime = .25;
-nDataPointDeviationTolerance = .0002;
+%Required
+p.tauStart = 300;
+p.tauEnd = 800;
+p.tauStepSize = 20;
+p.tauNSteps = [];%will override step size
+p.piTime = 100;
+p.RFResonanceFrequency = 2.87;
+p.nXY = 8;%N in XYN-m
+p.setsXYN = 4;%m in XYN-m
+p.collectionType = 'analog';
 
-%% Setup
+%Other
+p.timePerDataPoint = 10;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionBufferDuration = 100;
+p.intermissionBufferDuration = 1000;
+p.repolarizationDuration = 7000;
+p.extraRF = 0;
+p.AOM_DAQCompensation = 0;
+p.IQPreBufferDuration = 0;
+p.IQPostBufferDuration = 0;
+p.nIterations = 1;
+p.RFAmplitude = 10;
+p.timeoutDuration = 3;
+p.forcedDelayTime = .25;
+p.nDataPointDeviationTolerance = .1;
+p.maxFailedCollections = 3;
+p.baselineSubtraction = 0;
+p.perSecond = true;
 
-warning('off','MATLAB:subscripting:noSubscriptsSpecified');
+%Config file names
+p.pulseBlasterConfig = 'pulse_blaster_default';
+p.SRSRFConfig = 'SRS_RF';
+p.DAQConfig = 'daq_6361';
+p.stageConfig = 'PI_stage';
 
-if ~exist('ex','var'),  ex = experiment; end
+%Plotting
+p.plotAverageContrast = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
+p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
-if isempty(ex.pulseBlaster)
-   ex.pulseBlaster = pulse_blaster('PB');
-   ex.pulseBlaster = connect(ex.pulseBlaster);
-end
-if isempty(ex.SRS_RF)
-   ex.SRS_RF = RF_generator('SRS_RF');
-   ex.SRS_RF = connect(ex.SRS_RF);
-end
-if isempty(ex.DAQ)
-   ex.DAQ = DAQ_controller('NI_DAQ');
-   ex.DAQ = connect(ex.DAQ);
-end
+%Stage optimization
+p.optimizationEnabled = false; %Set to false to disable stage optimization
+p.optimizationAxes = {'z'}; %The axes which will be optimized over
+p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
+p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.useOptimizationTimer = true;
+p.percentageForcedOptimization = .75; %see below (0 to disable)
+p.useOptimizationPercentage = false;
 
-%Sends RF settings
-ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'on';
-ex.SRS_RF.modulationType = 'iq';
-ex.SRS_RF.amplitude = RFAmplitude;
-ex.SRS_RF.frequency = params.RFResonanceFrequency;
+%percentageForcedOptimization is a more complex way of deciding when to do an optimization.
+%After every optimization, the reference value of the next data point is recorded. After every data point, if the
+%reference value is lower than X percent of that post-optimization value, a new optimization will be performed. This
+%means setting the value to 1 corresponds to running an optimization if the value obtained is lower at all than the
+%post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
 
-%Sends DAQ settings
-ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = dataType;
+if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Load empty parameter structure from template
-[sentParams,~] = XYn_m_template([],[]);
-
-%Replaces values in sentParams with values in params if they aren't empty
-for paramName = fieldnames(sentParams)'
-   if ~isempty(params.(paramName{1}))
-      sentParams.(paramName{1}) = params.(paramName{1});
-   end
-end
-
-%Executes spin echo template, giving back edited pulse blaster object and information for the scan
-[ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
-
-%Deletes any pre-existing scan
-ex.scan = [];
-
-%Adds scan to experiment based on template output
-ex = addScans(ex,scanInfo);
-
-%Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = forcedDelayTime;
-
-%Changes tolerance from .01 default to user setting
-ex.nPointsTolerance = nDataPointDeviationTolerance;
-
-ex.maxFailedCollections = 10;
-
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
-
-%Sends information to command window
-%First is the number of steps, second is the full time per data point, third is the number of iterations,
-%fourth is a fudge factor for any additional time from various sources (heuristically found)
-trueTimePerDataPoint = (scanInfo.meanSequenceDuration*1e-9) + ex.forcedCollectionPauseTime*1.5;
-scanStartInfo(ex.scan.nSteps,trueTimePerDataPoint,nIterations,.28)
-
-cont = checkContinue(timeoutDuration*2);
-if ~cont
-   return
-end
-
-%% Run scan, and collect and display data
-
-try
-%Prepares experiment to run from scratch
-%[0,0] is the value that all initial values for the data will take
-%Two values are used because we are storing ref and sig
-ex = resetAllData(ex,[0 0]);
-
-avgData = zeros([ex.scan.nSteps 1]);
-
-for ii = 1:nIterations
-
-   %Prepares scan for a fresh start while keeping data from previous
-   %iterations
-   ex = resetScan(ex);
-
-   iterationData = zeros([ex.scan.nSteps 1]);
-
-   %While the odometer is not at its max value
-   while ~all(ex.odometer == [ex.scan.nSteps])
-
-      ex = takeNextDataPoint(ex,'pulse sequence');
-
-      currentData = mean(createDataMatrixWithIterations(ex,ex.odometer),2);
-      currentData = (currentData(1)-currentData(2))/currentData(1);
-      avgData(ex.odometer) = currentData;
-      currentData = ex.data.values{ex.odometer,end};
-      currentData = (currentData(1)-currentData(2))/currentData(1);
-      iterationData(ex.odometer) = currentData;
-
-      if ~exist("averageFig",'var') || ~ishandle(averageAxes) || (ex.odometer == 1 && ii == 1)
-          %Bad usage of this just to get it going. Should be replacing individual data points
-          %Only works for 1D
-          if exist("averageFig",'var') && ishandle(averageFig)
-            close(averageFig)
-          end
-          if exist("iterationFig",'var') && ishandle(iterationFig)
-            close(iterationFig)
-          end
-          averageFig = figure(1);
-          averageAxes = axes(averageFig); %#ok<*LAXES>           
-          iterationFig = figure(2);
-          iterationAxes = axes(iterationFig); 
-          xax = ex.scan.bounds{2}(1)+scanInfo.reducedTauTime:ex.scan.stepSize(2):ex.scan.bounds{2}(2)+scanInfo.reducedTauTime;
-          avgPlot = plot(averageAxes,xax,avgData);          
-          iterationPlot = plot(iterationAxes,xax,iterationData);
-          title(averageAxes,'Average')
-          title(iterationAxes,'Current')
-      else
-          avgPlot.YData = avgData;
-          iterationPlot.YData = iterationData;
-      end
-
-   end
-
-   if ii ~= nIterations
-      cont = checkContinue(timeoutDuration);
-      if ~cont
-         break
-      end
-   end
-
-end
-fprintf('Scan complete\n')
-catch ME   
-    stop(ex.DAQ.handshake)
-    rethrow(ME)
-end
-stop(ex.DAQ.handshake)
-
+%Runs XYN-m
+ex = XYN(ex,p);

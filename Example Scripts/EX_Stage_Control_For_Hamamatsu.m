@@ -35,6 +35,7 @@ if ~exist('ex','var')
 end
 if isempty(ex.PIstage) || ~ex.PIstage.connected
     ex.PIstage = stage('PI_stage');
+    ex.PIstage.checkTolerance = false;%Don't check tolerance since movements are so fine
     ex.PIstage = connect(ex.PIstage);
 end
 
@@ -57,7 +58,7 @@ end
 
 %Reset current scan each iteration
    ex = resetScan(ex);
-   while ~all(ex.odometer == [ex.scan.nSteps]) %While odometer does not match max number of steps
+   while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
        startTime = datetime;
        loopCounter = loopCounter + 1;
        %Increment the odometer and set the instrument to the next value

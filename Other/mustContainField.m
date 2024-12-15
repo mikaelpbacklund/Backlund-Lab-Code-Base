@@ -21,12 +21,16 @@ if any(missingFields)
    if nargin == 2
       error('Structure must contain %s field(s)',strjoin(F(missingFields)))
    end
-   
+
    %If defaults are given, add missing fields with default values
    missingFields = find(missingFields);
    D = varargin{1};
-   for ii = missingFields
-      S.(F(ii)) = D{ii};
+   for ii = 1:numel(missingFields)
+      if isempty(S) %Empty structures must be given index
+         S(1).(F(missingFields(1))) = D{missingFields(1)};
+      else
+         S.(F(missingFields(ii))) = D{missingFields(ii)};
+      end      
    end
 end
 
