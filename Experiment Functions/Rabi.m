@@ -85,30 +85,19 @@ end
 %% Use template to create sequence and scan
 
 %Load empty parameter structure from template
-[parameters,~] = Rabi_template([],[]);
+[sentParams,~] = Rabi_template([],[]);
 
-%Set parameters
-%Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
-parameters.RFResonanceFrequency = p.RFFrequency;
-parameters.tauStart = p.scanBounds(1);
-parameters.tauEnd = p.scanBounds(2);
-parameters.timePerDataPoint = p.sequenceTimePerDataPoint;
-parameters.AOM_DAQCompensation = p.AOMCompensation;
-parameters.collectionBufferDuration = p.collectionBufferDuration;
-parameters.collectionDuration = p.collectionDuration;
-parameters.tauStepSize = p.scanStepSize;
-parameters.RFReduction = p.RFReduction;
-
-if strcmpi(p.collectionType,'counter')
-    parameters.repolarizationBuffer = 1e9 * (1/ex.DAQ.sampleRate);
-else
-    parameters.repolarizationBuffer = 0;
+%Replaces values in sentParams with values in params if they aren't empty
+for paramName = fieldnames(sentParams)'
+   if ~isempty(p.(paramName{1}))
+      sentParams.(paramName{1}) = p.(paramName{1});
+   end
 end
 
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,parameters);
+[ex.pulseBlaster,scanInfo] = Rabi_template(ex.pulseBlaster,sentParams);
 
 %Deletes any pre-existing scan
 ex.scan = [];
@@ -123,9 +112,6 @@ ex.forcedCollectionPauseTime = p.forcedDelayTime;
 ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 ex.maxFailedCollections = p.maxFailedCollections;
-
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
 scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)

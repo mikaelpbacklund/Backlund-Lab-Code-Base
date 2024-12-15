@@ -111,9 +111,6 @@ ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 ex.maxFailedCollections = p.maxFailedCollections;
 
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
-
 %Sends information to command window
 scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 

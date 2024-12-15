@@ -273,31 +273,11 @@ classdef experiment
          end
       end
 
-      function h = validateExperimentalConfiguration(h,acquisitionType)
-         %Checks instrument cells and scan settings to see if the necessary
-         %connections have been made
+      function h = validateExperimentalConfiguration(h)
+         %Deprecated function previously checking if correct instruments were connected
 
-         return %**********very temporary
-
-         h = getInstrumentNames(h);
-
-         switch lower(acquisitionType)
-            case 'pulse sequence'
-               checkInstrument(h,'pulse_blaster',acquisitionType)
-               checkInstrument(h,'DAQ_controller',acquisitionType)
-            case 'scmos'
-            otherwise
-               error('acquisitionType must be ''pulse sequence'' or ''sCMOS''')
-         end
-
-         %If there isn't a scan, nothing else required to check
-         if isempty(h.scan)
-            return
-         end
-
-         for ii = {h.scan.identifier}
-            checkInstrument(h,ii{1})
-         end
+         return 
+         
       end
 
       function dataMatrix = createDataMatrixWithIterations(h,varargin)
@@ -987,27 +967,6 @@ classdef experiment
             c(isnan(c)) = mean(c(~isnan(c)));
          else
             c(1:end) = 0;
-         end
-      end
-
-      function checkInstrument(h,instrumentName,varargin)
-         %Checks if designated object is present and, if it is, whether it
-         %is connected
-         if nargin == 3
-            acquisitionType = varargin{1};
-            if ~ismember(instrumentName,h.instrumentClasses)
-               error('%s object required to perform ''%s'' data acquisition',instrumentName,acquisitionType)
-            end
-            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
-               error('%s must be connected to perform ''%s'' data acquisition',instrumentName,acquisitionType)
-            end
-         else
-            if ~ismember(instrumentName,h.instrumentClasses)
-               error('%s object required to perform scan on %s',instrumentName,instrumentName)
-            end
-            if ~h.instrumentCells{strcmp(h.instrumentClasses,instrumentName)}.connected
-               error('%s must be connected to perform scan on %s',instrumentName,instrumentName)
-            end
          end
       end
 

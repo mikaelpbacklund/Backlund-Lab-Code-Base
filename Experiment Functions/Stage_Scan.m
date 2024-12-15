@@ -137,9 +137,6 @@ ex.maxFailedCollections = 5;
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
-
 ex.maxFailedCollections = p.maxFailedCollections;
 
 %Sends information to command window

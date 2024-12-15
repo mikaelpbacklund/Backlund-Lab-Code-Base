@@ -146,9 +146,6 @@ ex.optimizationInfo.lastOptimizationTime = [];
 ex.optimizationInfo.postOptimizationValue = 0;
 ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
 
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
-
 ex.maxFailedCollections = p.maxFailedCollections;
 
 %Sends information to command window

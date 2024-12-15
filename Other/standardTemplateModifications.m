@@ -76,6 +76,7 @@ else
     end
 end
 
+%Addition of pulse after data collection with AOM off to allow counts to be read off
 if nargin > 6 && ~isempty(varargin{2}) && varargin{2} ~= 0
     %Find last data collection pulse
     %Add buffer after that copies signal and data but not laser
