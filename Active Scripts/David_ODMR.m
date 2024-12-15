@@ -1,4 +1,3 @@
-%Default ODMR script example
 
 %Required
 p.scanBounds = [2.39 2.42]; %Frequency bounds
@@ -6,7 +5,7 @@ p.scanStepSize = .0005; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
-p.RFAmplitude = -20;
+p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
 p.nIterations = 10; %Number of iterations of scan to perform

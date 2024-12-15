@@ -4,47 +4,55 @@
 p.tauStart = 400;
 p.tauEnd = 5000;
 p.tauStepSize = 300;
+p.tauNSteps = [];%will override step size
 p.piTime = 95;
 p.RFResonanceFrequency = 2.87;
+p.collectionType = 'counter';
 
-%All parameters below this are optional in that they will revert to defaults if not specified
-p.tauNSteps = [];%will override step size
-p.timePerDataPoint = 8;%seconds
-p.collectionDuration = 0;
-p.collectionBufferDuration = 1000;
-p.intermissionBufferDuration = 2500;
+%Other
+p.timePerDataPoint = 4;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionBufferDuration = 100;
+p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF =  0;
+p.extraRF = 0;
 p.AOM_DAQCompensation = 0;
 p.IQPreBufferDuration = 0;
 p.IQPostBufferDuration = 0;
 p.nIterations = 1;
 p.RFAmplitude = 10;
-p.dataType = 'analog';
-p.timeoutDuration = 10;
+p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .00015;
+p.nDataPointDeviationTolerance = .1;
+p.maxFailedCollections = 3;
+p.baselineSubtraction = 0;
+p.perSecond = true;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_DEER';
+p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
 %Stage optimization
-p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
-p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
+p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
+p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the

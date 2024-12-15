@@ -11,8 +11,8 @@ p.RFResonanceFrequency = 2.4055;
 p.tauNSteps = [];%will override step size
 p.timePerDataPoint = 4;%seconds
 p.collectionDuration = 0;
-p.collectionBufferDuration = 800;
-p.intermissionBufferDuration = 2500;
+p.collectionBufferDuration = 100;
+p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
 p.extraRF = 10;
 p.AOM_DAQCompensation = 700;
@@ -36,9 +36,12 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
@@ -48,11 +51,8 @@ p.optimizationRFStatus = 'off'; %'off', 'on', or 'con'
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
-
-% Note from Kyle: I added these to prevent an error when running the
-% script, not sure if these should be the default values
 p.useOptimizationTimer = false;
-p.useOptimizationPercentage = 0;
+p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the

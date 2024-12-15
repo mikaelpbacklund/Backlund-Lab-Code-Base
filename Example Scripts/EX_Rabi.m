@@ -1,4 +1,4 @@
-%Runs a simple Rabi sequence with no τ compensation or stage optimization
+%Runs a simple Rabi sequence
 
 %Highly recommended to use a "time per data point" of at least 3 seconds
 %Lower than this is sensitive to jitters in number of points collected,
@@ -19,9 +19,11 @@ p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) col
 p.nDataPointDeviationTolerance = .2;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 1000;%How long to wait between end of RF pulse and beginning of data collection
+p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
+p.intermissionBufferDuration = 1000;%How long to wait between signal and reference halves of the sequence
 p.AOMCompensation = 0;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.perSecond = true;%convert to counts/s if using counter
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -31,18 +33,23 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-2:0.25:2}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
-p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
+p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
+p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the

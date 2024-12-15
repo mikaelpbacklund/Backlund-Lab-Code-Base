@@ -1,6 +1,10 @@
+%Scans stage across 1 dimension
+
+%Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
+
 %% User Inputs
 scanBounds = {[6700 6900]};
 scanAxes = {'z'};

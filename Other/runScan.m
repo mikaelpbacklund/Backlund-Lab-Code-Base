@@ -59,7 +59,8 @@ for ii = 1:p.nIterations
       %Gets data points
       dataPoints = ex.data.nPoints(ex.odometer{:},:);
 
-      %Find and plot reference or contrast
+      %Find and plot data with current and average figures
+
       yAxisLabel = 'Contrast';
       if p.plotAverageContrast
          averageContrast = (averageData(1) - averageData(2)) / averageData(1);

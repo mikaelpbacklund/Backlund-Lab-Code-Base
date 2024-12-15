@@ -1,23 +1,44 @@
+%Scans stage across 1 dimension
+
+%Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
+
 %% User Inputs
-scanBounds = {[6300 6800]};
-scanAxes = {'z'};
-scanStepSize = {2};
-sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
-nIterations = 1;
-contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.87;
+p.scanBounds = {[6300 6800]};
+p.scanAxes = {'z'};
+p.scanStepSize = {2};
+p.collectionType = 'counter';%analog or counter
 
-%Uncommonly changed parameters
-dataType = 'counter';%'counter' or 'analog'
-RFamplitude = 10;
-timeoutDuration = 5;
-forcedDelayTime = .125;
+%General
+p.contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+p.sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
+p.scanNotes = 'Stage scan'; %Notes describing scan (will appear in titles for plots)
+p.RFAmplitude = 10;%Only applicable if contrast enabled
+p.RFFrequency = 2.87;%Only applicable if contrast enabled
+p.nIterations = 10; %Number of iterations of scan to perform
+p.timeoutDuration = 10; %How long before auto-continue occurs
+p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+p.perSecond = true;
+p.intermissionBufferDuration = 1000;
 
-nDataPointDeviationTolerance = .00015;
-scanNotes = 'Stage scan';
+%Config file names
+p.pulseBlasterConfig = 'pulse_blaster_DEER';
+p.SRSRFConfig = 'SRS_RF';%Only applicable if contrast enabled
+p.DAQConfig = 'daq_6361';
+p.stageConfig = 'PI_stage';
+
+%Plotting
+p.plotAverageReference = true;
+p.plotCurrentReference = true;
+p.plotAverageContrast = true;%Only applicable if contrast enabled
+p.plotCurrentContrast = false;%Only applicable if contrast enabled
+p.plotAverageSNR = false;%Only applicable if contrast enabled
+p.plotCurrentSNR = false;%Only applicable if contrast enabled
+p.invertSignalForSNR = false;%Only applicable if contrast enabled
 
 %% Backend
 

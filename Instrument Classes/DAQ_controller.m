@@ -6,10 +6,6 @@ classdef DAQ_controller < instrumentType
 
    %To change ports in use, you need to disconnect the DAQ, change the
    %config, then reconnect
-   
-   %TO CHANGE: 
-   %add presets for dataChannel, maxRate (embedded),
-   %continuousCollection, and differentiateSignal (embedded)
 
    properties (Dependent)
       %User editable, stored within handshake

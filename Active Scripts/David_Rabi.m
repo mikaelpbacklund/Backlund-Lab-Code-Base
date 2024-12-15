@@ -1,4 +1,4 @@
-%Runs a simple Rabi sequence with no τ compensation or stage optimization
+%Runs a simple Rabi sequence
 
 %Highly recommended to use a "time per data point" of at least 3 seconds
 %Lower than this is sensitive to jitters in number of points collected,
@@ -19,7 +19,7 @@ p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) col
 p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 1000;%How long to wait between end of RF pulse and beginning of data collection
+p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
@@ -31,12 +31,13 @@ p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
-p.plotCurrentContrast = false;
-p.plotCurrentReference = false;
-p.plotCurrentSNR = false;
 p.plotAverageContrast = true;
-p.plotAverageReference = true;
-p.plotAverageSNR = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
+p.plotCurrentReference = true;
+p.plotAverageSNR = false;
+p.plotCurrentSNR = false;
+p.invertSignalForSNR = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

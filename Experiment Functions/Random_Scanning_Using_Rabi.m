@@ -51,6 +51,7 @@ if p.optimizationEnabled
    ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);   
 end
 
+%Sets all optimization info into appropriate place in experiment object
 ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
 ex.optimizationInfo.stageAxes = p.optimizationAxes;
 ex.optimizationInfo.steps = p.optimizationSteps;

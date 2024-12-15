@@ -1,7 +1,7 @@
-function ex = ODMR(ex,p)
+function ex = Stage_Scan(ex,p)
 %p is parameter structure
 
-requiredParams = {'scanBounds','scanStepSize','collectionType'};
+requiredParams = {'scanBounds','scanStepSize','scanAxes','collectionType'};
 
 mustContainField(p,requiredParams)
 
@@ -13,7 +13,9 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotAveragetPercentageDataPoints',false;...
    'plotAverageSNR',false;...
    'plotCurrentSNR',false;...
+   'contrastVSReference','ref';...
    'RFAmplitude',10;...
+   'RFFrequency',2.87;...
    'scanNotes','ODMR';...
    'sequenceTimePerDataPoint',.2;...
    'nIterations',1;...
@@ -47,27 +49,12 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster, srs rf, and daq with given configs
-instrumentNames = ["pulse blaster","srs rf","daq"];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
+instrumentNames = ["pulse blaster","daq","stage"];
+instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.stageConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
-ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
-
-%Loads stage if optimization is enabled
-if p.optimizationEnabled
-   ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
-end
-
-
-%Turns RF on, disables modulation, and sets amplitude to 10 dBm
-ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = p.RFAmplitude;
-
-%Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
-%counter
+%Temporarily disables taking data and sets data channel to collectionType
 ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
@@ -75,24 +62,44 @@ ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time fo
 ex.pulseBlaster.useTotalLoop = true;
 ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
 
-%For each of the following sections:
-%Clear previous information
-%Set which channels should be active in the pulse blaster
-%Set how long this pulse should run for
-%List any notes to describe the pulse
-%Add the pulse to the current sequence
-clear pulseInfo 
-pulseInfo.activeChannels = {};
-pulseInfo.duration = 2500;
-pulseInfo.notes = 'Initial buffer';
-ex.pulseBlaster = addPulse(ex.pulseBlaster,pulseInfo);
+%Differences between contrast and signal
+%Loading RF+settings
+%DAQ continuous collection and signal differentiation
+%Pulse sequence
+%Whether some plotting is enabled
+if strcmpi(p.contrastVSReference,'con')
+   ex = loadInstruments(ex,"srs rf",c2s(p.SRSRFConfig),false);
+   ex.SRS_RF.enabled = 'on';
+   ex.SRS_RF.modulationEnabled = 'off';
+   ex.SRS_RF.amplitude = p.RFAmplitude;
+   ex.SRS_RF.frequency = p.RFFrequency;
 
-%Condensed version below puts this on one line
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Reference');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Middle buffer signal off');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
+   ex.DAQ.differentiateSignal = 'on';
+   ex.DAQ.continuousCollection = 'on';
+
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},p.intermissionBufferDuration/2,'Initial buffer');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Reference');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Reference');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},p.intermissionBufferDuration/2,'Middle buffer signal off');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},p.intermissionBufferDuration/2,'Middle buffer signal on');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},p.intermissionBufferDuration/2,'Final buffer');
+
+elseif strcmpi(p.contrastVSReference,'ref')
+   ex.DAQ.differentiateSignal = 'off';
+   ex.DAQ.continuousCollection = 'off';
+
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM'},p.intermissionBufferDuration,'Initial buffer');
+   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},2e6,'Taking data');
+
+   p.plotAverageContrast = false;
+   p.plotCurrentContrast = false;
+   p.plotAverageSNR = false;
+   p.plotCurrentSNR = false;
+
+else
+   error('contrastVSReference must be "con" or "ref"')
+end
 
 %Gets duration of user sequence in order to change number of loops to match desired time for each data point
 ex.pulseBlaster = calculateDuration(ex.pulseBlaster,'user');
@@ -110,8 +117,16 @@ scan.parameter = 'frequency'; %Scan frequency parameter
 scan.identifier = ex.SRS_RF.identifier; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
 scan.notes = p.scanNotes; %Notes describing scan (will appear in titles for plots)
 
-%Add the current scan
-ex = addScans(ex,scan);
+%Adds each scan
+for ii = 1:numel(p.scanBounds)
+   scan.bounds = p.scanBounds{ii};
+   scan.stepSize = p.scanStepSize{ii};
+   scan.parameter = p.scanAxes{ii};
+   scan.identifier = 'stage';
+   scan.notes = scanNotes;
+
+   ex = addScans(ex,scan);
+end
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
 ex.forcedCollectionPauseTime = p.forcedDelayTime;
@@ -121,30 +136,6 @@ ex.maxFailedCollections = 5;
 
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = p.nDataPointDeviationTolerance;
-
-%Information for stage optimization
-ex.optimizationInfo.algorithmType = 'max value';
-ex.optimizationInfo.acquisitionType = 'pulse blaster';
-ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
-ex.optimizationInfo.stageAxes = p.optimizationAxes;
-ex.optimizationInfo.steps = p.optimizationSteps;
-ex.optimizationInfo.timePerPoint = p.timePerOpimizationPoint;
-ex.optimizationInfo.timeBetweenOptimizations = p.timeBetweenOptimizations;
-if isempty(p.timeBetweenOptimizations) || p.timeBetweenOptimizations == Inf
-   ex.optimizationInfo.useTimer = false;
-else
-   ex.optimizationInfo.useTimer = true;
-end
-ex.optimizationInfo.percentageToForceOptimization = p.percentageForcedOptimization;
-if isempty(p.percentageForcedOptimization) || p.percentageForcedOptimization == 0
-   ex.optimizationInfo.usePercentageDifference = false;
-else
-   ex.optimizationInfo.usePercentageDifference = true;
-end
-ex.optimizationInfo.needNewValue = true;
-ex.optimizationInfo.lastOptimizationTime = [];
-ex.optimizationInfo.postOptimizationValue = 0;
-ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
 
 %Checks if the current configuration is valid. This will give an error if not
 ex = validateExperimentalConfiguration(ex,'pulse sequence');

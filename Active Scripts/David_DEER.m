@@ -36,7 +36,6 @@ p.baselineSubtraction = 0;%Amount to subtract from both reference and signal col
 p.maxFailedCollections = 3;
 p.perSecond = true;
 
-
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_DEER';
 p.SRSRFConfig = 'SRS_RF';
