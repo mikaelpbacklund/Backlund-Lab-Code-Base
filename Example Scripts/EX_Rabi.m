@@ -12,16 +12,18 @@ p.RFResonanceFrequency = 2.87;
 
 %General
 p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
-p.timeoutDuration = 10; %How long before auto-continue occurs
+p.timeoutDuration = 3; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .2;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
-p.intermissionBufferDuration = 1000;%How long to wait between signal and reference halves of the sequence
-p.AOMCompensation = 0;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.dataOnBuffer = 0;%post-normal collection, data on AOM off, gets extra counts
+p.extraBuffer = 0;%After dataOnBuffer, empty pulse
+p.intermissionBuffer = 1000;%Between signal and reference halves of sequence
+p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 

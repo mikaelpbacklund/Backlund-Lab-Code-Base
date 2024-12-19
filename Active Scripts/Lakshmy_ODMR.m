@@ -3,7 +3,7 @@
 %Required
 p.scanBounds = [2.7 3]; %Frequency bounds
 p.scanStepSize = .005; %Step size for RF frequency
-p.collectionType = 'analog';%analog or counter
+p.collectionType = 'counter';%analog or counter
 
 %General
 p.RFAmplitude = 10;
@@ -35,7 +35,7 @@ p.invertSignalForSNR = false;
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-2:0.25:2}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
+p.optimizationRFStatus = 'off'; %'off', 'snr', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)

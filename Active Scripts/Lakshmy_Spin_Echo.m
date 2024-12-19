@@ -1,31 +1,33 @@
-%Runs a simple Rabi sequence
-
-%Highly recommended to use a "time per data point" of at least 3 seconds
-%Lower than this is sensitive to jitters in number of points collected,
-%resulting in failed and/or erroneous points
+%Example Spin Echo using template
 
 %Required
-p.scanBounds = [20 400]; %RF duration bounds
-p.scanStepSize = 20; %Step size for RF duration
-p.collectionType = 'counter';%analog or counter
+p.tauStart = 400;
+p.tauEnd = 5000;
+p.tauStepSize = 300;
+p.tauNSteps = [];%will override step size
+p.piTime = 95;
 p.RFResonanceFrequency = 2.87;
+p.collectionType = 'counter';
 
-%General
+%Other
+p.timePerDataPoint = 4;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionBufferDuration = 100;
+p.intermissionBufferDuration = 1000;
+p.dataOnBuffer = 0;
+p.extraBuffer = 0;
+p.repolarizationDuration = 7000;
+p.extraRF = 0;
+p.AOM_DAQCompensation = 0;
+p.IQBuffers = [0 0];
+p.nIterations = 1;
 p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
-p.timeoutDuration = 3; %How long before auto-continue occurs
-p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
-p.dataOnBuffer = 800;%post-normal collection, data on AOM off, gets extra counts
-p.extraBuffer = 100;%After dataOnBuffer, empty pulse
-p.intermissionBuffer = 1000;%Between signal and reference halves of sequence
-p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
-p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
-p.perSecond = true;%convert to counts/s if using counter
+p.timeoutDuration = 3;
+p.forcedDelayTime = .25;
+p.nDataPointDeviationTolerance = .1;
+p.maxFailedCollections = 3;
+p.baselineSubtraction = 0;
+p.perSecond = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -61,5 +63,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs Rabi using specified parameters
-ex = Rabi(ex,p);
+%Runs Spin Echo
+ex = SpinEcho(ex,p);
