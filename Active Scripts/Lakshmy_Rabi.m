@@ -22,6 +22,8 @@ p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by D
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;%How long to wait between signal and reference halves of the sequence
 p.AOMCompensation = 100;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
+p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 
