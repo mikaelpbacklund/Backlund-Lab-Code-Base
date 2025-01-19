@@ -8,7 +8,7 @@
 p.scanBounds = [20 400]; %RF duration bounds
 p.scanStepSize = 20; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFFrequency = 2.87;
+p.RFResonanceFrequency = 2.87;
 
 %General
 p.RFAmplitude = 10;

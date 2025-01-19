@@ -14,6 +14,7 @@ p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+p.perSecond = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
