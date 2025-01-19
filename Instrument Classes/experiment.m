@@ -604,7 +604,7 @@ classdef experiment
          %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
          %OR
          %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
-         if all(h.odometer{:} == 0) || (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+         if all([h.odometer{:}] == 0) || (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
                || ...
             (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
                h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}(1) < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
@@ -903,34 +903,59 @@ classdef experiment
             params = flip(params);
          end         
          
-         if ~replot && (any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{1}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{2}))
+         if ~replot && (any(h.plots.(plotName).dataDisplay.XData ~= imageBounds{2}) || any(h.plots.(plotName).dataDisplay.YData ~= imageBounds{1}))
             replot = true;
          end
 
          if replot
             emptyImage = zeros(nSteps(1),nSteps(2));
             h.plots.(plotName).dataDisplay = imagesc(h.plots.(plotName).axes,emptyImage);
-            axis(h.plots.(plotName).axes,'square')%Makes pixel size square, not stretched out
+            % axis(h.plots.(plotName).axes,'square')%Makes pixel size square, not stretched out
             % h.plots.(plotName).axes.Colormap = cmap2gray(h.plots.(plotName).axes.Colormap);
             h.plots.(plotName).colorbar = colorbar(h.plots.(plotName).axes);
-            xlabel(h.plots.(plotName).axes,params{1})
-            ylabel(h.plots.(plotName).axes,params{2})
+            xlabel(h.plots.(plotName).axes,params{2})
+            ylabel(h.plots.(plotName).axes,params{1})
             title(h.plots.(plotName).axes,[plotTitle,' - ', h.scan(1).notes])
-            h.plots.(plotName).dataDisplay.XData = imageBounds{1};
-            h.plots.(plotName).dataDisplay.YData = imageBounds{2};
-            h.plots.(plotName).axes.XLim = imageBounds{1};
-            h.plots.(plotName).axes.YLim = imageBounds{2};
+            h.plots.(plotName).dataDisplay.XData = imageBounds{2};
+            h.plots.(plotName).dataDisplay.YData = imageBounds{1};
+            h.plots.(plotName).axes.XLim = imageBounds{2};
+            h.plots.(plotName).axes.YLim = imageBounds{1};
+            h.plots.(plotName).axes.YDir = 'reverse';
             %The following makes the image look nicer, otherwise it cuts the edge points in half
-            h.plots.(plotName).axes.XLim(1) = h.plots.(plotName).axes.XLim(1) - stepSize(1)/2;
-            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(2) + stepSize(1)/2;
-            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(1) - stepSize(2)/2;
-            h.plots.(plotName).axes.YLim(2) = h.plots.(plotName).axes.YLim(2) + stepSize(2)/2;           
+            h.plots.(plotName).axes.XLim(2) = h.plots.(plotName).axes.XLim(2) + stepSize(2)/2;
+            h.plots.(plotName).axes.XLim(1) = h.plots.(plotName).axes.XLim(1) - stepSize(2)/2;
+            h.plots.(plotName).axes.YLim(2) = h.plots.(plotName).axes.YLim(2) + stepSize(1)/2;
+            h.plots.(plotName).axes.YLim(1) = h.plots.(plotName).axes.YLim(1) - stepSize(1)/2;           
             
+            for ii = 1:numel(h.scan)
+                stepList(ii) = h.scan(ii).nSteps;
+            end
+            h.plots.(plotName).completedPoints = boolean(stepList);
+            if isfield(h.plots.(plotName),'minValue')
+                h.plots.(plotName) = rmfield(h.plots.(plotName),'minValue');
+                h.plots.(plotName) = rmfield(h.plots.(plotName),'maxValue');
+            end
          end
 
          %Adds data for current odometer location
          h.plots.(plotName).dataDisplay.CData(h.odometer{:}) = dataIn;
 
+         %Set current data point to being completed
+         h.plots.(plotName).completedPoints(h.odometer{:}) = true;
+
+         if ~isfield(h.plots.(plotName),'minValue')
+             h.plots.(plotName).minValue = dataIn;
+             h.plots.(plotName).maxValue = dataIn+1;
+         else
+             if dataIn < h.plots.(plotName).minValue
+                 h.plots.(plotName).minValue = dataIn;
+             end
+             if dataIn > h.plots.(plotName).maxValue
+                 h.plots.(plotName).maxValue = dataIn;
+             end
+         end
+
+         h.plots.(plotName).axes.CLim = [h.plots.(plotName).minValue h.plots.(plotName).maxValue];
       end
 
       function c = findContrast(h,contrastFunction,iterationType)

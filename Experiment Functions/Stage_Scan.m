@@ -1,6 +1,6 @@
 function ex = Stage_Scan(ex,p)
 %p is parameter structure
-
+try
 requiredParams = {'scanBounds','scanStepSize','scanAxes','collectionType'};
 
 mustContainField(p,requiredParams)
@@ -16,7 +16,7 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'contrastVSReference','ref';...
    'RFAmplitude',10;...
    'RFFrequency',2.87;...
-   'scanNotes','ODMR';...
+   'scanNotes','Stage scan';...
    'sequenceTimePerDataPoint',.2;...
    'nIterations',1;...
    'timeoutDuration',10;...
@@ -111,19 +111,13 @@ ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
 %Deletes any pre-existing scan
 ex.scan = [];
 
-scan.bounds = p.scanBounds; %RF frequency bounds
-scan.stepSize = p.scanStepSize; %Step size for RF frequency
-scan.parameter = 'frequency'; %Scan frequency parameter
-scan.identifier = ex.SRS_RF.identifier; %Instrument has identifier 'SRS RF' (not needed if only one RF generator is connected)
-scan.notes = p.scanNotes; %Notes describing scan (will appear in titles for plots)
-
 %Adds each scan
 for ii = 1:numel(p.scanBounds)
    scan.bounds = p.scanBounds{ii};
    scan.stepSize = p.scanStepSize{ii};
    scan.parameter = p.scanAxes{ii};
    scan.identifier = 'stage';
-   scan.notes = scanNotes;
+   scan.notes = p.scanNotes;
 
    ex = addScans(ex,scan);
 end
@@ -139,8 +133,13 @@ ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 ex.maxFailedCollections = p.maxFailedCollections;
 
+totalSteps = 1;
+for ii = 1:numel(ex.scan)
+    totalSteps = totalSteps .* ex.scan(ii).nSteps;
+end
+
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
+scanStartInfo(totalSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
 %Asks for user input on whether to continue
 cont = checkContinue(p.timeoutDuration*2);
@@ -150,3 +149,7 @@ end
 
 %Runs scan
 ex = runScan(ex,p);
+catch ME
+    assignin("base","ex",ex)
+    rethrow(ME)
+end

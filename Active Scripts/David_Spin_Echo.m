@@ -1,12 +1,12 @@
 %Example Spin Echo using template
 
 %Required
-p.tauStart = 110;
-p.tauEnd = 1510;
-p.tauStepSize = 25;
+p.tauStart = 200;
+p.tauEnd = 10200;
+p.tauStepSize = 500;
 p.collectionType = 'counter';
-p.piTime = 76;
-p.RFResonanceFrequency = 2.4055;
+p.piTime = 110;
+p.RFResonanceFrequency = 2.44;
 p.tauNSteps = [];%will override step size
 
 %All parameters below this are optional in that they will revert to defaults if not specified 
@@ -15,10 +15,10 @@ p.collectionDuration = 0;
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF = 10;
+p.extraRF = 20;
 p.AOM_DAQCompensation = 700;
 p.IQBuffers = [0 0];
-p.nIterations = 1;
+p.nIterations = 10;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
@@ -43,12 +43,12 @@ p.plotCurrentSNR = false;
 p.invertSignalForSNR = false;
 
 %Stage optimization
-p.optimizationEnabled = false; %Set to false to disable stage optimization
-p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
+p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
+p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 60; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationTimer = false;
 p.useOptimizationPercentage = false;
