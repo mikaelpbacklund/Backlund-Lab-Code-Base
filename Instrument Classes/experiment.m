@@ -1221,12 +1221,18 @@ classdef experiment
          h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} - baseline;
       end
 
-      function h = convertToRate(h)
+      function h = convertToRate(h,varargin)
          %Divides current value by half the time, in seconds, of the data collection for sequence sent to pulse blaster
          %Half the time because half is for reference, half for signal
 
+         %If custom ratio of data time is given, multiple found data time by that
+         dataTime = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds/2;
+         if nargin > 1
+            dataTime = dataTime .* varargin{1};
+         end
+
          h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}...
-            ./ ((h.pulseBlaster.sequenceDurations.sent.dataNanoseconds/2) * 1e-9);
+            ./ (dataTime * 1e-9);
       end
    end
 

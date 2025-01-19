@@ -50,12 +50,13 @@ for ii = 1:p.nIterations
 
          %If dataonbuffer isn't 0, actual collection time will be time of data collection/(time of data
          %collection+buffer)
-         if isfield(p,'dataOnBuffer') && isfield(p,'collectionDuration') && p.dataOnBuffer ~= 0
-            actualCollectionTime = p.collectionDuration ./ (p.collectionDuration + p.dataOnBuffer);
+         if isfield(p,'dataOnBuffer') && p.dataOnBuffer ~= 0
+            actualCollectionTime = p.collectionTime ./ (p.collectionTime + p.dataOnBuffer);
             ex = convertToRate(ex,actualCollectionTime);
          else
             ex = convertToRate(ex);
-         end         
+         end
+         
       end
 
       %Create matrix where first row is ref, second is sig, and columns indicate iteration
