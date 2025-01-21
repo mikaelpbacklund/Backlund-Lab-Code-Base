@@ -44,6 +44,27 @@ classdef experiment
 
    methods
 
+       function h = experiment()
+           h.optimizationInfo.enableOptimization = true;
+            h.optimizationInfo.algorithmType = 'max value';
+            h.optimizationInfo.acquisitionType = 'pulse blaster';
+            h.optimizationInfo.stageAxes = [];
+            h.optimizationInfo.steps = [];
+            h.optimizationInfo.timePerPoint = .1;
+            h.optimizationInfo.timeBetweenOptimizations = 120;
+            h.optimizationInfo.useTimer = false;
+            h.optimizationInfo.percentageToForceOptimization =.75;
+            h.optimizationInfo.usePercentageDifference = false;
+            h.optimizationInfo.needNewValue = false;
+            h.optimizationInfo.lastOptimizationTime = [];
+            h.optimizationInfo.maxValueRecord = [];
+            h.optimizationInfo.allValuesRecord = {};
+            h.optimizationInfo.storeAllValues = false;
+            h.optimizationInfo.maxLocationRecord = [];
+            h.optimizationInfo.postOptimizationValue = 0;
+            h.optimizationInfo.rfStatus = off;
+       end
+
       function h= takeNextDataPoint(h,acquisitionType)
          %Check if valid configuration (always need PB and DAQ, sometimes
          %needs RF or stage, rarely needs laser)
