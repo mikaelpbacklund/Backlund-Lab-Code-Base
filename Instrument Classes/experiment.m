@@ -63,6 +63,7 @@ classdef experiment
             h.optimizationInfo.maxLocationRecord = [];
             h.optimizationInfo.postOptimizationValue = 0;
             h.optimizationInfo.rfStatus = 'off';
+            h.optimizationInfo.radius = [];
        end
 
       function h= takeNextDataPoint(h,acquisitionType)
@@ -604,7 +605,8 @@ classdef experiment
             'storeAllValues',false;...
             'maxLocationRecord',[];...
             'postOptimizationValue',0;...
-            'rfStatus','off'};
+            'rfStatus','off';...
+            'radius',[]};
 
          %Checks if fields are present and gives default values
          h.optimizationInfo = mustContainField(h.optimizationInfo,optimizationDefaults(:,1),optimizationDefaults(:,2));
