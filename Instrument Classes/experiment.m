@@ -62,7 +62,7 @@ classdef experiment
             h.optimizationInfo.storeAllValues = false;
             h.optimizationInfo.maxLocationRecord = [];
             h.optimizationInfo.postOptimizationValue = 0;
-            h.optimizationInfo.rfStatus = off;
+            h.optimizationInfo.rfStatus = 'off';
        end
 
       function h= takeNextDataPoint(h,acquisitionType)
