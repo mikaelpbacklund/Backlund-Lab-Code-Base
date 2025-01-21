@@ -1,7 +1,8 @@
+clear p
 
 %Required
 p.scanBounds = [2.35 2.55]; %Frequency bounds
-p.scanStepSize = .005; %Step size for RF frequency
+p.scanStepSize = .05; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
@@ -31,7 +32,7 @@ p.plotCurrentSNR = false;
 p.invertSignalForSNR = false;
 
 %Stage optimization
-p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
 p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 

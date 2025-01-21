@@ -5,6 +5,8 @@
 %ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
+clear p
+
 %% User Inputs
 p.scanBounds = {[-1395 -1390],[-72 -68]};
 p.scanAxes = {'x','y'};
@@ -24,23 +26,3 @@ p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
 p.intermissionBufferDuration = 1000;
-
-%Config file names
-p.pulseBlasterConfig = 'pulse_blaster_DEER';
-p.SRSRFConfig = 'SRS_RF';%Only applicable if contrast enabled
-p.DAQConfig = 'daq_6361';
-p.stageConfig = 'PI_stage';
-
-%Plotting
-p.plotAverageReference = true;
-p.plotCurrentReference = false;
-p.plotAverageContrast = true;%Only applicable if contrast enabled
-p.plotCurrentContrast = false;%Only applicable if contrast enabled
-p.plotAverageSNR = false;%Only applicable if contrast enabled
-p.plotCurrentSNR = false;%Only applicable if contrast enabled
-p.invertSignalForSNR = false;%Only applicable if contrast enabled
-
-if ~exist('ex','var') || isempty(ex),ex = []; end
-
-%Runs Stage scan using specified parameters
-ex = Stage_Scan(ex,p);

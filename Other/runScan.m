@@ -50,7 +50,7 @@ for ii = 1:p.nIterations
 
          %If dataonbuffer isn't 0, actual collection time will be time of data collection/(time of data
          %collection+buffer)
-         if isfield(p,'dataOnBuffer') && isfield(p,'collectionDuration') && p.dataOnBuffer ~= 0
+         if isfield(p,'dataOnBuffer') && isfield(p,'collectionDuration') && p.dataOnBuffer ~= 0 && p.collectionDuration ~= 0
             actualCollectionTime = p.collectionDuration ./ (p.collectionDuration + p.dataOnBuffer);
             ex = convertToRate(ex,actualCollectionTime);
          else

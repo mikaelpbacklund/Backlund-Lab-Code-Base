@@ -651,9 +651,9 @@ classdef experiment
                       if strcmpi(h.DAQ.continuousCollection,'off')                          
                           n = n+1;
                           if n == 1
-                              dataOut = readData(h.DAQ);
+                              dataOut = readDAQData(h.DAQ);
                           else
-                        dataOut = dataOut + readData(h.DAQ);
+                        dataOut = dataOut + readDAQData(h.DAQ);
                           end
                       else
                           pause(.001)
@@ -733,13 +733,9 @@ classdef experiment
                       stop(h.DAQ.handshake)
                       resetcounters(h.DAQ.handshake)
                       start(h.DAQ.handshake)
-                  end
-               else
-                  %Takes data and puts it in the current iteration spot for this
-                  %data point
-                  
+                  end                  
                end
-
+               
             case 'scmos'
                %Takes image and outputs as data
 

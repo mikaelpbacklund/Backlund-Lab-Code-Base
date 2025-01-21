@@ -2,8 +2,8 @@
 
 %Required
 p.tauStart = 200;
-p.tauEnd = 10200;
-p.tauStepSize = 500;
+p.tauEnd = 5200;
+p.tauStepSize = 1000;
 p.collectionType = 'counter';
 p.piTime = 110;
 p.RFResonanceFrequency = 2.44;
@@ -17,16 +17,16 @@ p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
 p.extraRF = 20;
 p.AOM_DAQCompensation = 700;
-p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
-p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
+p.dataOnBuffer = 800;%Time after AOM is on where DAQ continues readout but AOM is shut off
+p.extraBuffer = 100;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [0 0];
-p.nIterations = 10;
+p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
-p.baselineSubtraction = 1.5e4;
+p.baselineSubtraction = 0;
 p.perSecond = true;
 
 %Config file names
@@ -52,7 +52,7 @@ p.optimizationRFStatus = 'off'; %'off', 'on', or 'con'
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 60; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
-p.useOptimizationTimer = false;
+p.useOptimizationTimer = true;
 p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.

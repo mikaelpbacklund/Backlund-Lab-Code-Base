@@ -355,7 +355,7 @@ classdef DAQ_controller < instrumentType
 
       end
       
-      function varargout = readData(h)
+      function varargout = readDAQData(h)
          if strcmp(h.differentiateSignal,'on')
             varargout{1} = h.handshake.UserData.reference;
             varargout{2} = h.handshake.UserData.signal;
