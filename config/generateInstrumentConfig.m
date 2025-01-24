@@ -356,11 +356,24 @@ save(strcat(saveLocation,saveName),'config')
 
 clear config
 
+config.identifier = 'laser488';
 config.baudrate = 19200;
-config.realReplyNumber = 2;
+config.portNumber = 1;%**WRONG
 config.pauseTime = 2;
-config.powerConversionFactor = 1;
-config.discardInitialResponse = false;
+config.wavelength = 488;
+config.waitForEquilibrium = false;
+config.offWhenDeleted = false;
+config.replyInfo.numberOfReplies = 2;
+config.replyInfo.realReplyLocation = 2;
+config.replyInfo.discardFirstConnectedResponse = false;
+%Number of chars discarded from reply for each query type
+config.replyInfo.charsDiscarded.actualPower = 2;
+
+config.setPowerInfo.conversionFactor = 1;%**WRONG
+config.setPowerInfo.minimum = 0;%**WRONG
+config.setPowerInfo.maximum = 1;%**WRONG
+config.setPowerInfo.units = 'Watts';%**WRONG
+config.setPowerInfo.tolerance = 0;
 config.commands.toggleQuery = "?l";
 config.commands.toggleOn = "l=1";
 config.commands.toggleOff = "l=0";

@@ -2,15 +2,15 @@ classdef laser < instrumentType
    % NEED TO ADD SET/GET FUNCTIONS
    
    properties
-      wavelength %Laser wavelength, used primarily for display
-      baudRate %*********NOT REQUIRED FOR ALL LASERS, CHECK COHERENT AND 488
+      wavelength
+      baudRate
       portNumber
       replyInfo
       pauseTime
-      waitForEquilibrium %Boolean for whether to wait until actual power matches set power
-      offWhenDeleted %Should laser be turned off when object is deleted
-      commands %Commands that can be sent to handshake
-      handshake %Actual connection to instrument
+      waitForEquilibrium
+      offWhenDeleted
+      commands
+      handshake
       setPower %Current power setting
       setPowerInfo %Contains information on how to change set power
       actualPower %Current power reading 
@@ -22,10 +22,11 @@ classdef laser < instrumentType
          if nargin < 1
               error('Config file name required as input')
          end
-
-         configFields = {'identifier','wavelength','baudRate','portNumber','pauseTime','waitForEquilibrium','offWhenDeleted','replyInfo'};
-         commandFields = {'toggleOn','toggleOff','toggleQuery','setPowerQuery','setPower','actualPowerQuery'};
-         numericalFields = {'setPower'};%has units, conversion factor, and min/max
+         configFields = {'connectionInfo','identifier'};
+         commandFields = {'toggleOn','toggleOff','toggleQuery','amplitude','amplitudeQuery','frequency','frequencyQuery'...
+            'modulationToggleOn','modulationToggleOff','modulationToggleQuery','modulationWaveform',...
+            'modulationWaveformQuery','modulationType','modulationTypeQuery','modulationExternalIQ'};
+         numericalFields = {'frequency','amplitude'};%has units, conversion factor, and min/max
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
       end
 
