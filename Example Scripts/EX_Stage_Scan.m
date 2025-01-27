@@ -39,6 +39,9 @@ p.plotCurrentContrast = false;%Only applicable if contrast enabled
 p.plotAverageSNR = false;%Only applicable if contrast enabled
 p.plotCurrentSNR = false;%Only applicable if contrast enabled
 p.invertSignalForSNR = false;%Only applicable if contrast enabled
+p.plotCurrentDataPoints=false;
+p.plotAverageDataPoints=false;
+p.plotPulseSequence = false;
 
 %% Backend
 

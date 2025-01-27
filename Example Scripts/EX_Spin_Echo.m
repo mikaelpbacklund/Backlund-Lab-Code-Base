@@ -43,6 +43,9 @@ p.plotCurrentReference = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.invertSignalForSNR = false;
+p.plotCurrentDataPoints=false;
+p.plotAverageDataPoints=false;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

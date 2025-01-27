@@ -10,8 +10,9 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotCurrentReference',true;...
    'plotAverageSNR',false;...
    'plotCurrentSNR',false;...
-   'plotCurrentPercentageDataPoints',false;...
-   'plotAveragePercentageDataPoints',false;...
+   'plotCurrentDataPoints',false;...
+   'plotAverageDataPoints',false;...
+   'plotPulseSequence',false;...
    'invertSignalForSNR',false;...
    'baselineSubtraction',0;...
    'boundsToUse',1;...
@@ -114,6 +115,34 @@ for ii = 1:p.nIterations
       end
       if p.plotCurrentPercentageDataPoints
          ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse);
+      end
+
+      %Plots the pulse sequence on the first iteration if desired
+      if p.plotPulseSequence && ii == 1
+         seq = ex.pulseBlaster.userSequence;
+         xax = [];
+         yax = [];
+         for kk = 1:numel(seq)
+            binChannels = seq(kk).channelsBinary;
+            binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
+            nBin = numel(binChannels);
+            if kk == 1
+               xax = 0;
+               for jj = 1:nBin
+                  yax(kk,jj) = (nBin-(jj-1))*2+.5; %#ok<*SAGROW>
+               end
+            else
+               xax = [xax,xax(end)+seq(kk-1).duration]; %#ok<*AGROW>
+               for jj = 1:numel(binChannels)
+                  yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
+               end
+            end
+         end
+         pulseSequenceFig = figure(51);
+         pulseSequenceAxes = axes(pulseSequenceFig); %#ok<LAXES>
+         for jj = 1:numel(binChannels)
+            stairs(pulseSequenceAxes,xax,yax)
+         end
       end
 
       %If a new post-optimization value is needed, record current data
