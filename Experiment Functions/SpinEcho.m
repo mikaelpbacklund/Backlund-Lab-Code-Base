@@ -1,5 +1,6 @@
 function ex = SpinEcho(ex,p)
 
+try
 requiredParams = {'tauStart','tauEnd','tauStepSize','collectionType','RFResonanceFrequency','piTime'};
 
 mustContainField(p,requiredParams)
@@ -107,6 +108,21 @@ end
 %Deletes any pre-existing scan
 ex.scan = [];
 
+if p.scanPi
+tauAddresses = scanInfo.address;
+scanInfo.address = findPulses(ex.pulseBlaster,'notes','π','contains');
+ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauAddresses,'duration',p.givenTau);
+scanInfo.nSteps = p.piNSteps;
+pi2Bounds = [(p.piStart/2)+p.extraRF,(p.piEnd/2)+p.extraRF];
+piBounds = [(p.piStart)+p.extraRF,(p.piEnd)+p.extraRF];
+for ii = [1 3 4 6]
+    scanInfo.bounds{ii} = pi2Bounds;
+end
+for ii = [2 5]
+    scanInfo.bounds{ii} = piBounds;
+end
+end
+
 %Adds scan to experiment based on template output
 ex = addScans(ex,scanInfo);
 
@@ -129,6 +145,10 @@ end
 %Runs scan
 ex = runScan(ex,p);
 
-
+catch ME
+    assignin("base","ex",ex)
+    stop(ex.DAQ.handshake)
+    rethrow(ME)
+end
 
 end

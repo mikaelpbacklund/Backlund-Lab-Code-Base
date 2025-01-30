@@ -55,7 +55,7 @@ classdef RF_generator < instrumentType
                try
                h.handshake = visadev(devicesList.ResourceName(stanfordRow));
                catch connectionError
-                   assignin("base","connectionError",connectionError)
+                   assignin("base","connectionError",connectionError)                   
                    error('Unable to identify RF generator.')
                end
 

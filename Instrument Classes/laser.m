@@ -22,6 +22,9 @@ classdef laser < instrumentType
    
    methods
       function h = laser(wavelength,portNumber)
+          %Load settings from config and check if port is valid
+          %If port is invalid, checkPort
+
          if nargin == 1
             checkPort(h)
          end

@@ -28,7 +28,7 @@ if nargin > 5 && ~isempty(varargin{1})
          if iqBuffers(1) >= previousDuration
             error('I/Q buffer cannot be longer than tau pulse')
          end
-         h = modifyPulse(h,currentAddress-2,'duration',previousDuration - iqBuffers(1));
+         h = modifyPulse(h,currentAddress-2,'duration',previousDuration - iqBuffers(1),false);
       end
 
       subtractBoolean = iqBuffers(2) ~= 0 && currentAddress < numel(h.userSequence) - 2 &&...
@@ -38,9 +38,9 @@ if nargin > 5 && ~isempty(varargin{1})
          if iqBuffers(2) >= previousDuration
             error('I/Q buffer cannot be longer than tau pulse')
          end
-         h = modifyPulse(h,currentAddress+2,'duration',previousDuration - iqBuffers(2));
+         h = modifyPulse(h,currentAddress+2,'duration',previousDuration - iqBuffers(2),false);
       end
-   end
+   end   
 end
 
 h = addBuffer(h,findPulses(h,'activeChannels',{'Data'},'contains'),intermission,{'Signal'},'after','Intermission between halves');
@@ -62,7 +62,7 @@ if AOM_DAQCompensation > 0
 
     %Reduces repolarization duration based on compensation duration
     for ii = 1:numel(foundAddress)
-      h = modifyPulse(h,foundAddress(ii),'duration',repolarization - compDuration);
+      h = modifyPulse(h,foundAddress(ii),'duration',repolarization - compDuration,false);
     end
 else
     % Adds pulse with DAQ on to account for lag between DAQ and AOM
@@ -72,7 +72,7 @@ else
     %Reduces data duration based on compensation duration
     for ii = 1:numel(foundAddress)
        n = n+1;%Number of additional pulses added
-      h = modifyPulse(h,foundAddress(ii)+n,'duration',h.userSequence(foundAddress(ii)+n).duration - compDuration);
+      h = modifyPulse(h,foundAddress(ii)+n,'duration',h.userSequence(foundAddress(ii)+n).duration - compDuration,false);
     end
 end
 
@@ -88,7 +88,7 @@ if nargin > 6 && ~isempty(varargin{2}) && varargin{2} ~= 0
     if AOM_DAQCompensation > 0
         previousDuration = h.userSequence(dataAddresses(1)).duration - AOM_DAQCompensation;
         for ii = 1:numel(dataAddresses)
-            h = modifyPulse(h,dataAddresses,'duration',previousDuration);
+            h = modifyPulse(h,dataAddresses,'duration',previousDuration,false);
         end
     end
     %Add additional 1 us buffer of nothing between data collection and
@@ -100,5 +100,8 @@ if nargin > 6 && ~isempty(varargin{2}) && varargin{2} ~= 0
     dataAddresses = dataAddresses + additionalPulsesAdded - 1;
     h = addBuffer(h,dataAddresses,varargin{2},{'Data','Signal'},'after','Data on, repolarization buffer');
 end
+
+h = calculateDuration(h,'user');
+h = calculateDuration(h,'adjusted');
 
 end

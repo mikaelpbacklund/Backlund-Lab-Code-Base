@@ -85,19 +85,19 @@ for rs = 1:2 %singal half and reference half
    h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
 
    %π to rotate around y and generate echo
-%    if rs == 2
+   if rs == 2
    h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-%    else
-%    h = condensedAddPulse(h,{'I',addedSignal},totalPiTime,'π y');
-%    end
+   else
+   h = condensedAddPulse(h,{'I',addedSignal},totalPiTime,'π y');
+   end
 
    %Scanned τ between π and π/2 pulses
    h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
-      h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
-%       h = condensedAddPulse(h,{'I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
+      %h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
+      h = condensedAddPulse(h,{'I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
    else
       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');

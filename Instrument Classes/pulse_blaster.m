@@ -172,9 +172,10 @@ classdef pulse_blaster < instrumentType
          h = addPulse(h,pulseInfo);
       end
 
-      function h = adjustSequence(h)
+      function h = adjustSequence(h,varargin)
          %Adjusts sequence to include total loop (if enabled) as well as
          %necessary stop pulse
+         %2nd argument is to calculate duration after adjustment
 
          %Copy user sequence to the adjusted sequence
          h.adjustedSequence = h.userSequence;
@@ -219,9 +220,11 @@ classdef pulse_blaster < instrumentType
          pulseInfo.notes = 'Stop sequence';
          h.adjustedSequence(end+1) = pulseInfo;
 
-         %Calculates durations for the user and adjusted sequence
-         h = calculateDuration(h,'user');
-         h = calculateDuration(h,'adjusted');
+         if nargin > 1 && varargin{1}
+             %Calculates durations for the user and adjusted sequence
+             h = calculateDuration(h,'user');
+             h = calculateDuration(h,'adjusted');
+         end
       end
 
       function h = sendToInstrument(h)
@@ -555,19 +558,21 @@ classdef pulse_blaster < instrumentType
          %Preallocation
          interpretedString = cell(1,numel(inputName));
          matchingNumber = zeros(1,numel(inputName));
+         acceptableName = strcat('acceptable',nameType,'Names');
+         formalName = strcat('formal',nameType,'Names');
 
          for ii = 1:numel(inputName)
             %Creates function that compares namesCell to the current
             %inputName
             checkName = @(namesCell)any(strcmpi(namesCell,inputName(ii)));
             %Finds which cells contain an acceptable name matching the
-            %input
-            matchingName = cellfun(checkName,h.(strcat('acceptable',nameType,'Names')));
+            %input            
+            matchingName = cellfun(checkName,h.(acceptableName));
             if ~any(matchingName), error('%s is not an acceptable %s name',inputName,nameType), end
 
             %Gets the formal name wherever the input matched an
             %accceptable name
-            interpretedString{ii} = h.(strcat('formal',nameType,'Names')){matchingName};
+            interpretedString{ii} = h.(formalName){matchingName};
             matchingNumber(ii) = find(matchingName);
          end
       end

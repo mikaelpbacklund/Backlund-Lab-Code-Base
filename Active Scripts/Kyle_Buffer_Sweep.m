@@ -5,12 +5,12 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-piTime = 76;
-scanBounds = [400 900];%ns
-scanNotes = 'Buffer sweep'; %Notes describing scan (will appear in titles for plots)
-scanNSteps = 26;%Will override step size if set
-p.nIterations = 10;
-RFFrequency = 2.4055;
+piTime = 36;
+scanBounds = [0 20];%ns
+scanNotes = 'RFReduction'; %Notes describing scan (will appear in titles for plots)
+scanNSteps = 11;%Will override step size if set
+p.nIterations = 1;
+RFFrequency = 2.0365;
 sequenceTimePerDataPoint = 10;%seconds before factoring in forced delay and other pauses
 timeoutDuration = 10;
 forcedDelayTime = .2;
@@ -21,7 +21,7 @@ RFReduction = 0;
 
 %Lesser used settings
 RFAmplitude = 10;
-dataType = 'counter';
+dataType = 'analog';
 nDataPointDeviationTolerance = .015;
 collectionDuration = (1/1.25)*1000;
 collectionBufferDuration = 1000;

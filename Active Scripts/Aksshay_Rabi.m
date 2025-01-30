@@ -5,10 +5,10 @@
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [20 400]; %RF duration bounds
-p.scanStepSize = 20; %Step size for RF duration
+p.scanBounds = [10 410]; %RF duration bounds
+p.scanStepSize = 10; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 1.926;
+p.RFResonanceFrequency = 2.0355;
 
 %General
 p.RFAmplitude = 10;
@@ -16,12 +16,13 @@ p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pause
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .2;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
-p.intermissionBufferDuration = 1000;%How long to wait between signal and reference halves of the sequence
+p.intermissionBufferDuration = 20000;%How long to wait between signal and reference halves of the sequence
 p.AOMCompensation = 500;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.repolarizationDuration = 10000;
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 
@@ -38,6 +39,8 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentPercentageDataPoints = false;
+p.plotAveragePercentageDataPoints = false;
 p.invertSignalForSNR = false;
 
 %Stage optimization

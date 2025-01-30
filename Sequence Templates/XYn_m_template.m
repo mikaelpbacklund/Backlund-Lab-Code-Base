@@ -47,7 +47,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
@@ -126,7 +126,7 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
 nTau = ((p.setsXYN*p.nXY)+1);
 scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
-h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
 %Sends the completed sequence to the pulse blaster

@@ -222,7 +222,7 @@ config.channelInfo(1).port = 'ctr2';
 config.channelInfo(1).label = 'Data counter';%Data must be included
 
 config.channelInfo(2).dataType = 'Analog';
-config.channelInfo(2).port = 'ai0';
+config.channelInfo(2).port = 'ai1';
 config.channelInfo(2).label = 'Data analog';
 
 config.channelInfo(3).dataType = 'Digital';

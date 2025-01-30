@@ -1,34 +1,36 @@
-%Example Spin Echo using template
+%Example XYN-m using template
 
 %Required
-p.tauStart = 110;
-p.tauEnd = 1510;
-p.tauStepSize = 25;
-p.collectionType = 'counter';
-p.piTime = 34;
-p.RFResonanceFrequency = 2.0365;
+p.tauStart = 250;
+p.tauEnd = 490;
+p.tauStepSize = 12;
 p.tauNSteps = [];%will override step size
+p.piTime = 40;
+p.RFResonanceFrequency = 2.0355;
+p.nXY = 8;%N in XYN-m
+p.setsXYN = 12;%m in XYN-m
+p.collectionType = 'analog';
 
-%All parameters below this are optional in that they will revert to defaults if not specified 
-p.timePerDataPoint = 4;%seconds
-p.collectionDuration = 0;
+%Other
+p.sequenceTimePerDataPoint = 5;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
-p.intermissionBufferDuration = 1000;
-p.repolarizationDuration = 7000;
-p.extraRF = 10;
-p.AOM_DAQCompensation = 700;
-p.IQBuffers = [0 0];
-p.nIterations = 1;
+p.intermissionBufferDuration = 10000;
+p.repolarizationDuration = 10000;
+p.extraRF = 4;
+p.AOM_DAQCompensation = 600;
+p.IQBuffers = [20 20];
+p.nIterations = 20;
 p.RFAmplitude = 10;
-p.timeoutDuration = 3;
-p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .1;
+p.timeoutDuration = 10;
+p.forcedDelayTime = .125;
+p.nDataPointDeviationTolerance = .2;
 p.maxFailedCollections = 3;
-p.baselineSubtraction = 1.5e4;
+p.baselineSubtraction = 0;
 p.perSecond = true;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_DEER';
+p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
@@ -45,12 +47,12 @@ p.invertSignalForSNR = false;
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-2:0.1:2}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
-p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
+p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
-p.useOptimizationTimer = false;
 p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
@@ -61,5 +63,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs Spin Echo
-ex = SpinEcho(ex,p);
+%Runs XYN-m
+ex = XYN(ex,p);

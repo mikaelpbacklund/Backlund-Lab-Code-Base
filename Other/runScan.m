@@ -83,20 +83,32 @@ for ii = 1:p.nIterations
       if p.plotCurrentReference
          ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel,p.boundsToUse);
       end
+      ex = plotData(ex,averageData(2),'Average Signal',yAxisLabel,p.boundsToUse); 
+      ex = plotData(ex,currentData(2),'Current Signal',yAxisLabel,p.boundsToUse);
       yAxisLabel = 'SNR (arbitrary units)';
       if p.plotAverageSNR
-          if ~p.invertSignalForSNR
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1));
+          if strcmpi(p.collectionType,'analog')
+              SNRVal = averageData(1) * sqrt(mean(dataPoints,"all"));
           else
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
+              SNRVal = sqrt(averageData(1));
+          end
+          if ~p.invertSignalForSNR
+              SNRVal = SNRVal * ((averageData(1) - averageData(2)) / averageData(1));
+          else
+              SNRVal = SNRVal * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
           end
          ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse); 
       end
-      if p.plotCurrentSNR
+      if p.plotCurrentSNR          
+          if strcmpi(p.collectionType,'analog')
+              SNRVal = currentData(1) * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
+          else
+              SNRVal = sqrt(currentData(1));
+          end
           if ~p.invertSignalForSNR
-              SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1));
+              SNRVal = SNRVal * ((currentData(1) - currentData(2)) / currentData(1));
               else
-              SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
+              SNRVal = SNRVal * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
           end
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse);
       end

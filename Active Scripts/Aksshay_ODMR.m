@@ -1,14 +1,14 @@
 %Default ODMR script example
 
 %Required
-p.scanBounds = [2.7 3]; %Frequency bounds
-p.scanStepSize = .005; %Step size for RF frequency
+p.scanBounds = [2.0 2.06]; %Frequency bounds
+p.scanStepSize = .0005; %Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General
 p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 0.100;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
@@ -29,6 +29,8 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentPercentageDataPoints = false;
+p.plotAveragePercentageDataPoints = false;
 p.invertSignalForSNR = false;
 
 %Stage optimization
