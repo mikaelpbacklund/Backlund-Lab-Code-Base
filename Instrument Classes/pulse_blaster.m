@@ -14,6 +14,7 @@ classdef pulse_blaster < instrumentType
       %Read-only for user, derived from config or functions     
       commands
       clockSpeed%MHz
+      durationStepSize
       formalChannelNames
       acceptableChannelNames
       formalDirectionNames
@@ -23,12 +24,6 @@ classdef pulse_blaster < instrumentType
       adjustedSequence
       sequenceSentToPulseBlaster%The last recorded sequence sent to the pulse blaster
       sequenceDurations
-%       userSequenceDuration
-%       userSequenceDataDuration
-%       adjustedSequenceDuration
-%       adjustedSequenceDataDuration
-%       sentSequenceDuration
-%       sentSequenceDataDuration
       %userSequence (below) is a special case here. I originally wanted it
       %to be not read-only. Unfortunately, there are multiple ways to
       %represent which channels are on (base 10, binary, and names) so it
@@ -54,7 +49,7 @@ classdef pulse_blaster < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames',...
+         configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames','durationStepSize'...
             'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
          commandFields = {'library','api','type','name'};%Use commands to hold dll info
          numericalFields = {};      
@@ -250,9 +245,15 @@ classdef pulse_blaster < instrumentType
                current.contextInfo = loopTracker(end);
                loopTracker(end) = [];
             end
+
+            %Pulse blaster can only have step size so small
+            trueDuration = round(current.duration/h.durationStepSize)*h.durationStepSize;
+
             %Sends the current instruction to the pulse blaster
             [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
-               opCode-1,current.contextInfo,round(current.duration));
+               opCode-1,current.contextInfo,trueDuration);
+
+            h.sequenceSentToPulseBlaster(ii).duration = trueDuration;
          end
 
          [~] = calllib(h.commands.name,'pb_stop_programming');

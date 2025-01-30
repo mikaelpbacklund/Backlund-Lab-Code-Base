@@ -1,20 +1,21 @@
 classdef laser < instrumentType
-   % NEED TO ADD SET/GET FUNCTIONS
    
    properties
-      wavelength
-      baudRate
+      wavelength %Laser wavelength, used primarily for display
       portNumber
       replyInfo
       pauseTime
-      waitForEquilibrium
-      offWhenDeleted
-      commands
-      handshake
-      setPower %Current power setting
+      waitForEquilibrium %Boolean for whether to wait until actual power matches set power
+      offWhenDeleted %Should laser be turned off when object is deleted
+      commands %Commands that can be sent to handshake
+      handshake %Actual connection to instrument
       setPowerInfo %Contains information on how to change set power
-      actualPower %Current power reading 
+      setPower %Current power setting      
       enabled %On/Off setting
+   end
+
+   properties (SetAccess = {?laser ?instrumentType}, GetAccess = public)
+      actualPower %Current power reading. UPDATES FROM INSTRUMENT EVERY TIME ACCESSED
    end
    
    methods
@@ -22,30 +23,42 @@ classdef laser < instrumentType
          if nargin < 1
               error('Config file name required as input')
          end
-         configFields = {'connectionInfo','identifier'};
-         commandFields = {'toggleOn','toggleOff','toggleQuery','amplitude','amplitudeQuery','frequency','frequencyQuery'...
-            'modulationToggleOn','modulationToggleOff','modulationToggleQuery','modulationWaveform',...
-            'modulationWaveformQuery','modulationType','modulationTypeQuery','modulationExternalIQ'};
-         numericalFields = {'frequency','amplitude'};%has units, conversion factor, and min/max
+
+         configFields = {'identifier','wavelength','uncommonProperties','pauseTime','waitForEquilibrium','offWhenDeleted'};
+         commandFields = {'toggleOn','toggleOff','toggleQuery','setPowerQuery','setPower','actualPowerQuery'};
+         numericalFields = {'setPower'};%has units, conversion factor, and min/max
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Checks to make sure nested fields contain appropriate info
+         mustContainField(h.uncommonProperties,{'replyInfo','connectionType'})
+         if strcmpi(h.uncommonProperties.connectionType,'com')
+            mustContainField(h.uncommonProperties,{'portNumber','baudRate'})
+         end
+         mustContainField(h.uncommonProperties.replyInfo,{'numberOfReplies','realReplyLocation','discardAfterWrite',...
+            'discardFirstConnectedResponse','charsDiscarded'})
+         mustContainField(h.uncommonProperties.replyInfo.charsDiscarded,{'actualPower','setPower','toggle'})
       end
 
       function delete(h)
          if h.offWhenDeleted
-            h = toggle(h,'off'); %#ok<NASGU>
+            h.enabled = false;
          end
       end
+      
       %% Internal Functions
       
       function [h,numericalData] = readNumber(h,attributeQuery)
-         writeline(h.handshake,attributeQuery)
-         numericalData = str2double(queryInterpretation(h));
+         [h,numericalData] = readInstrument(h,attributeQuery);
+         numericalData = str2double(queryInterpretation(h,numericalData,true));
       end
       
       function h = writeNumber(h,attribute,numericalInput)
          inputCommand = sprintf(h.commands.(attribute),numericalInput);
-         writeline(h.handshake,inputCommand)
-         [~] = readline(h.handshake);%OK reply to every command
+         h = writeInstrument(h.handshake,inputCommand);
+         if h.uncommonProperties.replyInfo.discardAfterWrite
+            [~] = readline(h.handshake);%OK reply to every command
+         end
+         
       end
       
       function [h,toggleStatus] = readToggle(h,attributeQuery)         
@@ -58,48 +71,6 @@ classdef laser < instrumentType
          [~] = readline(h.handshake);%OK reply to every command
       end
                   
-      function h = equilibrium(h,varargin)
-         %Variable argument is for forcing pause time
-         checkConnection(h)
-         
-         %Waits for set amount of time if required
-         if nargin > 1 && varargin{1}
-            pause(h.pauseTime)
-         end
-
-         %Don't check for equilibrium if set not to, just check the power
-         if ~h.waitForEquilibrium
-            h = queryActualPower(h);
-            return
-         end
-         
-         n = 0; %Counter for amount of times power is checked
-         printOut('Waiting for laser equilibrium')
-         
-         while true %repeats until equilibrated
-            %Finds current laser output
-            h.actualPower = actualLaserPower(h);
-            
-            %Within tolerance on both sides
-            if  h.actualPower <= h.setPower + h.tolerance && h.actualPower >= h.setPower - h.tolerance
-               printOut('\nLaser equilibrated\n')
-               break
-            else
-               if mod(n,2) == 0
-                  printOut('.')
-               end
-               n = n+1;
-               
-               if n > 60 %Laser shouldn't take more than 15 seconds to equilibrate
-                  printOut('\nEquilibrium not established (check tolerance setting). Continuing...\n')
-                  return
-               end
-               
-               pause(.25) 
-            end
-         end
-      end
-      
       function queryOutput = queryInterpretation(h,numberCharsDiscarded)
          %Requests reply from handshake repeatedly and selects "correct" reply with desired information
          %numberOfReplies, realReplyLocation, and numberCharsDiscarded must be found individually for each laser
@@ -118,36 +89,81 @@ classdef laser < instrumentType
       
       %% User functions      
       
-      function h = connect(h,configName,portNumber)
+      function h = connect(h)
          %visadevlist
-         %Loads config file and checks relevant field names
-         configFields = {'baudrate','replyInfo','pauseTime','powerConversionFactor','discardInitialResponse'};
-         commandFields = {'toggleQuery','toggleOn','toggleOff','setPowerQuery','setPower','actualPowerQuery'};
-         numericalFields = {'setPower'};
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
+
+         if strcmpi(h.uncommonProperties.connectionType,'com')
+            h.handshake = serialport(sprintf('COM%d',h.uncommonProperties.portNumber),h.uncommonProperties.baudRate);
+            configureTerminator(h.handshake,"CR")
+         end       
          
-         h.handshake = serialport(sprintf('COM%d',portNumber),h.baudRate);
-         configureTerminator(h.handshake,"CR")
-         
-         if h.replyInfo.discardFirstConnectedResponse
+         if h.uncommonProperties.replyInfo.discardFirstConnectedResponse
             %Query identification because first query gives different result from
             %later ones. Also a check on if the connection worked
             writeline(h.handshake,"*IDN?")
             [~] = queryInterpretation(h,0);
          end
+
          h.connected = true;
-         
-         h = toggle(h,'query');
-         h = setLaserPower(h,'query');         
-      end
-      
-      function h = queryActualPower(h)
-         checkConnection(h)
-         writeline(h.handshake,h.commands.actualPowerQuery)
-         h.actualPower = queryInterpretation(h,h.replyInfo.charsDiscarded.actualPower);
-         h.actualPower = h.actualPower/h.powerConversionFactor;
+
+         h = queryToggle(h);
+         h = querySetPower(h);
+         h = equilibrium(h);         
       end
      
+       function h = equilibrium(h,varargin)
+         %Variable argument 1 is forcing pause time
+         %Variable argument 2 is giving set power to reference instead of referencing property
+         checkConnection(h)
+         
+         %Waits for set amount of time if required
+         if nargin > 1 && ~isempty(varargin{1}) && varargin{1}
+            pause(h.pauseTime)
+         end
+
+         %Uses input as reference power instead of property when using the set.setPower function
+         if nargin > 2 && ~isempty(varargin{2})
+            referencePower = varargin{2};
+         else
+            referencePower = h.setPower;
+         end
+
+         %Don't check for equilibrium if set not to, just check the power
+         if ~h.waitForEquilibrium
+            [~] = h.actualPower;%update actual power by attempted access
+            return
+         end
+         
+         n = 0; %Counter for amount of times power is checked
+         printOut('Waiting for laser equilibrium')
+         
+         while true %repeats until equilibrated
+
+            %Queries actual power and stores as "currentPower"
+            currentPower = h.actualPower;
+            
+            %Within tolerance on both sides
+            if  currentPower <= referencePower + h.tolerance && currentPower >= referencePower - h.tolerance
+               printOut('\nLaser equilibrated\n')
+               break
+            else
+               
+               if mod(n,2) == 0 %prints "." every half second
+                  printOut('.')
+               end
+               n = n+1;
+               
+               if n > 60 %Laser shouldn't take more than 15 seconds to equilibrate
+                  printOut('\nEquilibrium not established (check tolerance setting). Continuing...\n')
+                  return
+               end
+               
+               pause(.25) 
+            end
+         end
+       end
+
+       %% Set/Get functions
       function set.setPower(h,val)
          %Writes number to laser then runs equilibrium
          [h,newVal] = writeNumberProtocol(h,'setPower',val);         
@@ -168,7 +184,7 @@ classdef laser < instrumentType
             return
          end
 
-         writeline(h.handshake,h.commands.actualPowerQuery)
+         writeInstrument(h,h.commands.actualPowerQuery)
          val = queryInterpretation(h);
          val = val/h.powerConversionFactor;
       end

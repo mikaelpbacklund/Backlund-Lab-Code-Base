@@ -791,6 +791,7 @@ classdef experiment
          %5th argument is selecting which set of bounds to use if multiple are present (defaults to first)
          %6th argument is boolean to flip scan axes (1st scan made y, 2nd made x)
          %7th argument is update location. Defaults to current odometer location
+         %8th argument is x offset
          %Expects matrix of numbers, no cell or strings etc.
          %Does not work for 2D scans using manual steps
 
@@ -835,7 +836,10 @@ classdef experiment
                stepSize = h.scan.stepSize;
             end
 
-            
+            %Adds x offset to bounds if given as argument
+            if nargin >= 8 && ~isempty(varargin{5})
+               xBounds = xBounds + varargin{5};
+            end            
             
             %x axis isn't the same. Assumed to be different plot entirely
                if (~isfield(h.plots,plotName) || ~isfield(h.plots.(plotName),'axes') || ~isfield(h.plots.(plotName),'dataDisplay'))||...

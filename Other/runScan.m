@@ -17,7 +17,8 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'baselineSubtraction',0;...
    'boundsToUse',1;...
    'perSecond',true;...
-   'nIterations',1};
+   'nIterations',1;...
+   'xOffset',0};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
@@ -73,11 +74,11 @@ for ii = 1:p.nIterations
       yAxisLabel = 'Contrast';
       if p.plotAverageContrast
          averageContrast = (averageData(1) - averageData(2)) / averageData(1);
-         ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel,p.boundsToUse);
+         ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       if p.plotCurrentContrast
          currentContrast = (currentData(1) - currentData(2)) / currentData(1);
-         ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel,p.boundsToUse);
+         ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       if strcmpi(p.collectionType,'analog')
          yAxisLabel = 'Reference (V)';
@@ -87,10 +88,10 @@ for ii = 1:p.nIterations
           yAxisLabel = 'Reference (counts)';
       end
       if p.plotAverageReference
-         ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel,p.boundsToUse); 
+         ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentReference
-         ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel,p.boundsToUse);
+         ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       yAxisLabel = 'SNR (arbitrary units)';
       if p.plotAverageSNR
@@ -99,7 +100,7 @@ for ii = 1:p.nIterations
           else
               SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
           end
-         ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse); 
+         ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentSNR
           if ~p.invertSignalForSNR
@@ -107,14 +108,14 @@ for ii = 1:p.nIterations
               else
               SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
           end
-         ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse);
+         ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       yAxisLabel = 'Number of Data Points';
       if p.plotAveragePercentageDataPoints
-         ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse); 
+         ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentPercentageDataPoints
-         ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse);
+         ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
 
       %Plots the pulse sequence on the first iteration if desired

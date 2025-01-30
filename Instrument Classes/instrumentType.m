@@ -79,7 +79,7 @@ classdef instrumentType < handle
       function checkConnection(h)
          %Checks connection of instrument. Incredibly common so it is
          %better to just have a function to make 3 lines into 1
-         if ~h.connected
+         if isempty(h.connected) || ~h.connected
             error(['Connection must be established to instrument to execute this function. ' ...
                 'Use the connect(object,configName) function to begin connection'])
          end
@@ -340,7 +340,7 @@ classdef instrumentType < handle
       end
 
       function h = writeInstrument(h,commandInput)
-         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, serialport'); end
+         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, visadev, serialport)'); end
 
          %Dependent on connection type, send command to instrument
          switch lower(h.uncommonProperties.connectionType)

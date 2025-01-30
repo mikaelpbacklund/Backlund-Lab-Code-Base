@@ -99,6 +99,7 @@ config.acceptableDirectionNames{4} = {'endloop','end_loop','end','end loop'};
 
 config.identifier = 'pb';
 config.clockSpeed = 500;%MHz
+config.durationStepSize = 2;%ns, minimum step size of pulse blaster
 config.units = 'nanoseconds';
 config.defaults.useTotalLoop = true;%Encompass the entire sequence in a loop
 config.defaults.nTotalLoops = 1;%How many loops the above should run for
@@ -163,6 +164,7 @@ config.acceptableDirectionNames{4} = {'endloop','end_loop','end','end loop'};
 
 config.identifier = 'pb';
 config.clockSpeed = 500;%MHz
+config.durationStepSize = 2;%ns, minimum step size of pulse blaster
 config.units = 'nanoseconds';
 config.defaults.useTotalLoop = true;%Encompass the entire sequence in a loop
 config.defaults.nTotalLoops = 1;%How many loops the above should run for
@@ -357,17 +359,21 @@ save(strcat(saveLocation,saveName),'config')
 clear config
 
 config.identifier = 'laser488';
-config.baudrate = 19200;
-config.portNumber = 1;%**WRONG
 config.pauseTime = 2;
 config.wavelength = 488;
 config.waitForEquilibrium = false;
 config.offWhenDeleted = false;
-config.replyInfo.numberOfReplies = 2;
-config.replyInfo.realReplyLocation = 2;
-config.replyInfo.discardFirstConnectedResponse = false;
+config.uncommonProperties.connectionType = 'COM';
+config.uncommonProperties.baudrate = 19200;
+config.uncommonProperties.portNumber = 1;%**WRONG
+config.uncommonProperties.replyInfo.numberOfReplies = 2;
+config.uncommonProperties.replyInfo.realReplyLocation = 2;
+config.uncommonProperties.replyInfo.discardFirstConnectedResponse = false;
+config.uncommonProperties.replyInfo.discardAfterWrite = true;
 %Number of chars discarded from reply for each query type
-config.replyInfo.charsDiscarded.actualPower = 2;
+config.uncommonProperties.replyInfo.charsDiscarded.actualPower = 2;
+config.uncommonProperties.replyInfo.charsDiscarded.setPower = 2;
+config.uncommonProperties.replyInfo.charsDiscarded.toggle = 2;
 
 config.setPowerInfo.conversionFactor = 1;%**WRONG
 config.setPowerInfo.minimum = 0;%**WRONG
@@ -385,7 +391,7 @@ saveLocation = pwd;%Default is to save to current directory
 saveName = '\laser_488';
 save(strcat(saveLocation,saveName),'config')
 
-%% 561 nm Coherent Laser
+%% 561 nm Coherent Laser %deprecated
 
 clear config
 
@@ -405,7 +411,7 @@ saveLocation = pwd;
 saveName = '\laser_561';
 save(strcat(saveLocation,saveName),'config')
 
-%% 640 nm Coherent Laser
+%% 640 nm Coherent Laser %deprecated
 clear config
 
 config.baudrate = 19200;
@@ -423,7 +429,7 @@ saveLocation = pwd;
 saveName = '\laser_561';
 save(strcat(saveLocation,saveName),'config')
 
-%% 532 nm Coherent Laser
+%% 532 nm Coherent Laser %deprecated
 clear config
 
 
@@ -432,7 +438,7 @@ saveName = '\laser_561';
 save(strcat(saveLocation,saveName),'config')
 
 
-%% 532 nm Lighthouse Photonics Laser
+%% 532 nm Lighthouse Photonics Laser %deprecated
 clear config
 
 saveLocation = pwd;
