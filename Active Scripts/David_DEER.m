@@ -11,7 +11,7 @@ p.RF2Frequency = .464;%GHz. Overwritten by scan if frequency selected
 p.RF2Duration = 400;%ns. Overwritten by scan if duration selected
 p.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
 p.RF1ResonanceFrequency = 2.4055;
-p.piTime = 76;
+p.piTime = 100;
 p.tauTime = 550;
 
 %General
