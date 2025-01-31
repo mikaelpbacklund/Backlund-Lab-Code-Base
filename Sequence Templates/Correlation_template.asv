@@ -1,4 +1,4 @@
-function [varargout] = XYn_m_template(h,p)
+function [varargout] = Correlation_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
@@ -7,13 +7,17 @@ function [varargout] = XYn_m_template(h,p)
 %Creates default parameter structure
 parameterStructure.RFResonanceFrequency = [];
 parameterStructure.piTime = [];
-parameterStructure.tauStart = [];
-parameterStructure.tauEnd = [];
-parameterStructure.tauNSteps = [];
-parameterStructure.tauStepSize = [];
+parameterStructure.tauDuration = [];%
+parameterStructure.tBounds = [];%
+parameterStructure.tNSteps = [];%
+parameterStructure.tStepSize = [];%
+% parameterStructure.tauStart = [];
+% parameterStructure.tauEnd = [];
+% parameterStructure.tauNSteps = [];
+% parameterStructure.tauStepSize = [];
 parameterStructure.setsXYN = [];
 parameterStructure.nXY = 8;%default number of XY pulses per set
-parameterStructure.sequenceTimePerDataPoint = 1;
+parameterStructure.sequenceTimePerDataPoint = 5;
 parameterStructure.collectionDuration = 800;
 parameterStructure.collectionBufferDuration = 1000;
 parameterStructure.repolarizationDuration = 7000;
@@ -41,26 +45,22 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tauNSteps) && isempty(p.tauStepSize))
+if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tNSteps) && isempty(p.tStepSize))
    error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+if isempty(p.tNSteps)
+   p.tNSteps = ceil(abs((p.tBounds(2)-p.tBounds(1))/p.tStepSize));
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-scanInfo.reducedTauTime = sum(p.IQBuffers)+p.piTime+p.RFReduction;
-scanInfo.reducedTauByTwoTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFReduction;
-exportedTauStart = p.tauStart - scanInfo.reducedTauTime;
-exportedTauEnd = p.tauEnd - scanInfo.reducedTauTime;
-exportedTauByTwoStart = (p.tauStart/2) - scanInfo.reducedTauByTwoTime;
-exportedTauByTwoEnd = (p.tauEnd/2) - scanInfo.reducedTauByTwoTime;
+reducedTauDuration = p.tauDuration - (sum(p.IQBuffers)+p.piTime+p.RFReduction);
+reducedTauByTwoDuration =  (p.tauDuration/2) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFReduction);
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
-if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
-   error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)')
+if reducedTauByTwoDuration < 0
+   error('τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)')
 end
 
 %% Sequence Creation
@@ -80,40 +80,45 @@ for rs = 1:2 %singal half and reference half
    else
       addedSignal = 'Signal';
    end
+   for corrSet = 1:2
 
    %π/2 to create superposition
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
 
    %Scanned (τ/2) between π/2 and π pulses
-   h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
+   h = condensedAddPulse(h,{addedSignal},reducedTauByTwoDuration,'τ/2');
 
    for m = 1:p.setsXYN
       for n = 1:p.nXY/2
          if mod(n,4) == 1 || mod(n,4) == 2 %odd set
             h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
             h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
          else %even set
             h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
             h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
          end
       end
    end
 
    %modify final tau to tau/2
-   h = modifyPulse(h,numel(h.userSequence),'duration',49,false);
-   h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2',false);
-
-   %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
-   if rs == 1
-      h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
+   h = modifyPulse(h,numel(h.userSequence),'duration',reducedTauByTwoDuration,false);
+   h = modifyPulse(h,numel(h.userSequence),'notes','τ/2',false);
+   
+   if corrSet == 1
+      h = condensedAddPulse(h,{'RF','I',addedSignal},halfTotalPiTime,'π/2 y');
+      h = condensedAddPulse(h,{addedSignal},99,'Scanned t corr');
+   elseif rs == 1 %corrSet 2
+      h = condensedAddPulse(h,{'RF','I',addedSignal},halfTotalPiTime,'π/2 y');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
-   else
-      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
-      h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Signal data collection');
+   else %rs 2, corrSet 2
+      h = condensedAddPulse(h,{'RF','Q',addedSignal},halfTotalPiTime,'π/2 -y');
+      h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
+   end
+
    end
 end
 
@@ -123,9 +128,10 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-nTau = ((p.setsXYN*p.nXY)+1);
-scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
+h.nTotalLoops = 1;
+
+scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - 198;%198 is tcorr*2
+scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (2*mean(p.tBounds));
 h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 

@@ -183,7 +183,7 @@ classdef laser < instrumentType
             val = [];
             return
          end
-
+ 
          writeInstrument(h,h.commands.actualPowerQuery)
          val = queryInterpretation(h);
          val = val/h.powerConversionFactor;
