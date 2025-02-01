@@ -5,30 +5,30 @@
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 110]; %RF duration bounds
+p.scanBounds = [10 90]; %RF duration bounds
 p.scanStepSize = 4; %Step size for RF duration
-p.collectionType = 'counter';%analog or counter
-p.RFResonanceFrequency = 2.4055;
+p.collectionType = 'analog';%analog or counter
+p.RFResonanceFrequency = 2.035;
 
 %General
 p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
-p.timeoutDuration = 3; %How long before auto-continue occurs
+p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .2;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
-p.dataOnBuffer = 0;
-p.extraBuffer = 0;
-p.intermissionBuffer = 1000;
-p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.intermissionBufferDuration = 1000;%How long to wait between signal and reference halves of the sequence
+p.AOMCompensation = 500;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
+p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_DEER';
+p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
@@ -41,12 +41,15 @@ p.plotCurrentReference = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.invertSignalForSNR = false;
+p.plotCurrentDataPoints=false;
+p.plotAverageDataPoints=false;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
-p.optimizationAxes = {'y','z'}; %The axes which will be optimized over
-p.optimizationSteps = {-.5:0.1:.5,-.5:0.5:.5}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'snr'; %'off', 'on', 'snr', or 'con'
+p.optimizationAxes = {'z'}; %The axes which will be optimized over
+p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
 p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;

@@ -119,10 +119,10 @@ for ii = 1:p.nIterations
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       yAxisLabel = 'Number of Data Points';
-      if p.plotAveragePercentageDataPoints
+      if p.plotAverageDataPoints
          ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
-      if p.plotCurrentPercentageDataPoints
+      if p.plotCurrentDataPoints
          ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
 
