@@ -1,7 +1,6 @@
-function ex = CPMG(ex,p)
+function ex = SpinEcho_extras(ex,p)
 
-requiredParams = {'tauStart','tauEnd','tauStepSize','collectionType','RFResonanceFrequency',...
-   'piTime','nXY','setsXYN'};
+requiredParams = {'scanBounds','scanStepSize','collectionType','RFResonanceFrequency','piTime','uncorrectedTauTime'};
 
 mustContainField(p,requiredParams)
 
@@ -14,18 +13,17 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotAverageSNR',false;...
    'plotCurrentSNR',false;...
    'AOMCompensation',0;...
-   'RFReduction',0;...
+   'extraRF',0;...
    'RFAmplitude',10;...
    'collectionDuration',0;...%default overwritten with daq rate
    'collectionBufferDuration',1000;...
+   'sequenceTimePerDataPoint',3;...
    'intermissionBufferDuration',1000;...
+   'repolarizationDuration',7000;...
    'IQBuffers',[0 0];...
    'dataOnBuffer',0;...
    'extraBuffer',0;...
-   'repolarizationDuration',7000;...
-   'sequenceTimePerDataPoint',3;...
    'nIterations',1;...
-   'boundsToUse',2;...
    'timeoutDuration',10;...
    'forcedDelayTime',.125;...
    'nDataPointDeviationTolerance',.0002;...
@@ -76,7 +74,7 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.modulationEnabled = 'on';
 ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RFAmplitude;
 ex.SRS_RF.frequency = p.RFResonanceFrequency;
@@ -92,7 +90,7 @@ if p.collectionDuration == 0
 end
 
 %Load empty parameter structure from template
-[sentParams,~] = XYn_m_template([],[]);
+[sentParams,~] = SpinEcho_template([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
@@ -101,13 +99,29 @@ for paramName = fieldnames(sentParams)'
    end
 end
 
+%Dummy inputs to spin echo template
+sentParams.tauStart = 1000;
+sentParams.tauEnd = 1100;
+sentParams.tauStepSize = 10;
+
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
+[ex.pulseBlaster,scanInfo] = SpinEcho_template(ex.pulseBlaster,sentParams);
 
 %Deletes any pre-existing scan
 ex.scan = [];
+tauAddresses = scanInfo.address;
+
+scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'matches');
+scanInfo.bounds = cell(1,numel(scanInfo.address));
+[scanInfo.bounds{:}] = deal(p.scanBounds);
+scanInfo.stepSize = ones(1,numel(scanInfo.address));
+scanInfo.stepSize(:) = p.scanStepSize;
+scanInfo.nSteps = [];
+for ii = 1:numel(tauAddresses)
+    ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauAddresses(ii),'duration',p.uncorrectedTauTime);
+end
 
 %Adds scan to experiment based on template output
 ex = addScans(ex,scanInfo);

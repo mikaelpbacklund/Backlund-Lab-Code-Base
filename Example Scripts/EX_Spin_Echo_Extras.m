@@ -1,25 +1,25 @@
-%Example Spin Echo using template
+%Example Spin Echo extras using template
 
 %Required
-p.tauStart = 200;
-p.tauEnd = 300;
-p.tauStepSize = 20;
-p.tauNSteps = [];%will override step size
-p.piTime = 34;
-p.RFResonanceFrequency = 2.0355;
-p.collectionType = 'analog';
+p.scanBounds = [100 200];
+p.scanStepSize = 10;
+p.piTime = 100;
+p.uncorrectedTauTime = 300;%Before taking into account pi pulses or IQ buffers
+p.RFResonanceFrequency = 2.87;
+p.collectionType = 'counter';
+p.pulseNotes = 'Repolarization';%Exact notes of pulses to scan
 
 %Other
-p.timePerDataPoint = 10;%seconds
+p.timePerDataPoint = 4;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
-p.collectionBufferDuration = 100;
+p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 2000;
 p.repolarizationDuration = 10000;
-p.extraRF = 4;
-p.AOMCompensation = 480;
+p.extraRF = 0;
+p.AOMCompensation = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.IQBuffers = [40 0];
+p.IQBuffers = [0 0];
 p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
@@ -27,7 +27,7 @@ p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
-p.perSecond = false;
+p.perSecond = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -69,4 +69,4 @@ p.useOptimizationPercentage = false;
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs Spin Echo
-ex = SpinEcho(ex,p);
+ex = SpinEcho_extras(ex,p);

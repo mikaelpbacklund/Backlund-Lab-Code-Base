@@ -94,7 +94,7 @@ end
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
-   if ~isempty(p.(paramName{1}))
+   if isfield(p,paramName{1}) && ~isempty(p.(paramName{1}))
       sentParams.(paramName{1}) = p.(paramName{1});
    end
 end

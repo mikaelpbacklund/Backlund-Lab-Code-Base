@@ -9,6 +9,7 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotCurrentContrast',true;...
    'plotCurrentReference',true;...
    'AOMCompensation',0;...
+   'ScanNSteps',[];...
    'RFReduction',0;...
    'RFAmplitude',10;...
    'collectionDuration',0;...%default overwritten with daq rate
@@ -72,7 +73,7 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
 ex.SRS_RF.amplitude = p.RFAmplitude;
-ex.SRS_RF.frequency = p.RFFrequency;
+ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
@@ -91,7 +92,7 @@ end
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
-   if ~isempty(p.(paramName{1}))
+   if isfield(p,paramName{1}) && ~isempty(p.(paramName{1}))
       sentParams.(paramName{1}) = p.(paramName{1});
    end
 end

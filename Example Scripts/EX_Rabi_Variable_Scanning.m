@@ -8,7 +8,7 @@
 p.scanBounds = [100 1000];
 p.scanStepSize = 100;
 p.collectionType = 'counter';%analog or counter
-p.RFFrequency = 2.87;
+p.RFResonanceFrequency = 2.87;
 p.piTime = 100;
 p.pulseNotes = 'Repolarization';%Exact notes of pulses to scan
 
@@ -29,7 +29,6 @@ p.RFReduction = 10;%Time to add to each RF pulse due to RF generator reducing pu
 p.perSecond = true;%convert to counts/s if using counter
 p.dataOnBuffer = 0;
 p.extraBuffer = 0;
-p.intermissionBufferDuration = 1000;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -40,12 +39,15 @@ p.stageConfig = 'PI_stage';
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
-p.plotAverageReference = true;
-p.plotCurrentReference = false;
-p.plotAverageSNR = true;
+p.plotAverageReference = false;
+p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
+p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints=false;
-p.plotAverageDataPoints=false;
+p.plotCurrentDataPoints = false;
+p.plotAverageDataPoints = false;
+p.invertSignalForSNR = false;
 p.plotPulseSequence = false;
 
 %Stage optimization

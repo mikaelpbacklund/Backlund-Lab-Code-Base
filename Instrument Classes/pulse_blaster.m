@@ -220,7 +220,9 @@ classdef pulse_blaster < instrumentType
       end
 
       function h = sendToInstrument(h)
+          h = calculateDuration(h,'user');
          h = adjustSequence(h);%Adjusts sequence in preparation to send to instrument
+         h = calculateDuration(h,'adjusted');
 
          %Saves the current adjusted sequence as the sequence that has
          %been sent to the pulse blaster

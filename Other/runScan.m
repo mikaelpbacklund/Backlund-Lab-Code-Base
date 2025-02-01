@@ -127,7 +127,7 @@ for ii = 1:p.nIterations
       end
 
       %Plots the pulse sequence on the first iteration if desired
-      if p.plotPulseSequence && ii == 1
+      if p.plotPulseSequence && ii == 1 && cell2mat(ex.odometer) == ones(1,numel(ex.odometer))
          seq = ex.pulseBlaster.userSequence;
          xax = [];
          yax = [];

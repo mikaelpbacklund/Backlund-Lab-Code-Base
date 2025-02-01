@@ -196,7 +196,7 @@ classdef DAQ_controller < instrumentType
             else%Voltage
                dataOn = unsortedData(:,collectionInfo.toggleChannel);               
                if any(dataOn)
-%                    assignin('base','unsortedData',unsortedData)
+                   assignin('base','unsortedData',unsortedData)
                    if ~collectionInfo.differentiateSignal
                        %No signal/reference differentiation
                        ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));

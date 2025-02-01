@@ -21,8 +21,7 @@ p.extraRF = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 0;
-p.IQPreBufferDuration = 0;
-p.IQPostBufferDuration = 0;
+p.IQBuffers = [30 30];
 p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
@@ -43,12 +42,14 @@ p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentDataPoints = false;
+p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotCurrentDataPoints=false;
-p.plotAverageDataPoints=false;
-p.plotPulseSequence = false;
+p.plotPulseSequence = true;
 
 
 %Stage optimization

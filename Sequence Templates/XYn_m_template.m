@@ -47,7 +47,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize));
+   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
@@ -141,7 +141,8 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = [exportedTauStart exportedTauEnd];
 end
-scanInfo.bounds{1,end} = [exportedTauByTwoStart exportedTauByTwoEnd];
+scanInfo.bounds{1} = [exportedTauByTwoStart exportedTauByTwoEnd];
+scanInfo.bounds{end} = [exportedTauByTwoStart exportedTauByTwoEnd];
 scanInfo.nSteps = p.tauNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
