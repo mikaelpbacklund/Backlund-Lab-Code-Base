@@ -27,9 +27,14 @@ p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentDataPoints = false;
+p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

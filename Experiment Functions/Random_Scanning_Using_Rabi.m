@@ -106,7 +106,15 @@ end
 ex.scan = [];
 tauAddresses = scanInfo.address;
 
-scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'matches');
+if isa(p.pulseNotes,'cell')
+    scanInfo.address = [];
+    for ii = 1:numel(p.pulseNotes)
+        scanInfo.address = [scanInfo.address,findPulses(ex.pulseBlaster,'notes',p.pulseNotes{ii},'matches')];
+    end
+else
+    scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'matches');
+end
+
 scanInfo.bounds = cell(1,numel(scanInfo.address));
 [scanInfo.bounds{:}] = deal(p.scanBounds);
 scanInfo.stepSize = ones(1,numel(scanInfo.address));

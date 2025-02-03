@@ -123,10 +123,10 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-nTau = ((p.setsXYN*p.nXY)+1);
+nTau = (p.setsXYN*p.nXY);
 scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
-h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
+scanInfo.meanSequenceDuration = (scanInfo.meanSequenceDuration + (nTau*mean([exportedTauStart,exportedTauEnd])))*1e-9;
+h.nTotalLoops = round(p.sequenceTimePerDataPoint/scanInfo.meanSequenceDuration);
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
 %Sends the completed sequence to the pulse blaster
@@ -141,8 +141,9 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = [exportedTauStart exportedTauEnd];
 end
-scanInfo.bounds{1} = [exportedTauByTwoStart exportedTauByTwoEnd];
-scanInfo.bounds{end} = [exportedTauByTwoStart exportedTauByTwoEnd];
+for ii = [1,numel(scanInfo.bounds)/2,numel(scanInfo.bounds)/2+1,numel(scanInfo.bounds)]
+    scanInfo.bounds{ii} = [exportedTauByTwoStart exportedTauByTwoEnd];
+end
 scanInfo.nSteps = p.tauNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';

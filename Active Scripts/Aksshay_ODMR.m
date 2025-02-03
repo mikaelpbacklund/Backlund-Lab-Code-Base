@@ -3,10 +3,10 @@
 %% User Inputs
 %General
 RFamplitude = 10;
-scanBounds = [2.85 2.88];
+scanBounds = [2.02 2.06];
 scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'hyperfine ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = 100;%Before factoring in forced delay and other pauses
+sequenceTimePerDataPoint = 0.100;%Before factoring in forced delay and other pauses
 nIterations = 1; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
@@ -157,7 +157,7 @@ ex.optimizationInfo.postOptimizationValue = 0;
 ex.optimizationInfo.rfStatus = optimizationRFStatus;
 
 %Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
+%ex = validateExperimentalConfiguration(ex,'pulse sequence');
 
 %Sends information to command window
 scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)

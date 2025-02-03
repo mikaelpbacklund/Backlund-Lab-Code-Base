@@ -106,6 +106,10 @@ end
 %Gets scan information
 [ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
 
+%Adds x offset to account for extra pulses, swaps bounds to plot to be tau
+p.xOffset = scanInfo.reducedTauTime;
+p.boundsToUse = 2;
+
 %Deletes any pre-existing scan
 ex.scan = [];
 
@@ -121,7 +125,7 @@ ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 ex.maxFailedCollections = p.maxFailedCollections;
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
+scanStartInfo(ex.scan.nSteps,scanInfo.meanSequenceDuration + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
 cont = checkContinue(p.timeoutDuration*2);
 if ~cont

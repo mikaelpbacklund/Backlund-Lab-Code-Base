@@ -108,6 +108,7 @@ for ii = 1:p.nIterations
           else
               SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
           end
+          SNRVal = SNRVal * sqrt(mean(dataPoints,"all"));
          ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentSNR
@@ -116,6 +117,7 @@ for ii = 1:p.nIterations
               else
               SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
           end
+          SNRVal = SNRVal * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       yAxisLabel = 'Number of Data Points';

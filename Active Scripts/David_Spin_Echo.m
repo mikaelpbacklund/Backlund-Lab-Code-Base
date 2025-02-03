@@ -2,8 +2,8 @@
 
 %Required
 p.tauStart = 200;
-p.tauEnd = 300;
-p.tauStepSize = 20;
+p.tauEnd = 3000;
+p.tauStepSize = 100;
 p.tauNSteps = [];%will override step size
 p.piTime = 34;
 p.RFResonanceFrequency = 2.0355;
@@ -11,12 +11,12 @@ p.collectionType = 'analog';
 
 %Other
 p.timePerDataPoint = 10;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionDuration = 2400;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
-p.intermissionBufferDuration = 2000;
+p.intermissionBufferDuration = 10000;
 p.repolarizationDuration = 10000;
 p.extraRF = 4;
-p.AOMCompensation = 480;
+p.AOMCompensation = 700;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [40 0];

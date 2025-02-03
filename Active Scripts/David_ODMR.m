@@ -1,18 +1,18 @@
 %Default ODMR script example
 
 %Required
-p.scanBounds = [2 2.4]; %Frequency bounds
-p.scanStepSize = .005; %Step size for RF frequency
+p.scanBounds = [2 2.1]; %Frequency bounds
+p.scanStepSize = .001; %Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General
 p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .0000001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
 
@@ -27,9 +27,14 @@ p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentDataPoints = true;
+p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
