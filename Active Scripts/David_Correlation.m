@@ -1,32 +1,35 @@
-%Runs a simple Rabi sequence
-
-%Highly recommended to use a "time per data point" of at least 3 seconds
-%Lower than this is sensitive to jitters in number of points collected,
-%resulting in failed and/or erroneous points
+%Example XYN-m using template
 
 %Required
-p.scanBounds = [10 210]; %RF duration bounds
-p.scanStepSize = 2; %Step size for RF duration
-p.collectionType = 'analog';%analog or counter
+p.tBounds = [1000 20000];
+p.tStepSize = 100;
+p.tauNSteps = [];%will override step size
+p.tauDuration = 500;
+p.piTime = 36;
 p.RFResonanceFrequency = 2.0354;
+p.nXY = 8;%N in XYN-m
+p.setsXYN = 8;%m in XYN-m
+p.collectionType = 'analog';
 
-%General
-p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
-p.timeoutDuration = 10; %How long before auto-continue occurs
-p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
-p.intermissionBufferDuration = 2000;%How long to wait between signal and reference halves of the sequence
-p.AOMCompensation = 600;%How long AOM should be on before DAQ (negative flips to DAQ first)
-p.repolarizationDuration = 10000;%Duration of repolarization
+%Other
+p.sequenceTimePerDataPoint = 3;%seconds
+p.collectionDuration = 1600;%0 means overwritten by DAQ
+p.collectionBufferDuration = 300;
+p.intermissionBufferDuration = 12000;
+p.repolarizationDuration = 10000;
+p.extraRF = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
-p.perSecond = true;%convert to counts/s if using counter
+p.AOMCompensation = 400;
+p.IQBuffers = [30 0];
+p.nIterations = 4;
+p.RFAmplitude = 9.8;
+p.timeoutDuration = 3;
+p.forcedDelayTime = .25;
+p.nDataPointDeviationTolerance = .1;
+p.maxFailedCollections = 3;
+p.baselineSubtraction = 0;
+p.perSecond = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -40,13 +43,16 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = false;
+p.plotCurrentSignal = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = false;
+p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
+p.plotCurrentContrastFFT = false;
+p.plotAverageContrastFFT = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = false;
+p.plotPulseSequence = true;
+
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
@@ -67,5 +73,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs Rabi using specified parameters
-ex = Rabi(ex,p);
+%Runs correlation measurement
+ex = Correlation(ex,p);

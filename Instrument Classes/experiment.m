@@ -839,7 +839,7 @@ classdef experiment
             %Adds x offset to bounds if given as argument
             if nargin >= 8 && ~isempty(varargin{5})
                xBounds = xBounds + varargin{5};
-            end            
+            end       
             
             %x axis isn't the same. Assumed to be different plot entirely
                if (~isfield(h.plots,plotName) || ~isfield(h.plots.(plotName),'axes') || ~isfield(h.plots.(plotName),'dataDisplay'))||...
@@ -981,42 +981,18 @@ classdef experiment
          h.plots.(plotName).axes.CLim = [h.plots.(plotName).minValue h.plots.(plotName).maxValue];
       end
 
-      function c = findContrast(h,contrastFunction,iterationType)
-         %Obtains the contrast
-         %Only works for 1x1 cell for each data point
-         %****Not updated for new data storage
+%       function h = plotFFT(h,iterations)
 
-         %Defaults to contrast of reference - signal / reference
-         if isempty(contrastFunction)
-            contrastFunction = @(rs)(rs(1)-rs(2))/rs(1);
-         end
-
-         %Pulls what data should be used then manipulates it using the
-         %number of iterations if relevant
-         switch lower(iterationType)
-            case {'new','current','recent'}
-               %Permutes data such that the first dimension is the "iteration" dimension
-               chosenData = permute(h.data.values,[ndims(h.data.values),1:ndims(h.data.values)-1]);
-               chosenData = chosenData(h.data.iteration);
-               chosenData = cellfun(@(x)x{1},chosenData,'UniformOutput',false);
-            case {'previous','prior','old'}
-               chosenData = cellfun(@(x)x{1},h.data.previous,'UniformOutput',false);
-               chosenData = cellfun(@(x,y)x./(y-1),chosenData,num2cell(h.data.iteration),'UniformOutput',false);
-            case {'average','total',[],''}
-               chosenData = cellfun(@(x,y,z)(x{1}+y{1})./z,h.data.current,h.data.previous,num2cell(h.data.iteration),'UniformOutput',false);
-            otherwise
-               error('2nd argument''s structure''s iterationType must be new, old, or average ')
-         end
-
-         %Apply contrast function to the chosen data
-         c = cellfun(contrastFunction,chosenData);
-
-         if any(~isnan(c))
-            c(isnan(c)) = mean(c(~isnan(c)));
-         else
-            c(1:end) = 0;
-         end
-      end
+%           nPoints = numel(nonzeros(ex.data.iteration));
+%           if nPoints > 3 %Can't properly do fft if less than 4 points
+%               fftData = zeros(nPoints,1);
+%               for jj = 1:nPoints
+%                   currData = createDataMatrixWithIterations(ex,jj);
+%                   fftData(jj) = (currData(1) - currData(2))/currData(1);
+%               end
+%               [fftOut,frequencyAxis] = fourierTransform(fftData,ex.scan.stepSize(p.boundsToUse));
+%           end
+%       end
 
       function h = saveData(h,saveName)
          %Saves data to file as well as relevant info

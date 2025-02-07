@@ -14,6 +14,8 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotAverageDataPoints',false;...
    'plotCurrentSignal',false;...%not given as parameter elsewhere
    'plotAverageSignal',false;...%not given as parameter elsewhere
+   'plotCurrentContrastFFT',false;...
+   'plotAverageContrastFFT',false;...
    'plotPulseSequence',false;...
    'invertSignalForSNR',false;...
    'baselineSubtraction',0;...
@@ -71,15 +73,16 @@ for ii = 1:p.nIterations
       %Gets data points
       dataPoints = ex.data.nPoints(ex.odometer{:},:);
 
+      averageContrast = (averageData(1) - averageData(2)) / averageData(1);
+      currentContrast = (currentData(1) - currentData(2)) / currentData(1);
+
       %Find and plot data with current and average figures
 
       yAxisLabel = 'Contrast';
       if p.plotAverageContrast
-         averageContrast = (averageData(1) - averageData(2)) / averageData(1);
          ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       if p.plotCurrentContrast
-         currentContrast = (currentData(1) - currentData(2)) / currentData(1);
          ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
       if strcmpi(p.collectionType,'analog')
@@ -89,6 +92,7 @@ for ii = 1:p.nIterations
       else
           yAxisLabel = 'Reference (counts)';
       end
+
       if p.plotAverageReference
          ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
@@ -101,25 +105,27 @@ for ii = 1:p.nIterations
       if p.plotCurrentSignal
          ex = plotData(ex,currentData(2),'Current Signal',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
+
       yAxisLabel = 'SNR (arbitrary units)';
       if p.plotAverageSNR
           if ~p.invertSignalForSNR
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1));
+              SNRVal = sqrt(averageData(1)) * averageContrast;
           else
-              SNRVal = sqrt(averageData(1)) * ((averageData(1) - averageData(2)) / averageData(1))^(-1);
+              SNRVal = sqrt(averageData(1)) * averageContrast^(-1);
           end
           SNRVal = SNRVal * sqrt(mean(dataPoints,"all"));
          ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentSNR
           if ~p.invertSignalForSNR
-              SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1));
+              SNRVal = sqrt(currentData(1)) * currentContrast;
               else
-              SNRVal = sqrt(currentData(1)) * ((currentData(1) - currentData(2)) / currentData(1))^(-1);
+              SNRVal = sqrt(currentData(1)) * currentContrast^(-1);
           end
           SNRVal = SNRVal * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
+
       yAxisLabel = 'Number of Data Points';
       if p.plotAverageDataPoints
          ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
@@ -127,6 +133,15 @@ for ii = 1:p.nIterations
       if p.plotCurrentDataPoints
          ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
+
+%       yAxisLabel = 'Contrast';
+%       if p.plotAverageContrastFFT
+%           ex = plotFFT(ex)
+%       end
+%       if p.plotCurrentContrastFFT
+% %          [fftOut,frequencyAxis] = fourierTransform(currentContrast,ex.scan.stepSize(p.boundsToUse));
+% %          ex = plotData(ex,fftOut,'Average Contrast FFT',yAxisLabel,p.boundsToUse,[],[],[],[frequencyAxis(1),frequencyAxis(2)]); 
+%       end
 
       %Plots the pulse sequence on the first iteration if desired
       if p.plotPulseSequence && ii == 1 && cell2mat(ex.odometer) == ones(1,numel(ex.odometer))

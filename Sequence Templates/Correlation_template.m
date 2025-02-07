@@ -45,18 +45,18 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tNSteps) && isempty(p.tStepSize))
+if isempty(p.RFResonanceFrequency) || isempty(p.tBounds) || (isempty(p.tNSteps) && isempty(p.tStepSize))
    error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
 end
 
 %Calculates number of steps if only step size is given
 if isempty(p.tNSteps)
-   p.tNSteps = ceil(abs((p.tBounds(2)-p.tBounds(1))/p.tStepSize));
+   p.tNSteps = ceil(abs((p.tBounds(2)-p.tBounds(1))/p.tStepSize)+1);
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-reducedTauDuration = p.tauDuration - (sum(p.IQBuffers)+p.piTime+p.RFReduction);
-reducedTauByTwoDuration =  (p.tauDuration/2) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFReduction);
+reducedTauDuration = p.tauDuration - (p.piTime+p.RFReduction);
+reducedTauByTwoDuration =  (p.tauDuration/2) - ((3/4)*p.piTime+p.RFReduction);
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if reducedTauByTwoDuration < 0
@@ -146,7 +146,7 @@ scanInfo.address = findPulses(h,'notes','t corr','contains');
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = p.tBounds;
 end
-scanInfo.nSteps = p.tauNSteps;
+scanInfo.nSteps = p.tNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('Correlation for XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);

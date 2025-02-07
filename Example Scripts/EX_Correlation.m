@@ -12,7 +12,7 @@ p.setsXYN = 4;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
-p.timePerDataPoint = 10;%seconds
+p.sequenceTimePerDataPoint = 10;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 1000;
@@ -20,9 +20,8 @@ p.repolarizationDuration = 7000;
 p.extraRF = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOM_DAQCompensation = 0;
-p.IQPreBufferDuration = 0;
-p.IQPostBufferDuration = 0;
+p.AOMCompensation = 0;
+p.IQBuffers = [0 0];
 p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
@@ -43,12 +42,14 @@ p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
+p.plotCurrentDataPoints = true;
+p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotCurrentDataPoints=false;
-p.plotAverageDataPoints=false;
-p.plotPulseSequence = false;
+p.plotPulseSequence = true;
 
 
 %Stage optimization
