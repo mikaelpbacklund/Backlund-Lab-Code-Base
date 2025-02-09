@@ -792,6 +792,7 @@ classdef experiment
          %6th argument is boolean to flip scan axes (1st scan made y, 2nd made x)
          %7th argument is update location. Defaults to current odometer location
          %8th argument is x offset
+         %9th argument is overriding x bounds
          %Expects matrix of numbers, no cell or strings etc.
          %Does not work for 2D scans using manual steps
 
@@ -840,6 +841,11 @@ classdef experiment
             if nargin >= 8 && ~isempty(varargin{5})
                xBounds = xBounds + varargin{5};
             end       
+
+            if nargin >= 9 && ~isempty(varargin{6})
+               xBounds = varargin{6};
+               stepSize = abs((xBounds(2)-xBounds(1))/(h.scan.nSteps-1));
+            end
             
             %x axis isn't the same. Assumed to be different plot entirely
                if (~isfield(h.plots,plotName) || ~isfield(h.plots.(plotName),'axes') || ~isfield(h.plots.(plotName),'dataDisplay'))||...
@@ -981,16 +987,68 @@ classdef experiment
          h.plots.(plotName).axes.CLim = [h.plots.(plotName).minValue h.plots.(plotName).maxValue];
       end
 
-      function h = plotFFT(h,iterations)
-          nPoints = numel(nonzeros(ex.data.iteration));
-          if nPoints > 3 %Can't properly do fft if less than 4 points
-              fftData = zeros(nPoints,1);
-              for jj = 1:nPoints
-                  currData = createDataMatrixWithIterations(ex,jj);
-                  fftData(jj) = (currData(1) - currData(2))/currData(1);
-              end
-              [fftOut,frequencyAxis] = fourierTransform(fftData,ex.scan.stepSize(p.boundsToUse));
-          end
+      function h = plotFullDataSet(h,plotName,xAxisData,yAxisData,varargin)
+         %5th argument is cell array for labels and title ('x','y','title' in first column, 2nd column is string)
+         %6th argument is cell array of vertical bar name + location
+
+         %inputs should be just xdata and ydata
+         %Difference from plotData only in updating every value each time
+
+         %Prevents errors in variable name by swapping space with underscore
+         plotTitle = plotName;
+         plotName(plotName==' ') = '_';
+
+         %Creates a figure if one does not already exist
+         if ~isfield(h.plots,plotName) ||  ~isfield(h.plots.(plotName),'figure') || ~ishandle(h.plots.(plotName).figure)
+            h.plots.(plotName).figure = figure('Name',plotTitle,'NumberTitle','off');
+         end
+
+         %Creates axes if one does not already exist
+         if ~isfield(h.plots.(plotName),'axes') || ~isvalid(h.plots.(plotName).axes)
+            h.plots.(plotName).axes = axes(h.plots.(plotName).figure);
+         end
+
+         %Check if data display (line) is valid, replot if not
+         if ~isfield(h.plots.(plotName),'dataDisplay') || ~isvalid(h.plots.(plotName).dataDisplay)
+            %Creates the actual plot as a line
+            h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,yData);
+
+            if nargin >= 5 && ~isempty(varargin{5})
+               plotInfoCell = varargin{5};
+               if size(plotInfoCell,2) ~= 2 || ~isa(plotInfoCell,'cell')
+                  error('plot info cell (5th input) must be cell array with 2 columns')
+               end
+               %Add x label, y label, and title if given in cell array
+               xLabelLocation = cellfun(@(a)strcmpi(a,'x')||strcmpi(a,'x label'),plotInfoCell(:,1));
+               yLabelLocation = cellfun(@(a)strcmpi(a,'y')||strcmpi(a,'y label'),plotInfoCell(:,1));
+               titleLocation = cellfun(@(a)strcmpi(a,'title'),plotInfoCell(:,1));
+               if sum(xLabelLocation) == 1
+                  xlabel(h.plots.(plotName).axes,plotInfoCell{xLabelLocation,2})
+               end
+               if sum(yLabelLocation) == 1
+                  ylabel(h.plots.(plotName).axes,plotInfoCell{yLabelLocation,2})
+               end
+               if sum(titleLocation) == 1
+                  title(h.plots.(plotName).axes,plotInfoCell{titleLocation,2})
+               end
+            end
+
+            %Creates x (vertical) lines at locations specified in 1st column of 6th argument with labels from 2nd column
+            %of 6th argument
+            if nargin >= 6 && ~isempty(varargin{6})
+               xLinesCell = varargin{6};
+               if size(xLinesCell,2) ~= 2 || ~isa(xLinesCell,'cell')
+                  error('x lines cell (6th input) must be cell array with 2 columns')
+               end
+               for ii = 1:size(xLinesCell,1)
+                  h.plots.(plotName).xLines{ii} = xline(h.plots.(plotName).axes,xLinesCell{ii,1},'--',xLinesCell{ii,2},'LineWidth',2);
+               end
+            end
+         else
+            %Not replotting, just updata data
+            h.plots.(plotName).dataDisplay.XData = xAxisData;
+            h.plots.(plotName).dataDisplay.YData = yAxisData;
+         end
       end
 
       function h = saveData(h,saveName)
@@ -1231,6 +1289,44 @@ classdef experiment
 
          h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})} = h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}...
             ./ (dataTime * 1e-9);
+      end
+   
+      function [h,fftOut,frequencyAxis] = dataFourierTransform(h,iterations,dataType,varargin)
+         for ii = 1:numel(iterations)            
+            for jj = 1:size(h.scan.nSteps)
+               switch dataType
+                  case {'ref','r','reference'}
+                     preFFTData = ex.data.values{jj,ii}(1);
+                  case {'sig','s','signal'}
+                     preFFTData = ex.data.values{jj,ii}(2);
+                  case {'con','c','contrast'}
+                     refData = ex.data.values{jj,ii}(1);
+                     sigData = ex.data.values{jj,ii}(2);
+                     preFFTData = (refData(jj,ii)-sigData(jj,ii))/refData(jj,ii);
+               end               
+            end            
+            iterationFFT = abs(fftshift(fft(preFFTData-mean(preFFTData))));
+            %Single sided fft (not 
+            iterationFFT = iterationFFT((h.scan.nSteps+1)/2+1:end);
+            if ii == 1
+               fftOut = iterationFFT;
+            else
+               fftOut = fftOut + iterationFFT;
+            end
+         end
+
+         %Divides by number of iterations to get average
+         fftOut = fftOut ./ numel(iterations);
+
+         %If more than 1 iteration, take mean of all iterations given
+
+         frequencyStepSize = 1/(h.scan.stepSize(1)*1e-9);%Hz
+         frequencyAxis = (1:(h.scan.nSteps-1)/2)/(frequencyStepSize*h.scan.nSteps);
+
+         %Boolean for incorporating RF strength
+         if nargin >= 4 && ~isempty(varargin{4}) && varargin{4}
+            frequencyAxis = frequencyAxis/(magnetStrength(h.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
+         end
       end
    end
 

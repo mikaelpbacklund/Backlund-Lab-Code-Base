@@ -50,6 +50,9 @@ p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
+p.plotAverageContrastFFT = true;
+p.plotCurrentContrastFFT = false;
+p.fftVerticalLine = {};%ex: {500,'1H'} to get vertical line at 500 labeled 1H
 
 
 %Stage optimization
