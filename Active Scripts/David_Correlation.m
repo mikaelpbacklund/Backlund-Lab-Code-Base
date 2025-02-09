@@ -1,29 +1,29 @@
 %Example XYN-m using template
 
 %Required
-p.tBounds = [1000 20000];
-p.tStepSize = 100;
+p.tBounds = [1000 3000];
+p.tStepSize = 250;
 p.tauNSteps = [];%will override step size
-p.tauDuration = 500;
-p.piTime = 36;
-p.RFResonanceFrequency = 2.0354;
+p.tauDuration = 350;
+p.piTime = 100;
+p.RFResonanceFrequency = 2.87;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 4;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 3;%seconds
-p.collectionDuration = 1600;%0 means overwritten by DAQ
-p.collectionBufferDuration = 300;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
-p.extraRF = 6;
+p.sequenceTimePerDataPoint = 10;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionBufferDuration = 100;
+p.intermissionBufferDuration = 1000;
+p.repolarizationDuration = 7000;
+p.RFReduction = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 400;
-p.IQBuffers = [30 0];
-p.nIterations = 4;
-p.RFAmplitude = 9.8;
+p.AOMCompensation = 0;
+p.IQBuffers = [0 0];
+p.nIterations = 1;
+p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
@@ -43,15 +43,16 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = true;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
-p.plotCurrentContrastFFT = false;
-p.plotAverageContrastFFT = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
+p.plotAverageContrastFFT = true;
+p.plotCurrentContrastFFT = false;
+p.fftVerticalLine = {};%ex: {500,'1H'} to get vertical line at 500 labeled 1H
 
 
 %Stage optimization
