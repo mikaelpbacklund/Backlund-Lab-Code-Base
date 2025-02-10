@@ -1011,10 +1011,10 @@ classdef experiment
          %Check if data display (line) is valid, replot if not
          if ~isfield(h.plots.(plotName),'dataDisplay') || ~isvalid(h.plots.(plotName).dataDisplay)
             %Creates the actual plot as a line
-            h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxis,yData);
+            h.plots.(plotName).dataDisplay = plot(h.plots.(plotName).axes,xAxisData,yAxisData);
 
-            if nargin >= 5 && ~isempty(varargin{5})
-               plotInfoCell = varargin{5};
+            if nargin >= 5 && ~isempty(varargin{1})
+               plotInfoCell = varargin{1};
                if size(plotInfoCell,2) ~= 2 || ~isa(plotInfoCell,'cell')
                   error('plot info cell (5th input) must be cell array with 2 columns')
                end
@@ -1035,13 +1035,13 @@ classdef experiment
 
             %Creates x (vertical) lines at locations specified in 1st column of 6th argument with labels from 2nd column
             %of 6th argument
-            if nargin >= 6 && ~isempty(varargin{6})
-               xLinesCell = varargin{6};
+            if nargin >= 6 && ~isempty(varargin{2})
+               xLinesCell = varargin{2};
                if size(xLinesCell,2) ~= 2 || ~isa(xLinesCell,'cell')
                   error('x lines cell (6th input) must be cell array with 2 columns')
                end
                for ii = 1:size(xLinesCell,1)
-                  h.plots.(plotName).xLines{ii} = xline(h.plots.(plotName).axes,xLinesCell{ii,1},'--',xLinesCell{ii,2},'LineWidth',2);
+                  h.plots.(plotName).xLines{ii} = xline(h.plots.(plotName).axes,xLinesCell{ii,1},'--',xLinesCell{ii,2});
                end
             end
          else
@@ -1297,22 +1297,22 @@ classdef experiment
 
          for ii = 1:numel(iterations)    
             %Pull data from every point in each iteration
-            for jj = 1:size(h.scan.nSteps)
+            for jj = 1:h.scan.nSteps
                switch dataType
                   case {'ref','r','reference'}
-                     preFFTData = ex.data.values{jj,ii}(1);
+                     preFFTData(jj) = h.data.values{jj,ii}(1);
                   case {'sig','s','signal'}
-                     preFFTData = ex.data.values{jj,ii}(2);
+                     preFFTData(jj) = h.data.values{jj,ii}(2);
                   case {'con','c','contrast'}
-                     refData = ex.data.values{jj,ii}(1);
-                     sigData = ex.data.values{jj,ii}(2);
-                     preFFTData = (refData(jj,ii)-sigData(jj,ii))/refData(jj,ii);
+                     refData = h.data.values{jj,ii}(1);
+                     sigData = h.data.values{jj,ii}(2);
+                     preFFTData(jj) = (refData-sigData)/refData;
                end               
             end            
             %Performs fft on given data
             iterationFFT = abs(fftshift(fft(preFFTData-mean(preFFTData))));
             %Single sided fft
-            iterationFFT = iterationFFT((h.scan.nSteps+1)/2+1:end);
+            iterationFFT = iterationFFT(ceil((h.scan.nSteps+1)/2)+1:end);
             if ii == 1
                fftOut = iterationFFT;
             else
@@ -1320,16 +1320,15 @@ classdef experiment
             end
          end
 
-         %Divides by number of iterations to get average
-         fftOut = fftOut ./ numel(iterations);
+         %Dividing by number of iterations squared gives approximately the
+         %same arbitrary units as unaveraged
+%          fftOut = fftOut ./ numel(iterations);
 
-         %If more than 1 iteration, take mean of all iterations given
-
-         frequencyStepSize = 1/(h.scan.stepSize(1)*1e-9);%Hz
+         frequencyStepSize = h.scan.stepSize(1)*1e-9;%Hz
          frequencyAxis = (1:(h.scan.nSteps-1)/2)/(frequencyStepSize*h.scan.nSteps);
 
          %Boolean for incorporating RF strength
-         if nargin >= 4 && ~isempty(varargin{4}) && varargin{4}
+         if nargin >= 4 && ~isempty(varargin{1}) && varargin{1}
             frequencyAxis = frequencyAxis/(magnetStrength(h.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
          end
       end

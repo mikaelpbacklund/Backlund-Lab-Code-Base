@@ -174,21 +174,21 @@ for ii = 1:p.nIterations
    plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
    plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
    if isfield(p,'tauDuration')
-      plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d)',p.tauDuration)};
+      plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d ns)',p.tauDuration)};
    else
       plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT')};
    end
    if p.plotAverageContrastFFT
       [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',true);
-      frequencyAxis = frequencyAxis * 1e6;%Conversion to MHz
+      frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
       plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
-      ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,verticalLineInfo);
+      ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
    end
    if p.plotCurrentContrastFFT
       [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',true);
-      frequencyAxis = frequencyAxis * 1e6;%Conversion to MHz
+      frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
       plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
-      ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,verticalLineInfo);
+      ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
    end
 
    if ii ~= p.nIterations
