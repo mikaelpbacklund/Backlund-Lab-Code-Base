@@ -149,7 +149,7 @@ end
 scanInfo.nSteps = p.tNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('Correlation for XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);
+scanInfo.notes = sprintf('XY%d-%d Correlation (tau: %d ns)',p.nXY,p.setsXYN,p.tauDuration);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %% Outputs

@@ -1,7 +1,7 @@
 %Example XYN-m using template
 
 %Required
-p.tBounds = [100 10000];
+p.tBounds = [40000 50000];
 p.tStepSize = 100;
 p.tauNSteps = [];%will override step size
 p.tauDuration = 392;
