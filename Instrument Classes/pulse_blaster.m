@@ -68,7 +68,6 @@ classdef pulse_blaster < instrumentType
          end
 
          h.connected = true;
-         % return
 
          if ~libisloaded(h.commands.name)
              warning('off','MATLAB:loadlibrary:FunctionNotFound') %Produces warning for pb_get_rounded_value not being in library
