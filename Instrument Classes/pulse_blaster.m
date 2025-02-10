@@ -10,11 +10,10 @@ classdef pulse_blaster < instrumentType
       sendUponAddition%Send sequence to pulse blaster when running addPulse
    end
 
-   properties (SetAccess = {?pulse_blaster ?instrumentType ?experiment}, GetAccess = public)
+   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
       %Read-only for user, derived from config or functions     
       commands
       clockSpeed%MHz
-      durationStepSize
       formalChannelNames
       acceptableChannelNames
       formalDirectionNames
@@ -24,6 +23,12 @@ classdef pulse_blaster < instrumentType
       adjustedSequence
       sequenceSentToPulseBlaster%The last recorded sequence sent to the pulse blaster
       sequenceDurations
+%       userSequenceDuration
+%       userSequenceDataDuration
+%       adjustedSequenceDuration
+%       adjustedSequenceDataDuration
+%       sentSequenceDuration
+%       sentSequenceDataDuration
       %userSequence (below) is a special case here. I originally wanted it
       %to be not read-only. Unfortunately, there are multiple ways to
       %represent which channels are on (base 10, binary, and names) so it
@@ -49,11 +54,14 @@ classdef pulse_blaster < instrumentType
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames','durationStepSize'...
+         configFields = {'clockSpeed','nChannels','formalDirectionNames',...
             'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
          commandFields = {'library','api','type','name'};%Use commands to hold dll info
          numericalFields = {};      
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+
+         %Set identifier as given name
+         h.identifier = configFileName;
       end
 
       function h = connect(h)
@@ -75,16 +83,6 @@ classdef pulse_blaster < instrumentType
          h.identifier = 'pulse blaster';
       end
 
-      function h = disconnect(h)
-         if ~h.connected    
-             return;   
-         end
-         if ~isempty(h.commands)
-            h.commands = [];
-         end
-         h.connected = false;
-      end
-      
       function h = addPulse(h,pulseInfo,varargin)
 
          %Adds a pulse to the sequence. If a third argument is given,
@@ -136,30 +134,25 @@ classdef pulse_blaster < instrumentType
          %Adds to sequence structure. If an additional argument is given,
          %use that argument to determine where in the sequence the pulse
          %will be inserted
-         if nargin > 2 && ~isempty(varargin{1})
+         if nargin > 2
             h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo,varargin{1});
          else
             h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo);
          end
 
-         %If 4th argument is true, adjust sequence
-         if nargin < 4 || ~varargin{2}
-             return
+         if h.sendUponAddition
+            %Sends the new pulse sequence to the pulse blaster if enabled
+            h = sendToInstrument(h);
+         else
+            %After changing the sequence, perform adjustment to get up to
+            %date adjusted sequence (doesn't change user sequence)
+            %Unneeded if being sent as sendToInstrument does this already
+            h = adjustSequence(h);
          end
-
-%          if h.sendUponAddition
-%             %Sends the new pulse sequence to the pulse blaster if enabled
-%             h = sendToInstrument(h);
-%          else
-%             %After changing the sequence, perform adjustment to get up to
-%             %date adjusted sequence (doesn't change user sequence)
-%             %Unneeded if being sent as sendToInstrument does this already
-%             h = adjustSequence(h);
-%          end
 
       end
 
-      function [h] = condensedAddPulse(h,activeChannels,duration,notes,varargin)
+      function [h] = condensedAddPulse(h,activeChannels,duration,notes)
          %Single line version of add pulse for "normal" pulses
          pulseInfo.activeChannels = activeChannels;
          pulseInfo.duration = duration;
@@ -220,9 +213,7 @@ classdef pulse_blaster < instrumentType
       end
 
       function h = sendToInstrument(h)
-          h = calculateDuration(h,'user');
          h = adjustSequence(h);%Adjusts sequence in preparation to send to instrument
-         h = calculateDuration(h,'adjusted');
 
          %Saves the current adjusted sequence as the sequence that has
          %been sent to the pulse blaster
@@ -247,36 +238,20 @@ classdef pulse_blaster < instrumentType
                current.contextInfo = loopTracker(end);
                loopTracker(end) = [];
             end
-
-            %Pulse blaster can only have step size so small
-            trueDuration = round(current.duration/h.durationStepSize)*h.durationStepSize;
-
             %Sends the current instruction to the pulse blaster
             [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
-               opCode-1,current.contextInfo,trueDuration);
-
-            h.sequenceSentToPulseBlaster(ii).duration = trueDuration;
+               opCode-1,current.contextInfo,round(current.duration));
          end
 
          [~] = calllib(h.commands.name,'pb_stop_programming');
       end
 
-      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue,varargin)
+      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue)
          arguments
             h
             addressNumber {mustBeNumeric}
             fieldToModify {mustBeA(fieldToModify,["string","char"])}
-            modifiedValue           
-         end
-         arguments (Repeating)
-            varargin
-         end
-
-         %Default to adjusting the sequence if not given
-         if nargin >= 5
-            boolAdjust = varargin{1};
-         else
-            boolAdjust = true;
+            modifiedValue
          end
 
          if any(addressNumber > numel(h.userSequence))
@@ -330,9 +305,7 @@ classdef pulse_blaster < instrumentType
                end
 
          end
-         if boolAdjust
-            h = calculateDuration(h,'user');
-         end
+         h = calculateDuration(h,'user');
 
       end
 
@@ -602,7 +575,7 @@ classdef pulse_blaster < instrumentType
                %If the duration equals the signifier, output that pulse
                %number
                pulseNumbers = find(cellfun(@(x)x==pulseSignifier,{h.userSequence.duration}));
-             case {'activechannels','channels','active','names','name','active channels'}
+            case {'activechannels','channels','active','names','name'}
                %Checks user notes to see if signifier corresponds to them
                if nargin ~= 4
                   error('findPulses must have a 4th argument that is "contains" or "matches" if activeChannels category is used')
@@ -709,15 +682,14 @@ classdef pulse_blaster < instrumentType
       end
 
       function h = addBuffer(h,pulseAddresses,bufferDuration,channelsToCopy,varargin)
-         %Argument 7 is notes, argument 6 is before/after
-         %Beofre/after only needed if a single value is given
+         %Argument 5 is notes, argument 6 is before/after
 
          channelsToCopy = interpretName(h,channelsToCopy,'Channel');
 
          if ~all(bufferDuration == 0)
             for ii = 1:numel(pulseAddresses)
 
-               currentAddress = pulseAddresses(end-(ii-1)); %Goes backwards to keep easy indexing
+               currentAddress = pulseAddresses(end-(ii-1));
                pulseInfo = [];
                pulseInfo.activeChannels = {};
 
@@ -729,29 +701,29 @@ classdef pulse_blaster < instrumentType
                end
 
                %Add notes if given
-               if nargin >= 6
-                  pulseInfo.notes = varargin{2};
+               if nargin >= 5
+                  pulseInfo.notes = varargin{1};
                end
 
-               if ~isscalar(bufferDuration)
-                  %First buffer duration is the "before" and second is "after"
-                  %Perform "after" buffer first to keep indexing simple
+               if numel(bufferDuration) ~= 1
+                  %First buffer duration is the "before" and second is
+                  %"after"
                   if bufferDuration(2) ~= 0
-                     pulseInfo.duration = bufferDuration(2);                     
+                     pulseInfo.duration = bufferDuration(2);
                      h = addPulse(h,pulseInfo,currentAddress+1);
                   end
                   if bufferDuration(1) ~= 0
-                     pulseInfo.duration = bufferDuration(1);                    
+                     pulseInfo.duration = bufferDuration(1);
                      h = addPulse(h,pulseInfo,currentAddress);
                   end
-               else %Only 1 duration given
-                  if nargin < 5
+               else
+                  if nargin ~= 6
                      error('If only a single duration is given, the location of the buffer must be specified as "before" or "after"')
                   end
-                  pulseInfo.duration = bufferDuration;                  
-                  if strcmpi(varargin{1},'before')
+                  pulseInfo.duration = bufferDuration;
+                  if strcmpi(varargin{2},'before')
                      h = addPulse(h,pulseInfo,currentAddress);
-                  elseif strcmpi(varargin{1},'after')
+                  elseif strcmpi(varargin{2},'after')
                      h = addPulse(h,pulseInfo,currentAddress+1);
                   else
                      error('If only a single duration is given, the location of the buffer must be specified as "before" or "after"')
@@ -759,7 +731,6 @@ classdef pulse_blaster < instrumentType
                end
             end
          end
-         h = adjustSequence(h);         
       end
 
       function [h,scanInfo] = loadTemplate(h,templateName,params)
