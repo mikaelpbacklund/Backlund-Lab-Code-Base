@@ -68,7 +68,7 @@ classdef pulse_blaster < instrumentType
          end
 
          h.connected = true;
-         % return
+         return
 
          if ~libisloaded(h.commands.name)
              warning('off','MATLAB:loadlibrary:FunctionNotFound') %Produces warning for pb_get_rounded_value not being in library
@@ -297,8 +297,8 @@ classdef pulse_blaster < instrumentType
             case {'channelsbinary','binary','binarychannels'}%Convert binary to numerical output then find activeChannels and properly structured binary
                if ~isa(modifiedValue,'char'),    error('Binary output must be a character array'),    end
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).numericalOutput = bin2dec(modifiedValue);
-                  [h.userSequence(currentAddress).activeChannels,h.userSequence(currentAddress).channelsBinary]= interpretPulseNames(h,bin2dec(modifiedValue));
+                  h.userSequence(currentAddress).numericalOutput = bin2dec(fliplr(modifiedValue));
+                  [h.userSequence(currentAddress).activeChannels,h.userSequence(currentAddress).channelsBinary]= interpretPulseNames(h,modifiedValue);
                end
             case {'numericaloutput','output','numerical','number','value'}%Output simple replace then match binary and channel names
                for currentAddress = addressNumber
