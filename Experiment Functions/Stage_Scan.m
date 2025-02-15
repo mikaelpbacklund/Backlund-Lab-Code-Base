@@ -138,15 +138,6 @@ for ii = 1:numel(ex.scan)
     totalSteps = totalSteps .* ex.scan(ii).nSteps;
 end
 
-%Sends information to command window
-scanStartInfo(totalSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
-
-%Asks for user input on whether to continue
-cont = checkContinue(p.timeoutDuration*2);
-if ~cont
-    return
-end
-
 %Runs scan
 ex = runScan(ex,p);
 catch ME

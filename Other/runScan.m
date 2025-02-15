@@ -29,6 +29,19 @@ paramsWithDefaults = {'plotAverageContrast',true;...
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
+%Sends information to command window
+if p.resetData
+    iterationsForInfo = p.nIterations;
+else
+    iterationsForInfo = p.nIterations - size(ex.data.values,2);
+end
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+
+cont = checkContinue(p.timeoutDuration*2);
+if ~cont
+   return
+end
+
 try
 
     close('all')

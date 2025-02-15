@@ -121,13 +121,5 @@ ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 ex.maxFailedCollections = p.maxFailedCollections;
 
-%Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
-
-cont = checkContinue(p.timeoutDuration*2);
-if ~cont
-   return
-end
-
 %Runs scan
 ex = runScan(ex,p);
