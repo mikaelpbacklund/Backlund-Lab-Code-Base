@@ -1,4 +1,4 @@
-function outNum = MagnetStrength(inNum,analysisType)
+function outNum = magnetStrength(inNum,analysisType)
 %Finds the RF frequency of the lower peak in GHz based on the magent
 %strength in Gauss or vice versa
 if strcmp(analysisType,'strength')
