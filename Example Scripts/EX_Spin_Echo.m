@@ -28,6 +28,7 @@ p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

@@ -53,7 +53,7 @@ p.plotPulseSequence = true;
 p.plotAverageContrastFFT = true;
 p.plotCurrentContrastFFT = true;
 p.verticalLineInfo = {10.705,'13C';42.576,'1H'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
-
+p.normalizeFFTByMagnet = true;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

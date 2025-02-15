@@ -15,6 +15,7 @@ p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) col
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

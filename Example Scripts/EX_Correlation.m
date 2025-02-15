@@ -30,6 +30,7 @@ p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -52,8 +53,8 @@ p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
 p.plotAverageContrastFFT = true;
 p.plotCurrentContrastFFT = false;
-p.fftVerticalLine = {};%ex: {500,'1H'} to get vertical line at 500 labeled 1H
-
+p.verticalLineInfo = {10.705,'13C';42.576,'1H'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.normalizeFFTByMagnet = true;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

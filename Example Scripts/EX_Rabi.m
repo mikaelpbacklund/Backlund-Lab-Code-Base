@@ -27,6 +27,7 @@ p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is 
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

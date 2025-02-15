@@ -17,13 +17,15 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotCurrentContrastFFT',false;...
    'plotAverageContrastFFT',false;...
    'verticalLineInfo',[];...
+   'normalizeFFTByMagnet',false;...
    'plotPulseSequence',false;...
    'invertSignalForSNR',false;...
    'baselineSubtraction',0;...
    'boundsToUse',1;...
    'perSecond',true;...
    'nIterations',1;...
-   'xOffset',0};
+   'xOffset',0;...
+   'resetData',true};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
@@ -31,8 +33,10 @@ try
 
     close('all')
 
-%Resets current data. [0,0] is for reference and signal counts
-ex = resetAllData(ex,[0,0]);
+    if p.resetData
+       %Resets current data. [0,0] is for reference and signal counts
+       ex = resetAllData(ex,[0,0]);
+    end
 
 %Plots the pulse sequence on the first iteration if desired
 if p.plotPulseSequence
@@ -62,7 +66,16 @@ if p.plotPulseSequence
    end
 end
 
-for ii = 1:p.nIterations
+if p.resetData
+   startIteration = 1;
+else
+   startIteration = size(ex.data.values,2)+1;
+   if startIteration > p.nIterations
+      error('Scan not reset and number of iterations complete equals number of iterations desired')
+   end
+end
+
+for ii = startIteration:p.nIterations
 
    %Reset current scan each iteration
    ex = resetScan(ex);
@@ -171,7 +184,11 @@ for ii = 1:p.nIterations
    end
 
    plotLabelInfo = cell(3,2);
-   plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
+   if p.normalizeFFTByMagnet
+      plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
+   else
+      plotLabelInfo(1,:) = {'x label','Frequency (MHz)'};
+   end
    plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
    if isfield(p,'tauDuration')
       plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d ns)',p.tauDuration)};
@@ -179,13 +196,13 @@ for ii = 1:p.nIterations
       plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT')};
    end
    if p.plotAverageContrastFFT
-      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',true);
+      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',p.normalizeFFTByMagnet);
       frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
       plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
       ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
    end
    if p.plotCurrentContrastFFT
-      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',true);
+      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',p.normalizeFFTByMagnet);
       frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
       plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
       ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);

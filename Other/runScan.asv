@@ -16,13 +16,16 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'plotAverageSignal',false;...%not given as parameter elsewhere
    'plotCurrentContrastFFT',false;...
    'plotAverageContrastFFT',false;...
+   'verticalLineInfo',[];...
+   'normalizeFFTByMagnet',false;...
    'plotPulseSequence',false;...
    'invertSignalForSNR',false;...
    'baselineSubtraction',0;...
    'boundsToUse',1;...
    'perSecond',true;...
    'nIterations',1;...
-   'xOffset',0};
+   'xOffset',0;...
+   'resetData',true};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
@@ -30,10 +33,49 @@ try
 
     close('all')
 
-%Resets current data. [0,0] is for reference and signal counts
-ex = resetAllData(ex,[0,0]);
+    if p.resetData
+       %Resets current data. [0,0] is for reference and signal counts
+       ex = resetAllData(ex,[0,0]);
+    end
 
-for ii = 1:p.nIterations
+%Plots the pulse sequence on the first iteration if desired
+if p.plotPulseSequence
+   seq = ex.pulseBlaster.userSequence;
+   xax = [];
+   yax = [];
+   for kk = 1:numel(seq)
+      binChannels = seq(kk).channelsBinary;
+      binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
+      nBin = numel(binChannels);
+      if kk == 1
+         xax = 0;
+         for jj = 1:nBin
+            yax(kk,jj) = (nBin-(jj-1))*2+.5; %#ok<*SAGROW>
+         end
+      else
+         xax = [xax,xax(end)+seq(kk-1).duration]; %#ok<*AGROW>
+         for jj = 1:numel(binChannels)
+            yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
+         end
+      end
+   end
+   pulseSequenceFig = figure(51);
+   pulseSequenceAxes = axes(pulseSequenceFig);
+   for jj = 1:numel(binChannels)
+      stairs(pulseSequenceAxes,xax,yax)
+   end
+end
+
+if p.resetData
+   startIteration = 1;
+else
+   startIteration = size(ex.data.values,2)+1;
+   if startIteration > p.nIterations
+      error('Scan not reset and number of iterations complete equals number of iterations desired')
+   end
+end
+
+for ii = startIteration:p.nIterations
 
    %Reset current scan each iteration
    ex = resetScan(ex);
@@ -134,56 +176,36 @@ for ii = 1:p.nIterations
          ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
 
-      yAxisLabel = 'Intensity (a.u.)';
-      plotLabelInfo = cell(3,2);
-      plotLabelInfo(1,:) = {'x label','Frequency (MHz)'};
-      plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
-      plotLabelInfo(3,:) = {'title','FFT'};%actual title overwritten per plot
-      verticalLineInfo = {500,'1H'};
-      if p.plotAverageContrastFFT
-         [fftOut,frequencyAxis] = fourierTransform();
-         frequencyAxis = frequencyAxis * 1e6;%Conversion to MHz
-         ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,verticalLineInfo);
-      end
-      if p.plotCurrentContrastFFT
-         [fftOut,frequencyAxis] = fourierTransform(currentContrast,ex.scan.stepSize(p.boundsToUse));
-         ex = plotData(ex,fftOut,'Average Contrast FFT',yAxisLabel,p.boundsToUse,[],[],[],[frequencyAxis(1),frequencyAxis(2)]); 
-      end
-
-      %Plots the pulse sequence on the first iteration if desired
-      if p.plotPulseSequence && ii == 1 && cell2mat(ex.odometer) == ones(1,numel(ex.odometer))
-         seq = ex.pulseBlaster.userSequence;
-         xax = [];
-         yax = [];
-         for kk = 1:numel(seq)
-            binChannels = seq(kk).channelsBinary;
-            binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
-            nBin = numel(binChannels);
-            if kk == 1
-               xax = 0;
-               for jj = 1:nBin
-                  yax(kk,jj) = (nBin-(jj-1))*2+.5; %#ok<*SAGROW>
-               end
-            else
-               xax = [xax,xax(end)+seq(kk-1).duration]; %#ok<*AGROW>
-               for jj = 1:numel(binChannels)
-                  yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
-               end
-            end
-         end
-         pulseSequenceFig = figure(51);
-         pulseSequenceAxes = axes(pulseSequenceFig); %#ok<LAXES>
-         for jj = 1:numel(binChannels)
-            stairs(pulseSequenceAxes,xax,yax)
-         end
-      end
-
       %If a new post-optimization value is needed, record current data
       if ex.optimizationInfo.enableOptimization && ex.optimizationInfo.needNewValue
          ex.optimizationInfo.postOptimizationValue = currentData(1);
          ex.optimizationInfo.needNewValue = false;
-      end
-     
+      end     
+   end
+
+   plotLabelInfo = cell(3,2);
+   if p.normalizeFFTByMagnet
+      plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
+   else
+      plotLabelInfo(1,:) = {'x label','Frequency (MHz)'};
+   end
+   plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
+   if isfield(p,'tauDuration')
+      plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d ns)',p.tauDuration)};
+   else
+      plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT')};
+   end
+   if p.plotAverageContrastFFT
+      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',p.normalizeFFTByMagnet);
+      frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+      plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
+      ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
+   end
+   if p.plotCurrentContrastFFT
+      [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',p.normalizeFFTByMagnet);
+      frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+      plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
+      ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
    end
 
    if ii ~= p.nIterations

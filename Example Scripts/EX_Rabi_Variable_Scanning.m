@@ -29,6 +29,7 @@ p.RFReduction = 10;%Time to add to each RF pulse due to RF generator reducing pu
 p.perSecond = true;%convert to counts/s if using counter
 p.dataOnBuffer = 0;
 p.extraBuffer = 0;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

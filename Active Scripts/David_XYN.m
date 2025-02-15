@@ -52,7 +52,6 @@ p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
 
-
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over

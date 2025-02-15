@@ -19,11 +19,10 @@ p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and b
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
 p.extraRF = 0;
-p.AOM_DAQCompensation = 0;
+p.AOMCompensation = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.IQPreBufferDuration = 0;
-p.IQPostBufferDuration = 0;
+p.IQBuffers = [0 0];%Pre and post IQ buffer durations
 p.RF1Amplitude = 10;
 p.RF2Amplitude = 23;
 p.nIterations = 10; %Number of iterations of scan to perform
@@ -33,6 +32,7 @@ p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number me
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.maxFailedCollections = 3;
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_DEER';
@@ -42,14 +42,21 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints=false;
-p.plotAverageDataPoints=false;
-p.plotPulseSequence = false;
+p.plotCurrentDataPoints = true;
+p.plotAverageDataPoints = false;
+p.invertSignalForSNR = false;
+p.plotPulseSequence = true;
+p.plotAverageContrastFFT = true;
+p.plotCurrentContrastFFT = false;
+p.verticalLineInfo = {};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.normalizeFFTByMagnet = false;
 
 %Stage optimization
 p.optimizationEnabled = true; %Set to false to disable stage optimization

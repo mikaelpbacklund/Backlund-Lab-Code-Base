@@ -1,35 +1,32 @@
 %Example DEER using template
 
 %Required
-p.scanType = 'frequency';%Either frequency or duration
-p.scanBounds = [425e-3 500e-3]; %windfreak frequency (GHz) or duration (ns)
-p.scanStepSize = 1e-3;
-% p.scanBounds = [100 500]; %windfreak frequency (GHz) or duration (ns)
-% p.scanStepSize = 20;
+p.scanType = 'duration';%Either frequency or duration
+p.scanBounds = [10 400]; %windfreak frequency (GHz) or duration (ns)
+p.scanStepSize = 2;
 p.collectionType = 'counter';%analog or counter
-p.RF2Frequency = .464;%GHz. Overwritten by scan if frequency selected
-p.RF2Duration = 400;%ns. Overwritten by scan if duration selected
+p.RF2Frequency = 2;%GHz. Overwritten by scan if frequency selected
+p.RF2Duration = 100;%ns. Overwritten by scan if duration selected
 p.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
-p.RF1ResonanceFrequency = 2.4055;
-p.piTime = 76;
-p.tauTime = 550;
+p.RF1ResonanceFrequency = 2.87;
+p.piTime = 100;
+p.tauTime = 400;
 
 %General
-p.timePerDataPoint = 20;%Before factoring in forced delay and other pauses
+p.timePerDataPoint = 7;%Before factoring in forced delay and other pauses
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF = 10;
-p.AOM_DAQCompensation = 550;
-p.dataOnBuffer = 800;
-p.extraBuffer = 100;
-p.IQPreBufferDuration = 22;
-p.IQPostBufferDuration = 0;
+p.extraRF = 0;
+p.AOMCompensation = 0;
+p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
+p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
+p.IQBuffers = [0 0];%Pre and post IQ buffer durations
 p.RF1Amplitude = 10;
 p.RF2Amplitude = 23;
-p.nIterations = 100; %Number of iterations of scan to perform
-p.timeoutDuration = 3; %How long before auto-continue occurs
+p.nIterations = 10; %Number of iterations of scan to perform
+p.timeoutDuration = 5; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
@@ -44,16 +41,24 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
-p.plotAverageReference = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = false;
 p.plotCurrentReference = true;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotAveragePercentageDataPoints = true;
-p.plotCurrentPercentageDataPoints = true;
+p.plotCurrentDataPoints = true;
+p.plotAverageDataPoints = false;
+p.invertSignalForSNR = false;
+p.plotPulseSequence = true;
+p.plotAverageContrastFFT = true;
+p.plotCurrentContrastFFT = false;
+p.verticalLineInfo = {};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.normalizeFFTByMagnet = false;
 
 %Stage optimization
-p.optimizationEnabled = false; %Set to false to disable stage optimization
+p.optimizationEnabled = true; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
