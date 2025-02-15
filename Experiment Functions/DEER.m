@@ -75,7 +75,7 @@ ex.SRS_RF.amplitude = p.RF1Amplitude;
 ex.SRS_RF.frequency = p.RF1ResonanceFrequency;
 
 ex.windfreak_RF.enabled = 'on';
-% ex.windfreak_RF.amplitude = p.RF2Amplitude;
+ex.windfreak_RF.amplitude = p.RF2Amplitude;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
