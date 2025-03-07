@@ -241,7 +241,7 @@ config.clockPort = 'PFI1';
 %DAQ manufacturer
 config.manufacturer = 'ni';
 config.identifier = 'daq';
-config.sampleRate = 1.25e6;
+config.sampleRate = 2e6;
 
 config.defaults.continuousCollection = true;
 config.defaults.takeData = false;

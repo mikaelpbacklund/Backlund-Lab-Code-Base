@@ -1,28 +1,28 @@
 %Example XYN-m using template
 
 %Required
-p.tBounds = [40000 50000];
-p.tStepSize = 100;
+p.tBounds = [1000 9000];
+p.tStepSize = 20;
 p.tauNSteps = [];%will override step size
-p.tauDuration = 392;
-p.piTime = 36;
-p.RFResonanceFrequency = 2.0354;
+p.tauDuration = 544;
+p.piTime = 40;
+p.RFResonanceFrequency = 2.261;
 p.nXY = 8;%N in XYN-m
 p.setsXYN = 8;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 2400;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint = 8;%seconds
+p.collectionDuration = 800;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
 p.RFReduction = 4;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 500;
+p.AOMCompensation = 400;
 p.IQBuffers = [30 0];
-p.nIterations = 100;
+p.nIterations = 25;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .5;
@@ -30,6 +30,7 @@ p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -39,7 +40,7 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = false;
+p.plotCurrentContrast = true;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;

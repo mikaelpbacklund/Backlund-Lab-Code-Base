@@ -133,7 +133,7 @@ classdef DAQ_controller < instrumentType
             h = addChannel(h,h.channelInfo(ii));    
          end 
          
-         addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
+%          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
          
          function handshake = storeData(handshake,evt) %#ok<INUSD> 
              % warnError = warning('error', 'MATLAB:DELETE:Permission');%Turns warning into error such that it can be caught

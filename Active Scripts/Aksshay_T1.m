@@ -1,36 +1,34 @@
-%Example XYN-m using template
+%Example Spin Echo using template
 
 %Required
-p.tauStart = 500;%1500
-p.tauEnd = 600;%1600
-p.tauStepSize = 4;%4
+p.tauStart = 200;
+p.tauEnd = 4200;
+p.tauStepSize = 100;
 p.tauNSteps = [];%will override step size
-p.piTime = 40;
-p.RFResonanceFrequency = 2.261;
-p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+% p.piTime = 36;
+% p.RFResonanceFrequency = 2.269;
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 6;%seconds
-p.collectionDuration = 2400;%0 means overwritten by DAQ
+p.timePerDataPoint = 6;%seconds
+p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFReduction = 4;
+% p.extraRF = 4;
+p.AOMCompensation = 400;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 400;
-% p.AOMCompensation = 1300;
 p.IQBuffers = [30 0];
-p.nIterations = 100;
+p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .001;
+p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
-p.perSecond = true;
+p.perSecond = false;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -44,10 +42,10 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = true;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = true;
+p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
@@ -71,5 +69,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs XYN-m
-ex = XYN(ex,p);
+%Runs Spin Echo
+ex = SpinEcho(ex,p);
