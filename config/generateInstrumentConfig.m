@@ -391,6 +391,43 @@ saveLocation = pwd;%Default is to save to current directory
 saveName = '\laser_488';
 save(strcat(saveLocation,saveName),'config')
 
+%% 532 nm Lighthouse Photonics
+
+clear config
+
+config.identifier = 'laser532';
+config.pauseTime = 1;
+config.wavelength = 532;
+config.waitForEquilibrium = false;
+config.offWhenDeleted = false;
+config.uncommonProperties.connectionType = 'COM';
+config.uncommonProperties.baudrate = 19200;
+config.uncommonProperties.portNumber = 1;%**WRONG
+config.uncommonProperties.replyInfo.numberOfReplies = 1;
+config.uncommonProperties.replyInfo.realReplyLocation = 1;
+config.uncommonProperties.replyInfo.discardFirstConnectedResponse = false;
+config.uncommonProperties.replyInfo.discardAfterWrite = true;
+%Number of chars discarded from reply for each query type
+config.uncommonProperties.replyInfo.charsDiscarded.actualPower = 6;
+config.uncommonProperties.replyInfo.charsDiscarded.setPower = 10;
+config.uncommonProperties.replyInfo.charsDiscarded.toggle = 7;
+
+config.setPowerInfo.conversionFactor = 1;%**WRONG
+config.setPowerInfo.minimum = .01;%**WRONG
+config.setPowerInfo.maximum = 8;%**WRONG
+config.setPowerInfo.units = 'Watts';%**WRONG
+config.setPowerInfo.tolerance = 0;
+config.commands.toggleQuery = "OPMODE?";
+config.commands.toggleOn = "OPMODE=ON";
+config.commands.toggleOff = "OPMODE=OFF";
+config.commands.setPowerQuery = "POWER SET?";
+config.commands.setPower = "Power Set=%g";
+config.commands.actualPowerQuery = "POWER?";
+
+saveLocation = pwd;%Default is to save to current directory
+saveName = '\laser_532';
+save(strcat(saveLocation,saveName),'config')
+
 %% 561 nm Coherent Laser %deprecated
 
 clear config
@@ -424,22 +461,6 @@ config.commands.toggleOff = "source:am:state OFF";
 config.commands.setPowerQuery = "source:power:level:immediate:amplitude?";
 config.commands.setLaserPower = "source:power:level:immediate:amplitude %g";
 config.commands.actualPowerQuery = "source:power:level?";
-
-saveLocation = pwd;
-saveName = '\laser_561';
-save(strcat(saveLocation,saveName),'config')
-
-%% 532 nm Coherent Laser %deprecated
-clear config
-
-
-saveLocation = pwd;
-saveName = '\laser_561';
-save(strcat(saveLocation,saveName),'config')
-
-
-%% 532 nm Lighthouse Photonics Laser %deprecated
-clear config
 
 saveLocation = pwd;
 saveName = '\laser_561';
