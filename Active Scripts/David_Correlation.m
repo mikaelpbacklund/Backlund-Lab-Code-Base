@@ -1,23 +1,23 @@
 %Example XYN-m using template
 
 %Required
-p.tBounds = [1000 9000];
+p.tBounds = [1000 6000];
 p.tStepSize = 20;
 p.tauNSteps = [];%will override step size
-p.tauDuration = 544;
-p.piTime = 40;
-p.RFResonanceFrequency = 2.261;
+p.tauDuration = 388;
+p.piTime = 36;
+p.RFResonanceFrequency = 2.023;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 4;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 8;%seconds
-p.collectionDuration = 800;%0 means overwritten by DAQ
+p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFReduction = 4;
+p.RFReduction = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 400;

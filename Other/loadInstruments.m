@@ -18,13 +18,13 @@ for ii = 1:numel(instrumentNames)
    switch lower(instrumentNames(ii))
       
       case {'pb','pulse blaster','pulseblaster','pulse_blaster'}
-         ex = connectToInstrument(ex,'pulse blaster','pulse_blaster');
+         ex = connectToInstrument(ex,'pulseBlaster','pulse_blaster');
 
       case {'srs','srsrf','srs_rf','srs rf','rf','rf generator','rfgenerator','rf_generator'}
-         ex = connectToInstrument(ex,'SRS RF','RF_generator');
+         ex = connectToInstrument(ex,'SRS_RF','RF_generator');
 
       case {'wf','windfreak','windfreakrf','windfreak_rf','windfreak rf'}
-         ex = connectToInstrument(ex,'windfreak RF','RF_generator');
+         ex = connectToInstrument(ex,'windfreak_RF','RF_generator');
 
       case {'stage','pistage','pi_stage','pi stage'}
          ex = connectToInstrument(ex,'stage','stage','PIstage');

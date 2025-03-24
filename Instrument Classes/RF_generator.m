@@ -89,9 +89,9 @@ classdef RF_generator < instrumentType
          h = queryFrequency(h);
          h = queryAmplitude(h);
          h = queryToggle(h);
-%          h = queryModulationToggle(h);
-%          h = queryModulationWaveform(h);
-%          h = queryModulationType(h);
+         h = queryModulationToggle(h);
+         h = queryModulationWaveform(h);
+         h = queryModulationType(h);
       end
 
       function h = disconnect(h)
@@ -179,38 +179,41 @@ classdef RF_generator < instrumentType
          modToggleCmds.toggleOff = h.commands.modulationToggleOff;
          modToggleCmds.query = h.commands.modulationToggleQuery;
          modToggleCmds.toggleName = 'modulationEnabled';
-         h = writeToggleProtocol(h,'query',modToggleCmds);
+         [h,foundState] = writeToggleProtocol(h,'query',modToggleCmds);
+         h.modulationEnabled = foundState;
       end
 
-      function [h,modWaveform] = queryModulationWaveform(h)
+      function h = queryModulationWaveform(h)
          writeString(h,h.commands.modulationWaveformQuery)
-         waveNumber = readString(h);
+         [h,waveNumber] = readString(h);
+         waveNumber = s2c(waveNumber);
          switch waveNumber(1)
             case '0'
-               modWaveform = 'sine';
+               h.modulationWaveform = 'sine';
             case '1'
-               modWaveform = 'ramp';
+               h.modulationWaveform = 'ramp';
             case '2'
-               modWaveform = 'triangle';
+               h.modulationWaveform = 'triangle';
             case '3'
-               modWaveform = 'square';
+               h.modulationWaveform = 'square';
             case '4'
-               modWaveform = 'noise';
+               h.modulationWaveform = 'noise';
             case '5'
-               modWaveform = 'external';
-         end
+               h.modulationWaveform = 'external';
+         end         
       end
 
       function [h,modType] = queryModulationType(h)
          writeString(h,h.commands.modulationTypeQuery)
-         modType = readString(h);
+         [h,modType] = readString(h);
+         modType = s2c(modType);
          switch modType(1)
              case '0'
-                 modType = 'amplitude';
+                 h.modulationType = 'amplitude';
              case '6'
-                 modType = 'I/Q';
+                 h.modulationType = 'I/Q';
              otherwise
-                 modType = 'unknown';
+                 h.modulationType = 'unknown';
          end
       end
 
