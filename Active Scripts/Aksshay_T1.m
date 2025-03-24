@@ -1,28 +1,28 @@
 %Example Spin Echo using template
 
 %Required
-p.tauStart = 102;
-p.tauEnd = 10102;
+p.tauStart = 200;
+p.tauEnd = 4200;
 p.tauStepSize = 100;
 p.tauNSteps = [];%will override step size
-p.piTime = 36;
-p.RFResonanceFrequency = 2.023;
+% p.piTime = 36;
+% p.RFResonanceFrequency = 2.269;
 p.collectionType = 'analog';
 
 %Other
-p.timePerDataPoint = 1;%seconds
+p.timePerDataPoint = 6;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.extraRF = 6;
+% p.extraRF = 4;
 p.AOMCompensation = 400;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [30 0];
 p.nIterations = 1;
 p.RFAmplitude = 10;
-p.timeoutDuration = 5;
+p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
@@ -69,7 +69,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-tic
 %Runs Spin Echo
 ex = SpinEcho(ex,p);
-toc

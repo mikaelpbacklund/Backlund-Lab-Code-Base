@@ -1,57 +1,43 @@
-%Example XYN-m using template
+%T1 
 
 %Required
-p.tauStart = 650;
-p.tauEnd = 902;
-p.tauStepSize = 4;
-p.tauNSteps = [];%will override step size
-p.piTime = 36;
-p.RFResonanceFrequency = 2.0354;
-p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
-p.collectionType = 'analog';
+p.scanBounds = [910000 1010000]; %RF duration bounds
+p.scanStepSize = 2000; %Step size for RF duration
+p.collectionType = 'analog';%analog or counter
 
-%Other
-p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 1600;%0 means overwritten by DAQ
-p.collectionBufferDuration = 100;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
-p.RFReduction = 6;
+%General
+p.sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+p.nIterations = 1; %Number of iterations of scan to perform
+p.timeoutDuration = 10; %How long before auto-continue occurs
+p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
+p.AOMCompensation = 850;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.repolarizationDuration = 10000;%Duration of repolarization
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 400;
-% p.AOMCompensation = 1300;
-p.IQBuffers = [30 0];
-p.nIterations = 5;
-p.RFAmplitude = 10;
-p.timeoutDuration = 3;
-p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .1;
-p.maxFailedCollections = 3;
-p.baselineSubtraction = 0;
-p.perSecond = true;
+p.perSecond = true;%convert to counts/s if using counter
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
-p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
-p.plotAverageReference = false;
+p.plotAverageReference = true;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = true;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
-
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
@@ -72,5 +58,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-%Runs XYN-m
-ex = XYN(ex,p);
+%Runs Rabi using specified parameters
+ex = T1(ex,p);

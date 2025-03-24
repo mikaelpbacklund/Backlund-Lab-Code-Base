@@ -1,30 +1,37 @@
-%Default ODMR script example
+%Default Laser intensity scan script example
 
 %Required
-p.scanBounds = [2.7 3]; %Frequency bounds
-p.scanStepSize = .005;%Step size for RF frequency
-p.collectionType = 'analog';%analog or counter
+p.scanBounds = [.1 1]; %Intensity bounds
+p.scanStepSize = .1; %Step size for intensity
 
-%General    
-p.RFAmplitude = 10;
-p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 2;%Before factoring in forced delay and other pauses
-p.nIterations = 10; %Number of iterations of scan to perform
-p.timeoutDuration = 10; %How long besfore auto-continue occurs
-p.forcedDelayTime = .1; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .0000001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+%General
+p.collectionType = 'analog';%analog or counter data collection
+p.parameterOfInterest = 'con';%ref or con
+p.scanNotes = 'Laser intensity scan'; %Notes describing scan (will appear in titles for plots)
+p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
+p.nIterations = 1; %Number of iterations of scan to perform
+p.timeoutDuration = 10; %How long before auto-continue occurs
+p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
+p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
+
+%RF settings (only relevant if parameter set to con)
+p.RFAmplitude = 10;
+p.RFFrequency = 2.87;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
+p.laserConfig = 'laser532';
+p.laserPropertyName = 'ndYAG';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
@@ -35,8 +42,6 @@ p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = false;
-p.plotAverageContrastFFT = false;
-p.plotCurrentContrastFFT = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
@@ -55,7 +60,5 @@ p.percentageForcedOptimization = .75; %see below (0 to disable)
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-tic
-%Runs ODMR using specified parameters
-ex = ODMR(ex,p);
-toc
+%Runs laser scan using specified parameters
+ex = Laser_Scan(ex,p);

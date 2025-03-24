@@ -101,4 +101,6 @@ if nargin > 6 && ~isempty(varargin{2}) && varargin{2} ~= 0
     h = addBuffer(h,dataAddresses,varargin{2},{'Data','Signal'},'after','Data on, repolarization buffer');
 end
 
+h = calculateDuration(h,'user');
+
 end

@@ -155,15 +155,15 @@ classdef experiment
 
             case 'RF_generator'
                switch lower(currentScan.parameter)
-                  case 'frequency'
+                  case {'frequency','freq','f'}
                      relevantInstrument.frequency = newValue;
-                  case 'amplitude'
+                  case {'amplitude','amp','a'}
                      relevantInstrument.amplitude = newValue;
                end
 
             case 'pulse_blaster'
                switch lower(currentScan.parameter)
-                  case 'duration'
+                  case {'duration','dur'}
                      %For each pulse address, modify the duration based on
                      %the new values
                      for ii = 1:numel(currentScan.address)
@@ -196,6 +196,14 @@ classdef experiment
                      relevantInstrument = absoluteMove(relevantInstrument,currentAxis,newValue(ii));
                   end
                end
+
+            case 'laser'
+                switch lower(currentScan.parameter)
+                   case {'set power','setpower'}
+                      relevantInstrument.setPower = newValue;
+                   otherwise
+                      error('Only setPower can be used as parameter for laser scan')
+                end
          end
 
          %Feeds instrument info back out
