@@ -1,12 +1,12 @@
 %Default Laser intensity scan script example
 
 %Required
-p.scanBounds = [.1 1]; %Intensity bounds
-p.scanStepSize = .1; %Step size for intensity
+p.scanBounds = [.01 .1]; %Intensity bounds
+p.scanStepSize = .01; %Step size for intensity
 
 %General
 p.collectionType = 'analog';%analog or counter data collection
-p.parameterOfInterest = 'con';%ref or con
+p.parameterOfInterest = 'ref';%ref or con
 p.scanNotes = 'Laser intensity scan'; %Notes describing scan (will appear in titles for plots)
 p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
@@ -26,7 +26,7 @@ p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
-p.laserConfig = 'laser532';
+p.laserConfig = 'laser_532';
 p.laserPropertyName = 'ndYAG';
 
 %Plotting

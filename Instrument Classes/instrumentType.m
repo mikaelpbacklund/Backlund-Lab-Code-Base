@@ -28,7 +28,10 @@ classdef instrumentType < handle
          %common so it is better to just have a function to make 3 lines
          %into 1
          if h.notifications
-            fprintf('%s\n',printMessage)
+             %Interestingly, I have to convert it to a string with the
+             %ending \n otherwise all other \n in a message will not work
+             fullMessage = sprintf('%s\n',printMessage);
+            fprintf(fullMessage)
          end
       end
 
@@ -177,7 +180,7 @@ classdef instrumentType < handle
          end         
          
          %Check attribute bounds then set new attribute if it is within those bounds
-         if attributeInfo.minimum < setState && setState <= attributeInfo.maximum
+         if attributeInfo.minimum <= setState && setState <= attributeInfo.maximum
             numericalInput = setState*attributeInfo.conversionFactor;
             h = writeNumber(h,attribute,numericalInput);%Dependent on instrument
          else
@@ -237,7 +240,8 @@ classdef instrumentType < handle
          end
          
          %Reads data to check if current setting matches input given
-         if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query')
+         if (isfield(h,'uncommonProperties') && isfield(h.uncommonProperties.bypassPreCheck) && ~h.uncommonProperties.bypassPreCheck)...
+                 || strcmpi(setState,'query')
             [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
             foundState = instrumentType.discernOnOff(toggleStatus);
 
@@ -281,7 +285,13 @@ classdef instrumentType < handle
          %For each field of the loaded file, change the object's field to
          %match
          for ii = fieldnames(config)'
-            h.(ii{1}) = config.(ii{1});
+             if isa(h.(ii{1}),'struct')
+                 for jj = fieldnames(config.(ii{1}))'
+                     h.(ii{1}).(jj{1}) = config.(ii{1}).(jj{1});
+                 end
+             else
+                 h.(ii{1}) = config.(ii{1});
+             end
          end
          
          %Check presence of required config fields
@@ -482,6 +492,8 @@ classdef instrumentType < handle
                properIdentifier = 'Hamamatsu';
             case {'ddl','dynamic delay line','dynamicdelayline','dynamic_delay_line'}
                properIdentifier = 'DDL';
+             case {'ndyag','ndyov','532','532 nm','532nm','green laser','nv laser','laser532','laser 532','532 nm laser'}
+               properIdentifier = '532 nm Laser';
             otherwise
                properIdentifier = [];
          end

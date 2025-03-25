@@ -2,14 +2,13 @@ classdef laser < instrumentType
    
    properties
       wavelength %Laser wavelength, used primarily for display
-      portNumber
-      replyInfo
       pauseTime
       waitForEquilibrium %Boolean for whether to wait until actual power matches set power
       offWhenDeleted %Should laser be turned off when object is deleted
       commands %Commands that can be sent to handshake
       handshake %Actual connection to instrument
       setPowerInfo %Contains information on how to change set power
+      actualPowerInfo %Contains information on how to interpret actual power
       setPower %Current power setting      
       enabled %On/Off setting
    end
@@ -30,7 +29,7 @@ classdef laser < instrumentType
          h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
 
          %Checks to make sure nested fields contain appropriate info
-         mustContainField(h.uncommonProperties,{'replyInfo','connectionType'})
+         mustContainField(h.uncommonProperties,{'replyInfo','connectionType','tolerance','equilibrationTimeout'})
          if strcmpi(h.uncommonProperties.connectionType,'com')
             mustContainField(h.uncommonProperties,{'portNumber','baudRate'})
          end
@@ -46,24 +45,29 @@ classdef laser < instrumentType
       end
       
       %% Internal Functions
-      
+
       function [h,numericalData] = readNumber(h,attributeQuery)
-         [h,numericalData] = readInstrument(h,attributeQuery);
-         numericalData = str2double(queryInterpretation(h,numericalData,true));
+         switch attributeQuery
+             case h.commands.setPowerQuery
+                 varName = 'setPower';
+             case h.commands.actualPowerQuery
+                 varName = 'actualPower';
+         end
+         [h,numericalData] = queryInterpretation(h,attributeQuery,h.uncommonProperties.replyInfo.charsDiscarded.(varName));
+         numericalData = str2double(numericalData);
       end
       
       function h = writeNumber(h,attribute,numericalInput)
          inputCommand = sprintf(h.commands.(attribute),numericalInput);
-         h = writeInstrument(h.handshake,inputCommand);
+         h = writeInstrument(h,inputCommand);
          if h.uncommonProperties.replyInfo.discardAfterWrite
             [~] = readline(h.handshake);%OK reply to every command
          end
          
       end
       
-      function [h,toggleStatus] = readToggle(h,attributeQuery)         
-         writeline(h.handshake,attributeQuery)
-         toggleStatus = queryInterpretation(h);
+      function [h,toggleStatus] = readToggle(h,attributeQuery)  
+         [h,toggleStatus] = queryInterpretation(h,attributeQuery,h.uncommonProperties.replyInfo.charsDiscarded.toggle);
       end
       
       function h = writeToggle(h,toggleCommand)
@@ -71,16 +75,19 @@ classdef laser < instrumentType
          [~] = readline(h.handshake);%OK reply to every command
       end
                   
-      function queryOutput = queryInterpretation(h,numberCharsDiscarded)
+      function [h,queryOutput] = queryInterpretation(h,attributeQuery,numberCharsDiscarded)
          %Requests reply from handshake repeatedly and selects "correct" reply with desired information
          %numberOfReplies, realReplyLocation, and numberCharsDiscarded must be found individually for each laser
 
-         for ii = 1:h.replyInfo.numberOfReplies
-            if ii == h.replyInfo.realReplyLocation
-               queryOutput = s2c(readline(h.handshake));
-            else
-               [~] = readline(h.handshake);
-            end
+         for ii = 1:h.uncommonProperties.replyInfo.numberOfReplies
+             if ii == 1
+                 [h,currentOutput] = readInstrument(h,attributeQuery);
+             else
+                 [h,currentOutput] = readInstrument(h);
+             end
+             if ii == h.uncommonProperties.replyInfo.realReplyLocation
+                 queryOutput = s2c(currentOutput);
+             end
          end
 
          %Discards however many characters set by input
@@ -108,6 +115,7 @@ classdef laser < instrumentType
 
          h = queryToggle(h);
          h = querySetPower(h);
+         h = queryActualPower(h);
          h = equilibrium(h);         
       end
      
@@ -130,63 +138,79 @@ classdef laser < instrumentType
 
          %Don't check for equilibrium if set not to, just check the power
          if ~h.waitForEquilibrium
-            [~] = h.actualPower;%update actual power by attempted access
             return
          end
          
-         n = 0; %Counter for amount of times power is checked
-         printOut('Waiting for laser equilibrium')
+         n = 1; %Counter for amount of times power is checked
+         printOut(h,'Waiting for laser equilibrium')
+         t = datetime;
          
          while true %repeats until equilibrated
 
             %Queries actual power and stores as "currentPower"
-            currentPower = h.actualPower;
+            h = queryActualPower(h);
             
             %Within tolerance on both sides
-            if  currentPower <= referencePower + h.tolerance && currentPower >= referencePower - h.tolerance
-               printOut('\nLaser equilibrated\n')
+            if  h.actualPower <= referencePower + h.uncommonProperties.tolerance &&  h.actualPower >= referencePower - h.uncommonProperties.tolerance
+               printOut(h,'\nLaser equilibrated')
                break
             else
                
                if mod(n,2) == 0 %prints "." every half second
-                  printOut('.')
+                   if mod(n,12) == 0
+                       printOut(h,'.')
+                   elseif h.notifications
+                       fprintf('.')
+                   end
+                  
                end
                n = n+1;
                
-               if n > 60 %Laser shouldn't take more than 15 seconds to equilibrate
-                  printOut('\nEquilibrium not established (check tolerance setting). Continuing...\n')
+               if n > h.uncommonProperties.equilibrationTimeout*4 %Laser shouldn't take more than 15 seconds to equilibrate
+                   if h.notifications
+                       fprintf('\nEquilibrium not established (check tolerance setting). Set power: %.2f, actual power: %.2f Continuing...\n',...
+                        h.setPower,h.actualPower)
+                   end
                   return
                end
                
-               pause(.25) 
+               c = datetime;
+               pause(.25-seconds(c-t))
+               t = datetime;
             end
          end
+       end
+
+       function h = queryToggle(h)
+           [h,foundState] = writeToggleProtocol(h,'query'); 
+           h.enabled = foundState;
+       end
+
+       function h = querySetPower(h)
+           [h,foundState] = writeNumberProtocol(h,'setPower','query');
+            h.setPower = foundState;
+       end
+
+       function h = queryActualPower(h)
+         [h,foundState] = writeNumberProtocol(h,'actualPower','query');
+         h.actualPower = foundState;
        end
 
        %% Set/Get functions
       function set.setPower(h,val)
          %Writes number to laser then runs equilibrium
-         [h,newVal] = writeNumberProtocol(h,'setPower',val);         
-         h = equilibrium(h,true); 
-         h.setPower = newVal;
+         [h,newVal] = writeNumberProtocol(h,'setPower',val);
+         if isempty(h.setPower) || h.setPower ~= newVal
+             h = queryActualPower(h);
+             h.setPower = newVal;
+             h = equilibrium(h,true);             
+         end
       end
 
       function set.enabled(h,val)
          [h,foundState] = writeToggleProtocol(h,val);          
          h = equilibrium(h,true);
          h.enabled = foundState;
-      end
-
-      function val = get.actualPower(h)
-         %If not connected, give empty output
-         if ~isfield(h,'connected') || isempty(h.connected) || ~h.connected
-            val = [];
-            return
-         end
- 
-         writeInstrument(h,h.commands.actualPowerQuery)
-         val = queryInterpretation(h);
-         val = val/h.powerConversionFactor;
       end
    end    
       

@@ -50,9 +50,11 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster and daq with given configs
-instrumentNames = ["pulse blaster","daq",c2s(p.laserPropertyName)];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.laserConfig)];
+instrumentNames = ["pulse blaster",c2s(p.laserPropertyName),"daq"];
+instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.laserConfig),c2s(p.DAQConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+
+ex.(p.laserPropertyName).enabled = true;
 
 %Loads SRS if measuring contrast
 if strcmpi(p.parameterOfInterest,'con')

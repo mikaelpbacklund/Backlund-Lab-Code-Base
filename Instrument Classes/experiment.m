@@ -442,7 +442,7 @@ classdef experiment
          else
             h.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),h.instrumentCells,'UniformOutput',false);
             h.instrumentClasses = cellfun(@(x)class(x),h.instrumentCells,'UniformOutput',false);
-         end         
+         end
       end
 
       function h = stageOptimization(h)
