@@ -1,15 +1,14 @@
 function [varargout] = SpinEcho_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
-%τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
+%τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RFRampTime)
 
 %Creates default parameter structure
 defaultParameters.RFResonanceFrequency = [];
 defaultParameters.piTime = [];
-defaultParameters.tauStart = [];
-defaultParameters.tauEnd = [];
-defaultParameters.tauNSteps = [];
-defaultParameters.tauStepSize = [];
+defaultParameters.scanBounds = [];
+defaultParameters.scanNSteps = [];
+defaultParameters.scanStepSize = [];
 defaultParameters.sequenceTimePerDataPoint = 1;
 defaultParameters.collectionDuration = 1000;
 defaultParameters.collectionBufferDuration = 100;
@@ -17,7 +16,7 @@ defaultParameters.repolarizationDuration = 7000;
 defaultParameters.intermissionBufferDuration = 1000;
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
-defaultParameters.extraRF = 0;
+defaultParameters.RFRampTime = 0;
 defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0,0];
 
@@ -38,18 +37,18 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tauNSteps) && isempty(p.tauStepSize))
-   error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
+if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNSteps) && isempty(p.scanStepSize))
+   error('Parameter input must contain RFResonanceFrequency, scanBounds and (scanNSteps or scanStepSize)')
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs(p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize)+1;
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.tauStart - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
-exportedTauEnd = p.tauEnd - (sum(p.IQBuffers)+(3/4)*p.piTime+p.extraRF);
+exportedTauStart = p.scanBounds(1) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
+exportedTauEnd = p.scanBounds(2) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
 
 %Error check for τ duration
 if min([exportedTauStart,exportedTauEnd]) <= 0
@@ -63,8 +62,8 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = p.piTime/2 + p.extraRF;
-totalPiTime = p.piTime + p.extraRF;
+halfTotalPiTime = p.piTime/2 + p.RFRampTime;
+totalPiTime = p.piTime + p.RFRampTime;
 
 for rs = 1:2 %singal half and reference half
    %Adds whether signal channel is on or off
@@ -116,7 +115,7 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = [exportedTauStart,exportedTauEnd];
 end
-scanInfo.nSteps = p.tauNSteps;
+scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('Spin Echo (π: %d ns, RF: %.3f GHz)',round(p.piTime),p.RFResonanceFrequency);

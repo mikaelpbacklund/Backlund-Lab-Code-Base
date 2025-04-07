@@ -2,37 +2,36 @@ function [varargout] = Correlation_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
-%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)
+%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RFRampTime)
 
 %Creates default parameter structure
-parameterStructure.RFResonanceFrequency = [];
-parameterStructure.piTime = [];
-parameterStructure.tauDuration = [];%
-parameterStructure.tBounds = [];%
-parameterStructure.tNSteps = [];%
-parameterStructure.tStepSize = [];%
-% parameterStructure.tauStart = [];
-% parameterStructure.tauEnd = [];
-% parameterStructure.tauNSteps = [];
-% parameterStructure.tauStepSize = [];
-parameterStructure.setsXYN = [];
-parameterStructure.nXY = 8;%default number of XY pulses per set
-parameterStructure.sequenceTimePerDataPoint = 5;
-parameterStructure.collectionDuration = 800;
-parameterStructure.collectionBufferDuration = 1000;
-parameterStructure.repolarizationDuration = 7000;
-parameterStructure.intermissionBufferDuration = 2500;
-parameterStructure.RFReduction = 0;
-parameterStructure.AOMCompensation = 0;
-parameterStructure.IQBuffers = [0 0];
-parameterStructure.dataOnBuffer = 0;
-parameterStructure.extraBuffer = 0;
+defaultParameters.RFResonanceFrequency = [];
+defaultParameters.piTime = [];
+defaultParameters.tauDuration = [];%
+defaultParameters.scanBounds = [];
+defaultParameters.scanNSteps = [];
+defaultParameters.scanStepSize = [];
+defaultParameters.tBounds = [];%
+defaultParameters.tNSteps = [];%
+defaultParameters.tStepSize = [];%
+defaultParameters.setsXYN = [];
+defaultParameters.nXY = 8;%default number of XY pulses per set
+defaultParameters.sequenceTimePerDataPoint = 5;
+defaultParameters.collectionDuration = 800;
+defaultParameters.collectionBufferDuration = 1000;
+defaultParameters.repolarizationDuration = 7000;
+defaultParameters.intermissionBufferDuration = 2500;
+defaultParameters.RFRampTime = 0;
+defaultParameters.AOMCompensation = 0;
+defaultParameters.IQBuffers = [0 0];
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;
 
-parameterFieldNames = string(fieldnames(parameterStructure));
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   varargout{1} = parameterStructure;%returns default parameter structure as first output
+   varargout{1} = defaultParameters;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
    return
@@ -45,8 +44,8 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tBounds) || (isempty(p.tNSteps) && isempty(p.tStepSize))
-   error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
+if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNSteps) && isempty(p.scanStepSize))
+   error('Parameter input must contain RFResonanceFrequency, scanBounds and (scanNSteps or scanStepSize)')
 end
 
 %Calculates number of steps if only step size is given
@@ -55,8 +54,8 @@ if isempty(p.tNSteps)
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-reducedTauDuration = p.tauDuration - (p.piTime+p.RFReduction);
-reducedTauByTwoDuration =  (p.tauDuration/2) - ((3/4)*p.piTime+p.RFReduction);
+reducedTauDuration = p.tauDuration - (p.piTime+p.RFRampTime);
+reducedTauByTwoDuration =  (p.tauDuration/2) - ((3/4)*p.piTime+p.RFRampTime);
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if reducedTauByTwoDuration < 0
@@ -70,8 +69,8 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = round(p.piTime/2 + p.RFReduction);
-totalPiTime = p.piTime + p.RFReduction;
+halfTotalPiTime = round(p.piTime/2 + p.RFRampTime);
+totalPiTime = p.piTime + p.RFRampTime;
 
 for rs = 1:2 %singal half and reference half
    %Adds whether signal channel is on or off

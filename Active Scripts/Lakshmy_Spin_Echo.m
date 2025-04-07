@@ -3,21 +3,20 @@
 clear p
 
 %Required
-p.tauStart = 200;
-p.tauEnd = 5200;
-p.tauStepSize = 1000;
+p.scanBounds = [200 5200];
+p.scanStepSize = 1000;
 p.collectionType = 'counter';
 p.piTime = 110;
 p.RFResonanceFrequency = 2.44;
-p.tauNSteps = [];%will override step size
+p.scanNSteps = [];%will override step size
 
 %All parameters below this are optional in that they will revert to defaults if not specified 
-p.timePerDataPoint = 4;%seconds
+p.sequenceTimePerDataPoint = 4;%seconds
 p.collectionDuration = 0;
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF = 10;
+p.RFRampTime = 10;
 p.AOM_DAQCompensation = 700;%550
 p.dataOnBuffer = 800;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 100;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization

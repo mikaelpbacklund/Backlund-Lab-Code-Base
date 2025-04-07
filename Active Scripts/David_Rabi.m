@@ -1,5 +1,7 @@
 %Runs a simple Rabi sequence
 
+clear p
+
 %Highly recommended to use a "time per data point" of at least 3 seconds
 %Lower than this is sensitive to jitters in number of points collected,
 %resulting in failed and/or erroneous points
@@ -25,7 +27,7 @@ p.AOMCompensation = 400;%How long AOM should be on before DAQ (negative flips to
 p.repolarizationDuration = 10000;%Duration of repolarization
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.RFRampTime = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 

@@ -37,7 +37,7 @@ end
 
 %Calculates number of steps if only step size is given
 if isempty(p.scanNSteps)
-   p.scanNSteps = ceil(abs((p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize))+1;
+   p.scanNSteps = ceil(abs(p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize)+1;
 end
 
 %% Sequence Creation

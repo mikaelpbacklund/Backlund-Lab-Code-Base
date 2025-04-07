@@ -14,7 +14,7 @@ defaultParameters.repolarizationDuration = 7000;
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
 defaultParameters.intermissionBufferDuration = 1000;
-defaultParameters.RFReduction = 0;
+defaultParameters.RFRampTime = 0;
 defaultParameters.AOMCompensation = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
@@ -35,7 +35,7 @@ end
 mustContainField(p,parameterFieldNames);
 
 if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNSteps) && isempty(p.scanStepSize))
-   error('Parameter input must contain RFResonanceFrequency, scanBounds, and (scanNSteps or scanStepSize)')
+   error('Parameter input must contain RFResonanceFrequency, scanBounds and (scanNSteps or scanStepSize)')
 end
 
 %Calculates number of steps if only step size is given
@@ -75,7 +75,7 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = p.scanBounds;
+   scanInfo.bounds{ii} = p.scanBounds+ p.RFRampTime;
 end
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';

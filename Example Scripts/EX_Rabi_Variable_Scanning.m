@@ -1,5 +1,7 @@
 %Runs a rabi sequence but where the scanned pulse is determined by pulseNotes
 
+clear p
+
 %Highly recommended to use a "time per data point" of at least 3 seconds
 %Lower than this is sensitive to jitters in number of points collected,
 %resulting in failed and/or erroneous points
@@ -25,7 +27,7 @@ p.collectionBufferDuration = 250;%How long to wait between end of RF pulse and b
 p.AOMCompensation = 550;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.repolarizationDuration = 7000;
 p.intermissionBufferDuration = 1000;
-p.RFReduction = 10;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.RFRampTime = 10;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 p.dataOnBuffer = 0;
 p.extraBuffer = 0;

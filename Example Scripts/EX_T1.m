@@ -1,5 +1,7 @@
 %T1 
 
+clear p
+
 %Required
 p.scanBounds = [910000 1010000]; %RF duration bounds
 p.scanStepSize = 2000; %Step size for RF duration

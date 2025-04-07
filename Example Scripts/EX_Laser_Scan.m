@@ -1,5 +1,7 @@
 %Default Laser intensity scan script example
 
+clear p
+
 %Required
 p.scanBounds = [.1 1]; %Intensity bounds
 p.scanStepSize = .1; %Step size for intensity

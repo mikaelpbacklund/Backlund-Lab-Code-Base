@@ -1,5 +1,7 @@
 %Example DEER using template
 
+clear p
+
 %Required
 p.scanType = 'duration';%Either frequency or duration
 p.scanBounds = [10 400]; %windfreak frequency (GHz) or duration (ns)
@@ -13,12 +15,12 @@ p.piTime = 100;
 p.tauTime = 400;
 
 %General
-p.timePerDataPoint = 7;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 7;%Before factoring in forced delay and other pauses
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF = 0;
+p.RFRampTime = 0;
 p.AOMCompensation = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization

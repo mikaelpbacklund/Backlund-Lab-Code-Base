@@ -1,25 +1,24 @@
 function [varargout] = DEER_frequency_template(h,p)
 %Creates DEER sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
-%τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extraRF)
+%τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RFRampTime)
 %RF2 duration restricted by tau time (and pi time if single pulse)
 
 %Creates default parameter structure (for ensuring correct names primarily)
 defaultParameters.RF1ResonanceFrequency = [];
 defaultParameters.piTime = [];
 defaultParameters.tauTime = [];
-defaultParameters.frequencyStart = [];
-defaultParameters.frequencyEnd = [];
-defaultParameters.frequencyNSteps = [];
-defaultParameters.frequencyStepSize = [];
+defaultParameters.scanBounds = [];
+defaultParameters.scanNSteps = [];
+defaultParameters.scanStepSize = [];
+defaultParameters.sequenceTimePerDataPoint = 1;
 defaultParameters.RF2Duration = [];
 defaultParameters.nRF2Pulses = 1;%1 or 2, changes how pulse sequence is arranged
-defaultParameters.timePerDataPoint = 1;
 defaultParameters.collectionDuration = 1000;
 defaultParameters.collectionBufferDuration = 1000;
 defaultParameters.repolarizationDuration = 7000;
 defaultParameters.intermissionBufferDuration = 2500;
-defaultParameters.extraRF = 0;
+defaultParameters.RFRampTime = 0;
 defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
@@ -42,8 +41,8 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RF1ResonanceFrequency) || isempty(p.frequencyStart) || isempty(p.frequencyEnd) || isempty(p.RF2Duration) ||(isempty(p.frequencyNSteps) && isempty(p.frequencyStepSize))
-   error('Parameter input must contain RF1ResonanceFrequency, frequencyStart, frequencyEnd, RF2Duration, and (frequencyNSteps or frequencyStepSize)')
+if isempty(p.RF1ResonanceFrequency) || isempty(p.scanBounds) || isempty(p.RF2Duration) ||(isempty(p.scanNSteps) && isempty(p.scanStepSize))
+   error('Parameter input must contain RF1ResonanceFrequency, scanBounds, RF2Duration, and (scanNSteps or scanStepSize)')
 end
 
 if p.nRF2Pulses == 1  
@@ -59,8 +58,8 @@ else
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.frequencyNSteps)
-   p.frequencyNSteps = ceil(abs((p.frequencyEnd-p.frequencyStart)/p.frequencyStepSize));
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs((p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize))+1;
 end
 
 %% Sequence Creation
@@ -70,8 +69,8 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = p.piTime/2 + p.extraRF;
-totalPiTime = p.piTime + p.extraRF;
+halfTotalPiTime = p.piTime/2 + p.RFRampTime;
+totalPiTime = p.piTime + p.RFRampTime;
 
 for rs = 1:2 %singal half and reference half
    %Adds whether signal channel is on or off
@@ -132,18 +131,18 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-h.nTotalLoops = floor(p.timePerDataPoint/h.sequenceDurations.user.totalSeconds);
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 
 %Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
 
 %% Scan Calculations
 %Info regarding the scan
-scanInfo.bounds = [p.frequencyStart,p.frequencyEnd];
-if ~isempty(p.frequencyStepSize)
-scanInfo.stepSize = p.frequencyStepSize;
+scanInfo.bounds = p.scanBounds;
+if ~isempty(p.scanStepSize)
+scanInfo.stepSize = p.scanStepSize;
 else
-scanInfo.nSteps = p.frequencyNSteps;
+scanInfo.nSteps = p.scanNSteps;
 end
 scanInfo.parameter = 'frequency';
 scanInfo.identifier = 'windfreak';

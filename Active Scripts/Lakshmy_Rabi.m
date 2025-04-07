@@ -26,7 +26,7 @@ p.intermissionBufferDuration = 1000;%How long to wait between signal and referen
 p.AOMCompensation = 700;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.dataOnBuffer = 800;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 100;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.RFReduction = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.RFRampTime = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 
 %Config file names

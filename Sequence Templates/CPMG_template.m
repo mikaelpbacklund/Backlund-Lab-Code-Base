@@ -2,33 +2,32 @@ function [varargout] = CPMG_template(h,p)
 %Creates Spin Echo sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
-%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)
+%τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RFRampTime)
 
 %Creates default parameter structure
-parameterStructure.RFResonanceFrequency = [];
-parameterStructure.piTime = [];
-parameterStructure.tauStart = [];
-parameterStructure.tauEnd = [];
-parameterStructure.tauNSteps = [];
-parameterStructure.tauStepSize = [];
-parameterStructure.setsXYN = [];
-parameterStructure.nXY = 8;%default number of XY pulses per set
-parameterStructure.sequenceTimePerDataPoint = 1;
-parameterStructure.collectionDuration = 1000;
-parameterStructure.collectionBufferDuration = 1000;
-parameterStructure.repolarizationDuration = 7000;
-parameterStructure.intermissionBufferDuration = 2500;
-parameterStructure.RFReduction = 0;
-parameterStructure.AOMCompensation = 0;
-parameterStructure.IQBuffers = [0 0];
-parameterStructure.dataOnBuffer = 0;
-parameterStructure.extraBuffer = 0;
+defaultParameters.RFResonanceFrequency = [];
+defaultParameters.piTime = [];
+defaultParameters.scanBounds = [];
+defaultParameters.scanNSteps = [];
+defaultParameters.scanStepSize = [];
+defaultParameters.setsXYN = [];
+defaultParameters.nXY = 8;%default number of XY pulses per set
+defaultParameters.sequenceTimePerDataPoint = 1;
+defaultParameters.collectionDuration = 1000;
+defaultParameters.collectionBufferDuration = 1000;
+defaultParameters.repolarizationDuration = 7000;
+defaultParameters.intermissionBufferDuration = 2500;
+defaultParameters.RFRampTime = 0;
+defaultParameters.AOMCompensation = 0;
+defaultParameters.IQBuffers = [0 0];
+defaultParameters.dataOnBuffer = 0;
+defaultParameters.extraBuffer = 0;
 
-parameterFieldNames = string(fieldnames(parameterStructure));
+parameterFieldNames = string(fieldnames(defaultParameters));
 
 %If no pulse blaster object is given, returns default parameter structure and list of field names
 if isempty(h)
-   varargout{1} = parameterStructure;%returns default parameter structure as first output
+   varargout{1} = defaultParameters;%returns default parameter structure as first output
 
    varargout{2} = parameterFieldNames;%returns list of field names as second output
    return
@@ -41,22 +40,22 @@ end
 %Check if required parameters fields are present
 mustContainField(p,parameterFieldNames);
 
-if isempty(p.RFResonanceFrequency) || isempty(p.tauStart) || isempty(p.tauEnd) || (isempty(p.tauNSteps) && isempty(p.tauStepSize))
-   error('Parameter input must contain RFResonanceFrequency, tauStart, tauEnd and (tauNSteps or tauStepSize)')
+if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNSteps) && isempty(p.scanStepSize))
+   error('Parameter input must contain RFResonanceFrequency, scanBounds and (scanNSteps or scanStepSize)')
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.tauNSteps)
-   p.tauNSteps = ceil(abs((p.tauEnd-p.tauStart)/p.tauStepSize))+1;
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs((p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize))+1;
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-scanInfo.reducedTauTime = sum(p.IQBuffers)+p.piTime+p.RFReduction;
-scanInfo.reducedTauByTwoTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFReduction;
-exportedTauStart = p.tauStart - scanInfo.reducedTauTime;
-exportedTauEnd = p.tauEnd - scanInfo.reducedTauTime;
-exportedTauByTwoStart = (p.tauStart/2) - scanInfo.reducedTauByTwoTime;
-exportedTauByTwoEnd = (p.tauEnd/2) - scanInfo.reducedTauByTwoTime;
+scanInfo.reducedTauTime = sum(p.IQBuffers)+p.piTime+p.RFRampTime;
+scanInfo.reducedTauByTwoTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime;
+exportedTauStart = p.scanBounds(1) - scanInfo.reducedTauTime;
+exportedTauEnd = p.scanBounds(2) - scanInfo.reducedTauTime;
+exportedTauByTwoStart = (p.scanBounds(1)/2) - scanInfo.reducedTauByTwoTime;
+exportedTauByTwoEnd = (p.scanBounds(2)/2) - scanInfo.reducedTauByTwoTime;
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
@@ -70,8 +69,8 @@ h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
 h.useTotalLoop = true;
 
-halfTotalPiTime = round(p.piTime/2 + p.RFReduction);
-totalPiTime = p.piTime + p.RFReduction;
+halfTotalPiTime = round(p.piTime/2 + p.RFRampTime);
+totalPiTime = p.piTime + p.RFRampTime;
 
 % for rs = 1:2 %singal half and reference half
 %    %Adds whether signal channel is on or off
@@ -80,13 +79,13 @@ totalPiTime = p.piTime + p.RFReduction;
 %    else
 %       addedSignal = 'Signal';
 %    end
-% 
+%
 % %π/2 to create superposition
 %    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
-% 
+%
 %    %Scanned (τ/2) between π/2 and π pulses
 %    h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
-% 
+%
 %    for m = 1:p.setsXYN
 %       for n = 1:p.nXY/2
 %          if mod(n,4) == 1 || mod(n,4) == 2 %odd set
@@ -102,11 +101,11 @@ totalPiTime = p.piTime + p.RFReduction;
 %          end
 %       end
 %    end
-% 
+%
 %    %modify final tau to tau/2
 %    h = modifyPulse(h,numel(h.userSequence),'duration',49,false);
 %    h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2',false);
-% 
+%
 %    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
 %    if rs == 1
 %       h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
@@ -133,45 +132,45 @@ for rs = 1:2 %singal half and reference half
    end
    %π/2 to create superposition: only in signal channel
    if rs==1
-       h = condensedAddPulse(h,{},halfTotalPiTime,'nothing');
+      h = condensedAddPulse(h,{},halfTotalPiTime,'nothing');
    else
-       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
+      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
    end
    %Scanned (τ/2) between π/2 and π pulses
    h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
    if rs==2
-    for m = 1:p.setsXYN
-      for n = 1:p.nXY/2
-         if mod(n,4) == 1 || mod(n,4) == 2 %odd set
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-         else %even set
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-         end
-      end
-    end
-   
-   else 
       for m = 1:p.setsXYN
-        for n = 1:p.nXY/2
-         if mod(n,4) == 1 || mod(n,4) == 2 %odd set
-            h = condensedAddPulse(h,{},totalPiTime,'nohting');
-            h = condensedAddPulse(h,{},99,'Scanned τ');
-            h = condensedAddPulse(h,{},totalPiTime,'nothing');
-            h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
-         else %even set
-            h = condensedAddPulse(h,{},totalPiTime,'nothing');
-            h = condensedAddPulse(h,{},99,'Scanned τ');
-            h = condensedAddPulse(h,{},totalPiTime,'nothing');
-            h = condensedAddPulse(h,{},99,'Scanned τ');
+         for n = 1:p.nXY/2
+            if mod(n,4) == 1 || mod(n,4) == 2 %odd set
+               h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            else %even set
+               h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            end
          end
       end
-    end
+
+   else
+      for m = 1:p.setsXYN
+         for n = 1:p.nXY/2
+            if mod(n,4) == 1 || mod(n,4) == 2 %odd set
+               h = condensedAddPulse(h,{},totalPiTime,'nohting');
+               h = condensedAddPulse(h,{},99,'Scanned τ');
+               h = condensedAddPulse(h,{},totalPiTime,'nothing');
+               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+            else %even set
+               h = condensedAddPulse(h,{},totalPiTime,'nothing');
+               h = condensedAddPulse(h,{},99,'Scanned τ');
+               h = condensedAddPulse(h,{},totalPiTime,'nothing');
+               h = condensedAddPulse(h,{},99,'Scanned τ');
+            end
+         end
+      end
    end
 
    %modify final tau to tau/2
@@ -194,12 +193,12 @@ end
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
+   p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
 nTau = ((p.setsXYN*p.nXY)+1);
 scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean([p.tauStart,p.tauEnd]));
+scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean(p.scanBounds));
 h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
@@ -216,13 +215,13 @@ for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = [exportedTauStart exportedTauEnd];
 end
 for ii = [1,numel(scanInfo.bounds)/2,numel(scanInfo.bounds)/2+1,numel(scanInfo.bounds)]
-    scanInfo.bounds{ii} = [exportedTauByTwoStart exportedTauByTwoEnd];
+   scanInfo.bounds{ii} = [exportedTauByTwoStart exportedTauByTwoEnd];
 end
 % scanInfo.bounds{1} = [exportedTauByTwoStart exportedTauByTwoEnd];
 % scanInfo.bounds{(numel(scanInfo.bounds)/2)} = [exportedTauByTwoStart exportedTauByTwoEnd];
 % scanInfo.bounds{((numel(scanInfo.bounds)/2)+1)} = [exportedTauByTwoStart exportedTauByTwoEnd];
 % scanInfo.bounds{end} = [exportedTauByTwoStart exportedTauByTwoEnd];
-scanInfo.nSteps = p.tauNSteps;
+scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);

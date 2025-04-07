@@ -1,16 +1,17 @@
 %Example Spin Echo using template
 
+clear p
+
 %Required
-p.tauStart = 200;
-p.tauEnd = 4200;
-p.tauStepSize = 100;
-p.tauNSteps = [];%will override step size
+p.scanBounds = [200 4200];
+p.scanStepSize = 100;
+p.scanNSteps = [];%will override step size
 % p.piTime = 36;
 % p.RFResonanceFrequency = 2.269;
 p.collectionType = 'analog';
 
 %Other
-p.timePerDataPoint = 6;%seconds
+p.sequenceTimePerDataPoint = 6;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;

@@ -17,12 +17,12 @@ p.piTime = 90;
 p.tauTime = 550;
 
 %General
-p.timePerDataPoint = 5;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;
 p.repolarizationDuration = 7000;
-p.extraRF = 10;
+p.RFRampTime = 10;
 p.AOMCompensation = 700;%550
 p.dataOnBuffer = 800;
 p.extraBuffer = 100;

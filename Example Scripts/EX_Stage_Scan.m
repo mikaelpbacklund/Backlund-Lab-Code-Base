@@ -1,5 +1,7 @@
 %Scans stage across 1 dimension
 
+clear p
+
 %Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %ex.PIstage = absoluteMove(ex.PIstage,'z',7500);

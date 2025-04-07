@@ -1,5 +1,7 @@
 %Example Spin Echo extras using template
 
+clear p
+
 %Required
 p.scanBounds = [100 200];
 p.scanStepSize = 10;
@@ -10,12 +12,12 @@ p.collectionType = 'counter';
 p.pulseNotes = 'Repolarization';%Exact notes of pulses to scan
 
 %Other
-p.timePerDataPoint = 4;%seconds
+p.sequenceTimePerDataPoint = 4;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 2000;
 p.repolarizationDuration = 10000;
-p.extraRF = 0;
+p.RFRampTime = 0;
 p.AOMCompensation = 0;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization

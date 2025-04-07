@@ -10,12 +10,12 @@ p.collectionType = 'analog';
 p.pulseNotes = 'I/Q buffer';%Exact notes of pulses to scan
 
 %Other
-p.timePerDataPoint = 4;%seconds
+p.sequenceTimePerDataPoint = 4;%seconds
 p.collectionDuration = 0;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 2000;
 p.repolarizationDuration = 10000;
-p.extraRF = 4;
+p.RFRampTime = 4;
 p.AOMCompensation = 480;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
