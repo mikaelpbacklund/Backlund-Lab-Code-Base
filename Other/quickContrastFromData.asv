@@ -1,0 +1,23 @@
+% clear
+% close all
+% load("Overnight_Correlation_1-6us_20ns_stepSize_python_comparison.mat")
+
+for ii = 1:size(data.values,1)
+   for jj = 1:size(data.values,2)
+      r1(jj) = data.values{ii,jj}(1);
+      s1(jj) = data.values{ii,jj}(2);
+      c1(jj) = (r1(jj)-s1(jj))/r1(jj);
+   end
+   r(ii) = mean(r1);
+   s(ii) = mean(s1);
+   averagingOverContrast(ii) = mean(c1);
+   contrastFromAverageSR(ii) = (r(ii)-s(ii))/r(ii);
+end
+
+%%
+xax = scanInfo.bounds
+
+%%
+f1 = figure(1);
+a1 = axes(f1);
+p1 = plot(r);
