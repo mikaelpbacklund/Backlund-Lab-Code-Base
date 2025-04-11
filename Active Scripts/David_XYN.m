@@ -1,14 +1,14 @@
 %Example XYN-m using template
 
 %Required
-p.tauStart = 280;%1500
-p.tauEnd = 520;%1600
+p.tauStart = 380;%1500
+p.tauEnd = 500;%1600
 p.tauStepSize = 4;%4
 p.tauNSteps = [];%will override step size
-p.piTime = 36;
-p.RFResonanceFrequency = 2.023;
+p.piTime = 32;
+p.RFResonanceFrequency = 2.075;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 16;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -22,15 +22,16 @@ p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is 
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 400;
 % p.AOMCompensation = 1300;
-p.IQBuffers = [30 0];
-p.nIterations = 12;
-p.RFAmplitude = 10;
+p.IQBuffers = [24 24];
+p.nIterations = 20;
+p.RFAmplitude = 8;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .001;
+p.nDataPointDeviationTolerance = .002;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
 p.perSecond = true;
+p.resetData = true;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -40,7 +41,7 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = false;
+p.plotCurrentContrast = true;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;

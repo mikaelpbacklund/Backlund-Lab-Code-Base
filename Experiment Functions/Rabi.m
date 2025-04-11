@@ -76,7 +76,8 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.modulationType = 'iq';
+ex.SRS_RF.modulationEnabled = 'on';
 ex.SRS_RF.amplitude = p.RFAmplitude;
 ex.SRS_RF.frequency = p.RFResonanceFrequency;
 

@@ -5,23 +5,23 @@
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 170]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
+p.scanBounds = [10 60]; %RF duration bounds
+p.scanStepSize = 2; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.023;
+p.RFResonanceFrequency = 2.075;
 
 %General
-p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.RFAmplitude = 8;
+p.sequenceTimePerDataPoint = 3.0;%Before factoring in forced delay and other pauses
+p.nIterations = 2; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
+p.collectionDuration = 1500;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 12000;%How long to wait between signal and reference halves of the sequence
-p.AOMCompensation = 400;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.AOMCompensation = 350;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.repolarizationDuration = 10000;%Duration of repolarization
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization

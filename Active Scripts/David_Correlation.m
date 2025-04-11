@@ -1,19 +1,20 @@
 %Example XYN-m using template
-
+tic
 %Required
-p.tBounds = [1000 6000];
-p.tStepSize = 20;
+p.tBounds = [1000 20050];
+p.tStepSize = 150;
 p.tauNSteps = [];%will override step size
-p.tauDuration = 388;
-p.piTime = 36;
-p.RFResonanceFrequency = 2.023;
-p.nXY = 8;%N in XYN-m
-p.setsXYN = 4;%m in XYN-m
+p.tauDuration = 440;
+p.piTime = 32;
+p.RFResonanceFrequency = 2.075;
+p.nXY = 8;%N in XYN-m1
+
+p.setsXYN = 12;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 8;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint = 15;%seconds
+p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
@@ -21,13 +22,13 @@ p.RFReduction = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 400;
-p.IQBuffers = [30 0];
-p.nIterations = 25;
-p.RFAmplitude = 10;
+p.IQBuffers = [30 30];
+p.nIterations = 30;
+p.RFAmplitude = 8;
 p.timeoutDuration = 3;
-p.forcedDelayTime = .5;
-p.nDataPointDeviationTolerance = .1;
-p.maxFailedCollections = 3;
+p.forcedDelayTime = .2;
+p.nDataPointDeviationTolerance = .00075;%.00025
+p.maxFailedCollections = 1000;
 p.baselineSubtraction = 0;
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
@@ -53,7 +54,7 @@ p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
 p.plotAverageContrastFFT = true;
 p.plotCurrentContrastFFT = true;
-p.verticalLineInfo = {10.705,'13C';42.576,'1H'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.verticalLineInfo = {40.069,'19F';42.576,'1H';10.708,'13C'};%ex: {42.576,'1H';10.708,'13C'}
 p.normalizeFFTByMagnet = true;
 
 %Stage optimization
@@ -77,3 +78,4 @@ if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs correlation measurement
 ex = Correlation(ex,p);
+toc

@@ -112,7 +112,7 @@ if isa(p.pulseNotes,'cell')
         scanInfo.address = [scanInfo.address,findPulses(ex.pulseBlaster,'notes',p.pulseNotes{ii},'matches')];
     end
 else
-    scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'matches');
+    scanInfo.address = findPulses(ex.pulseBlaster,'notes',p.pulseNotes,'contains');
 end
 
 scanInfo.bounds = cell(1,numel(scanInfo.address));

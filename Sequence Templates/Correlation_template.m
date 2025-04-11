@@ -141,11 +141,19 @@ h = sendToInstrument(h);
 
 %Finds pulses designated as τ which will be scanned
 scanInfo.address = findPulses(h,'notes','t corr','contains');
-
+nAddresses = numel(scanInfo.address);
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = p.tBounds;
 end
+
+compensatingPulses = findPulses(h,'notes','intermission','contains');
+scanInfo.address(end+1:end+numel(compensatingPulses)) = compensatingPulses;
+intermissionBounds = p.intermissionBufferDuration + [p.tBounds(2) p.tBounds(1)];
+for ii = nAddresses+1:numel(scanInfo.address)
+   scanInfo.bounds{ii} = intermissionBounds;
+end
+
 scanInfo.nSteps = p.tNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';

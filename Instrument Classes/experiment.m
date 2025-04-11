@@ -662,8 +662,10 @@ classdef experiment
                nPauseIncreases = 0;
                originalPauseTime = h.forcedCollectionPauseTime;
                %For slightly changing sequence to get better results
-               bufferPulses = findPulses(h.pulseBlaster,'active channels','data','contains') - 1;
-               bufferDuration = h.pulseBlaster.userSequence(bufferPulses(1)).duration;
+               bufferPulses = findPulses(h.pulseBlaster,'notes','intermission','contains');
+               if numel(bufferPulses) > 0
+                bufferDuration = h.pulseBlaster.userSequence(bufferPulses(1)).duration;
+               end
 
                while true
                   %Reset DAQ in preparation for measurement
@@ -707,47 +709,113 @@ classdef experiment
                       break
                   end
                   nPointsTaken = h.DAQ.dataPointsTaken;
-                  expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
-                  expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
-
-                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) ||...
-                          nPointsTaken > expectedDataPoints *(1+h.nPointsTolerance)
-                          if ~all(cell2mat(h.odometer) == 0)
-                            h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
-                          end
-                     if nPauseIncreases ~= 0
-                        h.forcedCollectionPauseTime = originalPauseTime;
-                        for ii = 1:numel(bufferPulses)
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
-                        end
-                        h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-                     end
-                     break
-                  elseif nPauseIncreases < h.maxFailedCollections
-                     nPauseIncreases = nPauseIncreases + 1;
-                     if h.notifications
-                        warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-                           (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
-                     end
-                     h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
-                     %Usually hits aom/daq compensation but thats fine
-                     for ii = 1:numel(bufferPulses)
-                            h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
-                     end
-                     h.pulseBlaster = sendToInstrument(h.pulseBlaster);
-                     pause(.1)%For next data point to come in before discarding the read
-                     %Discards any data that might have "carried
-                     %over" from the previous data point
-                     if h.DAQ.handshake.NumScansAvailable > 0
-                        [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
-                     end
+                  
+                  %If at least 3 data points to compare to
+                  if sum(h.data.iteration) > 2
+                      expectedDataPoints = mean(h.data.nPoints(h.data.nPoints~=0),"all");
+                      if nPointsTaken > expectedDataPoints*(1+h.nPointsTolerance) ||...
+                              nPointsTaken < expectedDataPoints*(1-h.nPointsTolerance)
+                          successfulCollection = false;
+                      else
+                          successfulCollection = true;
+                      end
+                      assignin("base","allnpoints",h.data.nPoints)
+                      assignin("base","expectedDataPoints",expectedDataPoints)
+                      assignin("base","nPointsTaken",nPointsTaken)
                   else
-                     h.forcedCollectionPauseTime = originalPauseTime;
-                     stop(h.DAQ.handshake)
-                     error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
-                         nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
-
+                      expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                      expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
+                      if nPointsTaken > expectedDataPoints*1.1 || nPointsTaken < expectedDataPoints*.9
+                          successfulCollection = false;
+                      else
+                          successfulCollection = true;
+                      end
                   end
+
+
+                  if successfulCollection
+                      if ~all(cell2mat(h.odometer) == 0)
+                          h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
+                      end
+                      if nPauseIncreases ~= 0
+                          h.forcedCollectionPauseTime = originalPauseTime;
+                          for ii = 1:numel(bufferPulses)
+                              h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                          end
+                          h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                      end
+                      break
+
+                  elseif nPauseIncreases < h.maxFailedCollections
+                      nPauseIncreases = nPauseIncreases + 1;
+                      if h.notifications
+                          warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                              (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
+                      end
+                      h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
+                      %Increases intermission buffer duration by 2 * number
+                      %of failed collections
+                      for ii = 1:numel(bufferPulses)
+                          h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration+(2*nPauseIncreases),false);
+                      end
+                      h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                      pause(.1)%For next data point to come in before discarding the read
+                      %Discards any data that might have "carried
+                      %over" from the previous data point
+                      if h.DAQ.handshake.NumScansAvailable > 0
+                          [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                      end
+                  else
+
+                      h.forcedCollectionPauseTime = originalPauseTime;
+                      stop(h.DAQ.handshake)
+                      error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                          nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
+                  end
+
+
+
+                  % expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                  % expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
+
+                  % if nPointsTaken > expectedDataPoints*(1+h.nPointsTolerance) ||...
+                  %         nPointsTaken < expectedDataPoints *(1-h.nPointsTolerance)
+                  %     if ~all(cell2mat(h.odometer) == 0)
+                  %         h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
+                  %     end
+                  %    if nPauseIncreases ~= 0
+                  %       h.forcedCollectionPauseTime = originalPauseTime;
+                  %       for ii = 1:numel(bufferPulses)
+                  %           h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                  %       end
+                  %       h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                  %    end
+                  %    break
+                  % elseif nPauseIncreases < h.maxFailedCollections
+                  %    nPauseIncreases = nPauseIncreases + 1;
+                  %    if h.notifications
+                  %       warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                  %          (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
+                  %    end
+                  %    h.forcedCollectionPauseTime = h.forcedCollectionPauseTime + originalPauseTime;
+                  %    %Usually hits aom/daq compensation but thats fine
+                  %    for ii = 1:numel(bufferPulses)
+                  %           h.pulseBlaster = modifyPulse(h.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                  %    end
+                  %    h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+                  %    pause(.1)%For next data point to come in before discarding the read
+                  %    %Discards any data that might have "carried
+                  %    %over" from the previous data point
+                  %    if h.DAQ.handshake.NumScansAvailable > 0
+                  %       [~] = read(h.DAQ.handshake,h.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                  %    end
+                  % else
+                  %    h.forcedCollectionPauseTime = originalPauseTime;
+                  %    stop(h.DAQ.handshake)
+                  %    error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                  %        nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
+                  % 
+                  % end
 
                end
 
