@@ -11,9 +11,6 @@ defaultParameters.tauDuration = [];%
 defaultParameters.scanBounds = [];
 defaultParameters.scanNSteps = [];
 defaultParameters.scanStepSize = [];
-defaultParameters.tBounds = [];%
-defaultParameters.tNSteps = [];%
-defaultParameters.tStepSize = [];%
 defaultParameters.setsXYN = [];
 defaultParameters.nXY = 8;%default number of XY pulses per set
 defaultParameters.sequenceTimePerDataPoint = 5;
@@ -49,8 +46,8 @@ if isempty(p.RFResonanceFrequency) || isempty(p.scanBounds) || (isempty(p.scanNS
 end
 
 %Calculates number of steps if only step size is given
-if isempty(p.tNSteps)
-   p.tNSteps = ceil(abs((p.tBounds(2)-p.tBounds(1))/p.tStepSize)+1);
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs((p.scanBounds(2)-p.scanBounds(1))/p.scanStepSize)+1);
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
@@ -129,7 +126,7 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
 h.nTotalLoops = 1;
 h = calculateDuration(h,'user');
 scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - 198;%198 is standin tcorr*2
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (2*mean(p.tBounds));
+scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (2*mean(p.scanBounds));
 h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
 scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
 
@@ -143,9 +140,9 @@ scanInfo.address = findPulses(h,'notes','t corr','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = p.tBounds;
+   scanInfo.bounds{ii} = p.scanBounds;
 end
-scanInfo.nSteps = p.tNSteps;
+scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('XY%d-%d Correlation (tau: %d ns)',p.nXY,p.setsXYN,p.tauDuration);
