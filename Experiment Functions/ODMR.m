@@ -85,12 +85,12 @@ ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
 clear pulseInfo 
 pulseInfo.activeChannels = {};
 pulseInfo.duration = 2500;
-pulseInfo.notes = 'Initial buffer';
+pulseInfo.notes = 'Initial intermission buffer';
 ex.pulseBlaster = addPulse(ex.pulseBlaster,pulseInfo);
 
 %Condensed version below puts this on one line
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Reference');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Middle buffer signal off');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Middle intermission buffer signal off');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
@@ -118,7 +118,7 @@ ex = addScans(ex,scan);
 ex.forcedCollectionPauseTime = p.forcedDelayTime;
 
 %Number of failed collections before giving error
-ex.maxFailedCollections = 5;
+ex.maxFailedCollections = p.maxFailedCollections;
 
 %Changes tolerance from .01 default to user setting
 ex.nPointsTolerance = p.nDataPointDeviationTolerance;

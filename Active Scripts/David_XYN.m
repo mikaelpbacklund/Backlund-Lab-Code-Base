@@ -3,29 +3,29 @@
 clear p
 
 %Required
-p.scanBounds = [280 520];
-p.scanStepSize = 4;%4
+p.scanBounds = [220 620];
+p.scanStepSize = 20;%4
 p.scanNSteps = [];%will override step size
 p.piTime = 36;
-p.RFResonanceFrequency = 2.023;
+p.RFResonanceFrequency = 2.003;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 24;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 6;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
-p.collectionBufferDuration = 100;
+p.sequenceTimePerDataPoint = 5;%seconds
+p.collectionDuration = 1500;%0 means overwritten by DAQ
+p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
 p.RFRampTime = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 400;
+p.AOMCompensation = 600;
 % p.AOMCompensation = 1300;
-p.IQBuffers = [30 0];
-p.nIterations = 12;
-p.RFAmplitude = 10;
+p.IQBuffers = [30 30];
+p.nIterations = 1;
+p.RFAmplitude = 8;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .001;
@@ -45,7 +45,7 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = true;
+p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;

@@ -10,14 +10,14 @@ clear p
 p.scanBounds = [100 3000];
 p.scanStepSize = 100;
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 1.959;
+p.RFResonanceFrequency = 2.003;
 p.piTime = 36;
 p.pulseNotes = 'AOM/DAQ delay compensation';%Exact notes of pulses to scan
 %'AOM/DAQ delay compensation','Repolarization,{'Reference Data collection','Signal Data collection'}
 %'Intermission between halves'
 
 %General
-p.RFAmplitude = 10;
+p.RFAmplitude = 8;
 p.sequenceTimePerDataPoint = 2;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 5; %How long before auto-continue occurs
@@ -26,7 +26,7 @@ p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number me
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 250;%How long to wait between end of RF pulse and beginning of data collection
-p.AOMCompensation = 800;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.AOMCompensation = 600;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.repolarizationDuration = 10000;
 p.intermissionBufferDuration = 10000;
 p.RFRampTime = 6;%Time to add to each RF pulse due to RF generator reducing pulse duration

@@ -194,18 +194,51 @@ classdef DAQ_controller < instrumentType
                    sig = 0;
                end
             else%Voltage
-               dataOn = unsortedData(:,collectionInfo.toggleChannel);               
+               dataOn = boolean(unsortedData(:,collectionInfo.toggleChannel));               
                if any(dataOn)
-                   assignin('base','unsortedData',unsortedData)
-                   if ~collectionInfo.differentiateSignal
+                   if strcmpi(collectionInfo.differentiateSignal,'off')
                        %No signal/reference differentiation
                        ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
                        sig = 0;
                    else
-                       signalOn = unsortedData(:,collectionInfo.signalReferenceChannel);
+                       signalOn = boolean(unsortedData(:,collectionInfo.signalReferenceChannel));
+                       % nCutLocations = 0;
+                       % for jj = 1:2
+                       %     if jj == 1
+                       %         locations = find(dataOn & ~signalOn);
+                       %     else
+                       %         locations = find(dataOn & signalOn);
+                       %     end
+                       %     loopCutoffs = find(diff(locations)~=1);
+                       %     cutoffDiff = diff(loopCutoffs);
+                       %     locationToCut = loopCutoffs(cutoffDiff ~= mode(cutoffDiff))+1;
+                       %     nCutLocations = nCutLocations + numel(locationToCut);
+                       %     locations(locationToCut) = [];
+                       %     if jj == 1
+                       %         ref = sum(unsortedData(locations,collectionInfo.dataChannelNumber));
+                       %     else
+                       %         sig = sum(unsortedData(locations,collectionInfo.dataChannelNumber));
+                       %     end
+                       % end
+                       
                        sig = sum(unsortedData(dataOn & signalOn,collectionInfo.dataChannelNumber));
                        ref = sum(unsortedData(dataOn & ~signalOn,collectionInfo.dataChannelNumber));
                    end
+                   % if ~isfield(handshake.UserData,'unsortedData')
+                   %     handshake.UserData.unsortedData = {};
+                   % end
+                   % if ~isfield(handshake.UserData,'dataOn')
+                   %     handshake.UserData.dataOn = {};
+                   % end
+                   % if ~isfield(handshake.UserData,'signalOn')
+                   %     handshake.UserData.signalOn = {};
+                   % end
+                   % if numel(handshake.UserData.unsortedData) < 100000
+                   %     handshake.UserData.dataOn{end+1} = dataOn;
+                   %     handshake.UserData.signalOn{end+1} = signalOn;
+                   %     convertedData = int16(unsortedData(:,collectionInfo.dataChannelNumber) .* 1000);
+                   %      handshake.UserData.unsortedData{end+1} = convertedData;
+                   % end
                else
                    sig = 0;
                    ref = 0;
@@ -222,6 +255,9 @@ classdef DAQ_controller < instrumentType
             %Increase number of data points taken. Used primarily for
             %analog to find average voltage
             handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
+            % if ~strcmpi(collectionInfo.dataType,'EdgeCount') && strcmpi(collectionInfo.differentiateSignal,'on')
+            %     handshake.UserData.nPoints = handshake.UserData.nPoints - nCutLocations;
+            % end
             elseif ~isfield(handshake.UserData,'nPoints')
                 handshake.UserData.nPoints = 0;
             end

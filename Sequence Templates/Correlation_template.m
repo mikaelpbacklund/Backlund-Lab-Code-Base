@@ -105,13 +105,13 @@ for rs = 1:2 %singal half and reference half
    h = modifyPulse(h,numel(h.userSequence),'notes','τ/2',false);
    
    if corrSet == 1
-      h = condensedAddPulse(h,{'RF','I',addedSignal},halfTotalPiTime,'π/2 y');
+      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
       h = condensedAddPulse(h,{addedSignal},99,'Scanned t corr');
    elseif rs == 1 %corrSet 2
-      h = condensedAddPulse(h,{'RF','I',addedSignal},halfTotalPiTime,'π/2 y');
+      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
    else %rs 2, corrSet 2
-      h = condensedAddPulse(h,{'RF','Q',addedSignal},halfTotalPiTime,'π/2 -y');
+      h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
    end
 
@@ -135,13 +135,22 @@ h = sendToInstrument(h);
 
 %% Scan Calculations
 
-%Finds pulses designated as τ which will be scanned
+%Finds pulses designated as t corr which will be scanned
 scanInfo.address = findPulses(h,'notes','t corr','contains');
 
+nAddresses = numel(scanInfo.address);
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = p.scanBounds;
 end
+
+compensatingPulses = findPulses(h,'notes','intermission','contains');
+scanInfo.address(end+1:end+numel(compensatingPulses)) = compensatingPulses;
+intermissionBounds = p.intermissionBufferDuration + [p.scanBounds(2) p.scanBounds(1)];
+for ii = nAddresses+1:numel(scanInfo.address)
+   scanInfo.bounds{ii} = intermissionBounds;
+end
+
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';

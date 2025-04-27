@@ -17,30 +17,32 @@ if nargin > 5 && ~isempty(varargin{1})
     iqBuffers = varargin{1};
    foundAddress = findPulses(h,'activeChannels',{'RF'},'contains');
    h = addBuffer(h,foundAddress,iqBuffers,{'I','Q','Signal'},[],'I/Q buffer');
-   for currentAddress = findPulses(h,'activeChannels',{'RF'},'contains')
-      %If there was a before buffer, the RF location is not 2nd in sequence, the pulse before has tau in the name, and
-      %that pulse has a duration greater than the buffer duration
-      %Subtract duration of buffer from the previous pulse
-      subtractBoolean = iqBuffers(1) ~= 0 && currentAddress > 2 &&...
-         (contains(h.userSequence(currentAddress-2).notes,'τ') || contains(lower(h.userSequence(currentAddress-2).notes),'tau'));
-      if subtractBoolean
-         previousDuration = h.userSequence(currentAddress-2).duration;
-         if iqBuffers(1) >= previousDuration
-            error('I/Q buffer cannot be longer than tau pulse')
-         end
-         h = modifyPulse(h,currentAddress-2,'duration',previousDuration - iqBuffers(1),false);
-      end
-
-      subtractBoolean = iqBuffers(2) ~= 0 && currentAddress < numel(h.userSequence) - 2 &&...
-         (contains(h.userSequence(currentAddress+2).notes,'τ') || contains(lower(h.userSequence(currentAddress+2).notes),'tau'));
-      if subtractBoolean
-         previousDuration = h.userSequence(currentAddress+2).duration;
-         if iqBuffers(2) >= previousDuration
-            error('I/Q buffer cannot be longer than tau pulse')
-         end
-         h = modifyPulse(h,currentAddress+2,'duration',previousDuration - iqBuffers(2),false);
-      end
-   end
+   %Should not change tau time here, it should be done when setting the
+   %scan values
+   % for currentAddress = findPulses(h,'activeChannels',{'RF'},'contains')
+   %    %If there was a before buffer, the RF location is not 2nd in sequence, the pulse before has tau in the name, and
+   %    %that pulse has a duration greater than the buffer duration
+   %    %Subtract duration of buffer from the previous pulse
+   %    subtractBoolean = iqBuffers(1) ~= 0 && currentAddress > 2 &&...
+   %       (contains(h.userSequence(currentAddress-2).notes,'τ') || contains(lower(h.userSequence(currentAddress-2).notes),'tau'));
+   %    if subtractBoolean
+   %       previousDuration = h.userSequence(currentAddress-2).duration;
+   %       if iqBuffers(1) >= previousDuration
+   %          error('I/Q buffer cannot be longer than tau pulse')
+   %       end
+   %       h = modifyPulse(h,currentAddress-2,'duration',previousDuration - iqBuffers(1),false);
+   %    end
+   % 
+   %    subtractBoolean = iqBuffers(2) ~= 0 && currentAddress < numel(h.userSequence) - 2 &&...
+   %       (contains(h.userSequence(currentAddress+2).notes,'τ') || contains(lower(h.userSequence(currentAddress+2).notes),'tau'));
+   %    if subtractBoolean
+   %       previousDuration = h.userSequence(currentAddress+2).duration;
+   %       if iqBuffers(2) >= previousDuration
+   %          error('I/Q buffer cannot be longer than tau pulse')
+   %       end
+   %       h = modifyPulse(h,currentAddress+2,'duration',previousDuration - iqBuffers(2),false);
+   %    end
+   % end
 end
 
 h = addBuffer(h,findPulses(h,'activeChannels',{'Data'},'contains'),intermission,{'Signal'},'after','Intermission between halves');

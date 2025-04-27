@@ -59,7 +59,7 @@ exportedTauByTwoEnd = (p.scanBounds(2)/2) - scanInfo.reducedTauByTwoTime;
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
 if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
-   error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)')
+   error('τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction) + 10 = %d',scanInfo.reducedTauByTwoTime+10)
 end
 
 %% Sequence Creation

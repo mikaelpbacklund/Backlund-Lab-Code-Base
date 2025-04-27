@@ -60,12 +60,21 @@ instrumentNames = ["pulse blaster","srs rf","daq","windfreak"];
 instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig),c2s(p.windfreakConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
-ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
-
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
    ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);
 end
+
+%Sets all optimization info into appropriate place in experiment object
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+ex.optimizationInfo.stageAxes = p.optimizationAxes;
+ex.optimizationInfo.steps = p.optimizationSteps;
+ex.optimizationInfo.timePerPoint = p.timePerOpimizationPoint;
+ex.optimizationInfo.timeBetweenOptimizations = p.timeBetweenOptimizations;
+ex.optimizationInfo.percentageToForceOptimization = p.percentageForcedOptimization;
+ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
+ex.optimizationInfo.useTimer = p.useOptimizationTimer;
+ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
