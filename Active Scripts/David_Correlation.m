@@ -3,32 +3,32 @@
 clear p
 
 %Required
-p.scanBounds = [200 10200];
-p.scanStepSize = 200;
+p.scanBounds = [1000 11000];
+p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.tauDuration = 404;
+p.tauDuration = 412;
 p.piTime = 36;
-p.RFResonanceFrequency = 2.003;
+p.RFResonanceFrequency = 2.075;
 p.nXY = 8;%N in XYN-m
 p.setsXYN = 8;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
+p.collectionDuration = 2000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
 p.RFRampTime = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 800;
-p.IQBuffers = [30 30];
-p.nIterations = 200;
-p.RFAmplitude = 8;
+p.AOMCompensation = 400;
+p.IQBuffers = [30 10];
+p.nIterations = 100;
+p.RFAmplitude = 6;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .5;
-p.nDataPointDeviationTolerance = .01;
+p.nDataPointDeviationTolerance = .001;
 p.maxFailedCollections = 25;
 p.baselineSubtraction = 0;
 p.perSecond = true;

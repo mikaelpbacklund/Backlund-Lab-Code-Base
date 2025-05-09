@@ -193,6 +193,7 @@ classdef DAQ_controller < instrumentType
                    ref = 0;
                    sig = 0;
                end
+               
             else%Voltage
                dataOn = boolean(unsortedData(:,collectionInfo.toggleChannel));               
                if any(dataOn)

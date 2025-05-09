@@ -7,15 +7,15 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 110]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
+p.scanBounds = [10 80]; %RF duration bounds
+p.scanStepSize = 2; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.003;
+p.RFResonanceFrequency = 2.075;
 
 %General
-p.RFAmplitude = 8;
-p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.RFAmplitude = 6;
+p.sequenceTimePerDataPoint = 6;%Before factoring in forced delay and other pauses
+p.nIterations = 2; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures

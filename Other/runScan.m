@@ -211,14 +211,18 @@ for ii = startIteration:p.nIterations
    if p.plotAverageContrastFFT
       [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',p.normalizeFFTByMagnet);
       frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+      storedLabel = plotLabelInfo{3,2};
       plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
       ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
+      plotLabelInfo{3,2} = storedLabel;
    end
    if p.plotCurrentContrastFFT
       [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',p.normalizeFFTByMagnet);
       frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+      storedLabel = plotLabelInfo{3,2};
       plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
       ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
+      plotLabelInfo{3,2} = storedLabel; %#ok<NASGU>
    end
 
    if ii ~= p.nIterations

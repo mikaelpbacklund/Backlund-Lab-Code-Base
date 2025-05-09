@@ -28,7 +28,7 @@ p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
-p.laserConfig = 'laser532';
+p.laserConfig = 'laser_532';
 p.laserPropertyName = 'ndYAG';
 
 %Plotting
