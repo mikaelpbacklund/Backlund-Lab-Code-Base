@@ -58,7 +58,7 @@ ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
-   ex = loadInstruments(ex,"stage",c2s(p.stageConfig),false);   
+   ex = loadInstruments(ex,"PIstage",c2s(p.stageConfig),false);   
 end
 
 %Sets all optimization info into appropriate place in experiment object

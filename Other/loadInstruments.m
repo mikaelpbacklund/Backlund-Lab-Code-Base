@@ -27,7 +27,7 @@ for ii = 1:numel(instrumentNames)
          ex = connectToInstrument(ex,'windfreak_RF','RF_generator');
 
       case {'stage','pistage','pi_stage','pi stage'}
-         ex = connectToInstrument(ex,'stage','stage','PIstage');
+         ex = connectToInstrument(ex,'PIstage','stage','PIstage');
 
       case {'daq','nidaq','ni daq','ni_daq','data','data acquisition'}
          ex = connectToInstrument(ex,'DAQ','DAQ_controller');

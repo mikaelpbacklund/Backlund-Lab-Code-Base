@@ -8,7 +8,7 @@ p.scanStepSize = .005;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
-p.RFAmplitude = 10;
+p.RFAmplitude = 8;
 p.scanNotes = 'ODMR'; %Notes describ1
 % ing scan (will appear in titles for plots)
 p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
