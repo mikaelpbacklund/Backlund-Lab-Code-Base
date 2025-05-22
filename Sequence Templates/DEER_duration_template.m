@@ -141,14 +141,9 @@ end
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
-%Changes number of loops to match desired time
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-
-%Sends the completed sequence to the pulse blaster
-h = sendToInstrument(h);
 
 %% Scan Calculations
-scannedBounds = [p.scanBounds(1),p.scanBounds(2)];
+% scannedBounds = [p.scanBounds(1),p.scanBounds(2)];
 
 %Bounds for compensation pulses to keep total length constant
 % if p.nRF2Pulses == 1
@@ -173,7 +168,7 @@ scannedAddresses = findPulses(h,'notes','scanned rf2','contains');
 remainderAddresses = findPulses(h,'notes','remainder','contains');
 scanInfo.address = [scannedAddresses,remainderAddresses];
 scanInfo.bounds = {};
-[scanInfo.bounds{1:numel(scannedAddresses)}] = deal(scannedBounds);
+[scanInfo.bounds{1:numel(scannedAddresses)}] = deal(p.scanBounds);
 [scanInfo.bounds{1+numel(scannedAddresses):numel(scanInfo.address)}] = deal(remainderBounds);
 
 %Remaining scan info
@@ -188,6 +183,19 @@ scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('DEER (π: %d ns, τ = %d ns, RF: %g GHz, RF2: %g GHz)',round(p.piTime),round(p.tauTime),p.RF1ResonanceFrequency,p.RF2Frequency);
 scanInfo.RF1Frequency = p.RF1ResonanceFrequency;
 scanInfo.RF2Frequency = p.RF2Frequency;
+
+%% Number of Loops Calculation
+
+%Finds time based on scanned duration values
+%148 comes from 49+99 for scan and remainder
+%Number of scanned addresses is same as number of remainder addresses
+scanTimeDifference = (p.scanBounds(1) + remainderBounds(1) - 148)*numel(scannedAddresses);
+
+%Changes number of loops to match desired time
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(h.sequenceDurations.user.totalSeconds+scanTimeDifference));
+
+%Sends the completed sequence to the pulse blaster
+h = sendToInstrument(h);
 
 %% Outputs
 varargout{1} = h;%returns pulse blaster object

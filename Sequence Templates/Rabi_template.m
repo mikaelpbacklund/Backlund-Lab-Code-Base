@@ -14,7 +14,6 @@ defaultParameters.repolarizationDuration = 7000;
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
 defaultParameters.intermissionBufferDuration = 1000;
-defaultParameters.RFRampTime = 0;
 defaultParameters.AOMCompensation = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
@@ -52,10 +51,10 @@ h.useTotalLoop = true;
 
 %First pulse is variable RF duration, second is data collection
 %Second input is active channels, third is duration, fourth is notes
-h = condensedAddPulse(h,{},99,'τ without-RF time');%Scanned
+h = condensedAddPulse(h,{},mean(p.scanBounds),'τ without-RF time');%Scanned
 h = condensedAddPulse(h,{'AOM','Data'},p.collectionDuration,'Reference Data collection');
 
-h = condensedAddPulse(h,{'RF','Signal'},99,'τ with-RF time');%Scanned
+h = condensedAddPulse(h,{'RF','Signal'},mean(p.scanBounds),'τ with-RF time');%Scanned
 h = condensedAddPulse(h,{'AOM','Data','Signal'},p.collectionDuration,'Signal Data collection');
 
 %See function for more detail. Modifies base sequence with necessary things to function properly
@@ -63,9 +62,8 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
     p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
+h = calculateDuration(h,'user');
 h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-
-%Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
 
 %% Scan Calculations

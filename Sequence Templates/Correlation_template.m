@@ -23,6 +23,7 @@ defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
+defaultParameters.useCompensatingPulses = false;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -106,7 +107,7 @@ for rs = 1:2 %singal half and reference half
    
    if corrSet == 1
       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
-      h = condensedAddPulse(h,{addedSignal},99,'Scanned t corr');
+      h = condensedAddPulse(h,{addedSignal},mean(p.scanBounds),'Scanned t corr');
    elseif rs == 1 %corrSet 2
       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
@@ -122,15 +123,15 @@ end
 h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
-%Changes number of loops to match desired time
-h.nTotalLoops = 1;
-h = calculateDuration(h,'user');
-scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - 198;%198 is standin tcorr*2
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (2*mean(p.scanBounds));
-h.nTotalLoops = round(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
+%Change intermission pulses to account for mean of compensating scan
+if p.useCompensatingPulses
+   compensatingPulses = findPulses(h,'notes','intermission','contains');
+   h = modifyPulse(h,compensatingPulses,'duration',p.intermissionBufferDuration+diff(p.scanBounds)/2);
+end
 
-%Sends the completed sequence to the pulse blaster
+%Changes number of loops to match desired time
+h = calculateDuration(h,'user');
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 h = sendToInstrument(h);
 
 %% Scan Calculations
@@ -144,11 +145,13 @@ for ii = 1:numel(scanInfo.address)
    scanInfo.bounds{ii} = p.scanBounds;
 end
 
-compensatingPulses = findPulses(h,'notes','intermission','contains');
-scanInfo.address(end+1:end+numel(compensatingPulses)) = compensatingPulses;
-intermissionBounds = p.intermissionBufferDuration + [p.scanBounds(2) p.scanBounds(1)];
-for ii = nAddresses+1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = intermissionBounds;
+%Adds compensating pulses to scan
+if p.useCompensatingPulses
+   scanInfo.address(end+1:end+numel(compensatingPulses)) = compensatingPulses;
+   intermissionBounds = [p.intermissionBufferDuration+diff(p.scanBounds),p.intermissionBufferDuration];
+   for ii = nAddresses+1:numel(scanInfo.address)
+      scanInfo.bounds{ii} = intermissionBounds;
+   end
 end
 
 scanInfo.nSteps = p.scanNSteps;

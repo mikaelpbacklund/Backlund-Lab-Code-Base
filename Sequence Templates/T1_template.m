@@ -59,12 +59,9 @@ h = condensedAddPulse(h,{'aom','signal'},((p.repolarizationDuration-2000)/2),'re
 h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration-2000)/2),'repolarization');
 h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
 
-h = calculateDuration(h,'user');
-
 %Changes number of loops to match desired time
+h = calculateDuration(h,'user');
 h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-
-%Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
 
 %% Scan Calculations

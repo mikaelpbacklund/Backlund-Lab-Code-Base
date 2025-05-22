@@ -52,13 +52,11 @@ end
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
 scanInfo.reducedTauTime = sum(p.IQBuffers)+p.piTime+p.RFRampTime;
 scanInfo.reducedTauByTwoTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime;
-exportedTauStart = p.scanBounds(1) - scanInfo.reducedTauTime;
-exportedTauEnd = p.scanBounds(2) - scanInfo.reducedTauTime;
-exportedTauByTwoStart = (p.scanBounds(1)/2) - scanInfo.reducedTauByTwoTime;
-exportedTauByTwoEnd = (p.scanBounds(2)/2) - scanInfo.reducedTauByTwoTime;
+exportedTau = p.scanBounds - scanInfo.reducedTauTime;
+exportedTauByTwo = p.scanBounds/2 - scanInfo.reducedTauByTwoTime;
 
 %Error check for τ/2 duration (τ/2 always shorter than τ)
-if min([exportedTauByTwoStart,exportedTauByTwoEnd]) <= 0
+if min(exportedTau) <= 0
    error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)')
 end
 
@@ -137,20 +135,20 @@ for rs = 1:2 %singal half and reference half
       h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
    end
    %Scanned (τ/2) between π/2 and π pulses
-   h = condensedAddPulse(h,{addedSignal},49,'Scanned τ/2');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTauByTwo),'Scanned τ/2');
    if rs==2
       for m = 1:p.setsXYN
          for n = 1:p.nXY/2
             if mod(n,4) == 1 || mod(n,4) == 2 %odd set
                h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
                h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             else %even set
                h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
                h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             end
          end
       end
@@ -160,21 +158,21 @@ for rs = 1:2 %singal half and reference half
          for n = 1:p.nXY/2
             if mod(n,4) == 1 || mod(n,4) == 2 %odd set
                h = condensedAddPulse(h,{},totalPiTime,'nohting');
-               h = condensedAddPulse(h,{},99,'Scanned τ');
+               h = condensedAddPulse(h,{},mean(exportedTau),'Scanned τ');
                h = condensedAddPulse(h,{},totalPiTime,'nothing');
-               h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+               h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             else %even set
                h = condensedAddPulse(h,{},totalPiTime,'nothing');
-               h = condensedAddPulse(h,{},99,'Scanned τ');
+               h = condensedAddPulse(h,{},mean(exportedTau),'Scanned τ');
                h = condensedAddPulse(h,{},totalPiTime,'nothing');
-               h = condensedAddPulse(h,{},99,'Scanned τ');
+               h = condensedAddPulse(h,{},mean(exportedTau),'Scanned τ');
             end
          end
       end
    end
 
    %modify final tau to tau/2
-   h = modifyPulse(h,numel(h.userSequence),'duration',49,false);
+   h = modifyPulse(h,numel(h.userSequence),'duration',mean(exportedTauByTwo),false);
    h = modifyPulse(h,numel(h.userSequence),'notes','Scanned τ/2',false);
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
@@ -196,13 +194,8 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
    p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
-nTau = ((p.setsXYN*p.nXY)+1);
-scanInfo.meanSequenceDuration = h.sequenceDurations.user.totalNanoseconds - (nTau*99);
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration + (nTau*mean(p.scanBounds));
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(scanInfo.meanSequenceDuration*1e-9));
-scanInfo.meanSequenceDuration = scanInfo.meanSequenceDuration * h.nTotalLoops;
-
-%Sends the completed sequence to the pulse blaster
+h = calculateDuration(h,'user');
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
 h = sendToInstrument(h);
 
 %% Scan Calculations
@@ -212,15 +205,12 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = [exportedTauStart exportedTauEnd];
+   scanInfo.bounds{ii} = exportedTau;
 end
 for ii = [1,numel(scanInfo.bounds)/2,numel(scanInfo.bounds)/2+1,numel(scanInfo.bounds)]
-   scanInfo.bounds{ii} = [exportedTauByTwoStart exportedTauByTwoEnd];
+   scanInfo.bounds{ii} = exportedTauByTwo;
 end
-% scanInfo.bounds{1} = [exportedTauByTwoStart exportedTauByTwoEnd];
-% scanInfo.bounds{(numel(scanInfo.bounds)/2)} = [exportedTauByTwoStart exportedTauByTwoEnd];
-% scanInfo.bounds{((numel(scanInfo.bounds)/2)+1)} = [exportedTauByTwoStart exportedTauByTwoEnd];
-% scanInfo.bounds{end} = [exportedTauByTwoStart exportedTauByTwoEnd];
+
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';

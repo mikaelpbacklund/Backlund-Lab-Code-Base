@@ -5,10 +5,20 @@ function varargout = mustContainField(S,F,varargin)
 %D is defaults. Corresponds to each field in F to set that field if empty
 arguments
    S struct
-   F {mustBeA(F,["char","string","cell"])}
+   F {mustBeA(F,["char","string","cell","struct"])}
 end
 arguments (Repeating)
    varargin cell
+end
+
+%If given a struct as second input, use that for fieldnames to check and default values
+if isa(F,'struct')
+   D = struct2cell(F);
+   F = fieldnames(F);
+elseif nargin > 2
+   D = varargin{1};
+else
+   D = [];
 end
 
 F = string(F);
@@ -18,13 +28,12 @@ missingFields = arrayfun(@(cls)~isfield(S,cls),F);
 
 if any(missingFields)
    %If no defaults, give error if any fields aren't present
-   if nargin == 2
+   if isempty(D)
       error('Structure must contain %s field(s)',strjoin(F(missingFields)))
    end
 
-   %If defaults are given, add missing fields with default values
+   %Add missing fields with default values
    missingFields = find(missingFields);
-   D = varargin{1};
    for ii = 1:numel(missingFields)
       if isempty(S) %Empty structures must be given index
          S(1).(F(missingFields(1))) = D{missingFields(1)};
@@ -35,7 +44,7 @@ if any(missingFields)
 end
 
 %If defaults have been given, output modified structure input
-if nargin == 3
+if ~isempty(D)
    varargout{1} = S;
 end
 end

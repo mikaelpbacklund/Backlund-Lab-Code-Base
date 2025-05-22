@@ -47,11 +47,10 @@ if isempty(p.scanNSteps)
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTauStart = p.scanBounds(1) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
-exportedTauEnd = p.scanBounds(2) - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
+exportedTau = p.scanBounds - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
 
 %Error check for τ duration
-if min([exportedTauStart,exportedTauEnd]) <= 0
+if min(exportedTau) <= 0
    error('τ cannot be shorter than (sum(IQ buffers) + (3/4)*π + extra RF)')
 end
 
@@ -77,13 +76,13 @@ for rs = 1:2 %singal half and reference half
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
 
    %Scanned τ between π/2 and π pulses
-   h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
 
    %π to rotate around y and generate echo
    h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
 
    %Scanned τ between π and π/2 pulses
-   h = condensedAddPulse(h,{addedSignal},99,'Scanned τ');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
@@ -101,9 +100,8 @@ h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizatio
     p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
 
 %Changes number of loops to match desired time
+h = calculateDuration(h,'user');
 h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-
-%Sends the completed sequence to the pulse blaster
 h = sendToInstrument(h);
 
 %% Scan Calculations
@@ -113,7 +111,7 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = [exportedTauStart,exportedTauEnd];
+   scanInfo.bounds{ii} = exportedTau;
 end
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
