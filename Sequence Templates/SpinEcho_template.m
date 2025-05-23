@@ -19,6 +19,7 @@ defaultParameters.extraBuffer = 0;
 defaultParameters.RFRampTime = 0;
 defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0,0];
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -95,14 +96,9 @@ for rs = 1:2 %singal half and reference half
 
 end
 
-%See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
-
-%Changes number of loops to match desired time
-h = calculateDuration(h,'user');
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-h = sendToInstrument(h);
+%Completes sequence with standard changes for template
+%3rd input is for amount of time compensating pulse needs to be
+h = completeSequence(h,p,diff(p.scanBounds).*2);
 
 %% Scan Calculations
 

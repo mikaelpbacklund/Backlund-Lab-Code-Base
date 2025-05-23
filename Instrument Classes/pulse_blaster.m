@@ -5,9 +5,9 @@ classdef pulse_blaster < instrumentType
    %the sequence does not update properly and desyncs can happen
 
    properties
-      useTotalLoop%Encompass the entire sequence in a loop
-      nTotalLoops%How many loops the above should run for
-      sendUponAddition%Send sequence to pulse blaster when running addPulse
+      useTotalLoop = true;%Encompass the entire sequence in a loop
+      nTotalLoops = 1;%How many loops the above should run for
+      sendUponAddition = false;%Send sequence to pulse blaster when running addPulse
    end
 
    properties (SetAccess = {?pulse_blaster ?instrumentType ?experiment}, GetAccess = public)
@@ -189,6 +189,9 @@ classdef pulse_blaster < instrumentType
          if h.useTotalLoop
             %Beginning of total loop
             pulseInfo.directionType = h.formalDirectionNames{3};%Start loop
+            if isempty(h.nTotalLoops)
+                h.nTotalLoops = 1;
+            end
             pulseInfo.contextInfo = h.nTotalLoops;
             pulseInfo.notes = 'Total loop beginning';
             h.adjustedSequence(2:end+1) = h.adjustedSequence;
@@ -405,7 +408,16 @@ classdef pulse_blaster < instrumentType
             if opCode == 3%Start loop
                %Add to start tracker and number of loops tracker
                startTracker(end+1) = jj; %#ok<AGROW>
+               if isempty(current.contextInfo)
+                   current.contextInfo = 0;
+               end
+               try
                nLoopsTracker(end+1) = current.contextInfo;%#ok<AGROW>
+               catch ME
+                   assignin('base','current',current)
+                   assignin('base','nLoopsTracker',nLoopsTracker)
+                   rethrow(ME)
+               end
             elseif opCode == 4%End loop
                if isempty(startTracker),   error('Attempted to end loop while no loop has begun'),    end
                %Adds both the start and number of loops to a new row on

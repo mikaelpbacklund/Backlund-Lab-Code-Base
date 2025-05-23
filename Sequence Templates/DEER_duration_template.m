@@ -23,6 +23,7 @@ defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -137,9 +138,9 @@ for rs = 1:2 %singal half and reference half
 
 end
 
-%See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
+%Completes sequence with standard changes for template
+p.useCompensatingPulses = 0;
+h = completeSequence(h,p);
 
 
 %% Scan Calculations
@@ -189,13 +190,13 @@ scanInfo.RF2Frequency = p.RF2Frequency;
 %Finds time based on scanned duration values
 %148 comes from 49+99 for scan and remainder
 %Number of scanned addresses is same as number of remainder addresses
-scanTimeDifference = (p.scanBounds(1) + remainderBounds(1) - 148)*numel(scannedAddresses);
-
-%Changes number of loops to match desired time
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(h.sequenceDurations.user.totalSeconds+scanTimeDifference));
-
-%Sends the completed sequence to the pulse blaster
-h = sendToInstrument(h);
+% scanTimeDifference = (p.scanBounds(1) + remainderBounds(1) - 148)*numel(scannedAddresses);
+% 
+% %Changes number of loops to match desired time
+% h.nTotalLoops = floor(p.sequenceTimePerDataPoint/(h.sequenceDurations.user.totalSeconds+scanTimeDifference));
+% 
+% %Sends the completed sequence to the pulse blaster
+% h = sendToInstrument(h);
 
 %% Outputs
 varargout{1} = h;%returns pulse blaster object

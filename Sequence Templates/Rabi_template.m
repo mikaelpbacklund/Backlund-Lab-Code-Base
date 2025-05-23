@@ -15,6 +15,7 @@ defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
 defaultParameters.intermissionBufferDuration = 1000;
 defaultParameters.AOMCompensation = 0;
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -57,14 +58,11 @@ h = condensedAddPulse(h,{'AOM','Data'},p.collectionDuration,'Reference Data coll
 h = condensedAddPulse(h,{'RF','Signal'},mean(p.scanBounds),'τ with-RF time');%Scanned
 h = condensedAddPulse(h,{'AOM','Data','Signal'},p.collectionDuration,'Signal Data collection');
 
-%See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,[],p.dataOnBuffer,p.extraBuffer);
+%IQ buffers irrelevant for Rabi
+p.IQBuffers = [0 0];
 
-%Changes number of loops to match desired time
-h = calculateDuration(h,'user');
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-h = sendToInstrument(h);
+%Completes sequence with standard changes for template
+h = completeSequence(h,p);
 
 %% Scan Calculations
 

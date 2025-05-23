@@ -22,6 +22,7 @@ defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -86,12 +87,14 @@ for rs = 1:2 %singal half and reference half
 
    for m = 1:p.setsXYN
       for n = 1:p.nXY/2
-         if mod(n,4) == 1 || mod(n,4) == 2 %odd set
+          %for 4: x-y-x-y
+          %for 8: x-y-x-y-y-x-y-x
+         if mod(n,4) == 0 || mod(n,4) == 1
             h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
             h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
             h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
-         else %even set
+         else
             h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
             h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
@@ -114,17 +117,10 @@ for rs = 1:2 %singal half and reference half
    end
 end
 
-
-%See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
-
-%Changes number of loops to match desired time
-h = calculateDuration(h,'user');
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-
-%Sends the completed sequence to the pulse blaster
-h = sendToInstrument(h);
+%Completes sequence with standard changes for template
+%3rd input is for amount of time compensating pulse needs to be, dependent on tau
+%duration and number
+h = completeSequence(h,p,diff(p.scanBounds).*p.setsXYN.*p.nXY);
 
 %% Scan Calculations
 

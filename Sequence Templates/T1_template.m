@@ -13,6 +13,7 @@ defaultParameters.repolarizationDuration = 7000;
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;%Only relevant if repolarization buffer isn't 0
 defaultParameters.AOMCompensation = 0;
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -60,8 +61,8 @@ h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration-2000)/2),'repolarizat
 h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
 
 %Changes number of loops to match desired time
-h = calculateDuration(h,'user');
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
+h = adjustSequence(h);
+h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.adjusted.totalSeconds);
 h = sendToInstrument(h);
 
 %% Scan Calculations

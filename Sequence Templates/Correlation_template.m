@@ -23,7 +23,7 @@ defaultParameters.AOMCompensation = 0;
 defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
-defaultParameters.useCompensatingPulses = false;
+defaultParameters.useCompensatingPulses = 0;
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -119,20 +119,8 @@ for rs = 1:2 %singal half and reference half
    end
 end
 
-%See function for more detail. Modifies base sequence with necessary things to function properly
-h = standardTemplateModifications(h,p.intermissionBufferDuration,p.repolarizationDuration,...
-    p.collectionBufferDuration,p.AOMCompensation,p.IQBuffers,p.dataOnBuffer,p.extraBuffer);
-
-%Change intermission pulses to account for mean of compensating scan
-if p.useCompensatingPulses
-   compensatingPulses = findPulses(h,'notes','intermission','contains');
-   h = modifyPulse(h,compensatingPulses,'duration',p.intermissionBufferDuration+diff(p.scanBounds)/2);
-end
-
-%Changes number of loops to match desired time
-h = calculateDuration(h,'user');
-h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.user.totalSeconds);
-h = sendToInstrument(h);
+%Completes sequence with standard changes for template
+h = completeSequence(h,p);
 
 %% Scan Calculations
 
