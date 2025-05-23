@@ -241,8 +241,8 @@ classdef stage < instrumentType
          %precision of coarse stage is not good enough
          h.controllerInfo(infoRow).extraCompensation = 0;
 
-         %Sets locationDeviation for this axis based on checking current location 30 times
-         h = findLocationDeviance(h,h.controllerInfo(infoRow).axis,30,h.controllerInfo(infoRow).grain);
+         %Sets locationDeviation for this axis based on checking current location 20 times
+         h = findLocationDeviance(h,h.controllerInfo(infoRow).axis,20,h.controllerInfo(infoRow).grain);
       end
 
       function h = disconnect(h)
