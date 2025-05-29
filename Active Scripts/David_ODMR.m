@@ -3,15 +3,15 @@
 clear p
 
 %Required
-p.scanBounds = [2.0 2.1]; %Frequency bounds
-p.scanStepSize = .005;%Step size for RF frequency
+p.scanBounds = [2.8 2.95]; %Frequency bounds
+p.scanStepSize = .001;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
 p.RFAmplitude = 8;
 p.scanNotes = 'ODMR'; %Notes describ1
 % ing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 p.maxFailedCollections = 10;
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long besfore auto-continue occurs

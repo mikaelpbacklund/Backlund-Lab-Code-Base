@@ -71,7 +71,7 @@ scanInfo.address = findPulses(h,'notes','τ','contains');
 
 %Info regarding the scan
 for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = p.scanBounds+ p.RFRampTime;
+   scanInfo.bounds{ii} = p.scanBounds;
 end
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';

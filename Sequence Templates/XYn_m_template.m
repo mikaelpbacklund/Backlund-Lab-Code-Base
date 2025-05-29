@@ -120,7 +120,8 @@ end
 %Completes sequence with standard changes for template
 %3rd input is for amount of time compensating pulse needs to be, dependent on tau
 %duration and number
-h = completeSequence(h,p,diff(p.scanBounds).*p.setsXYN.*p.nXY);
+intermissionScanBound = diff(p.scanBounds).*p.setsXYN.*p.nXY;
+h = completeSequence(h,p,intermissionScanBound);
 
 %% Scan Calculations
 
@@ -133,6 +134,13 @@ for ii = 1:numel(scanInfo.address)
 end
 for ii = [1,numel(scanInfo.bounds)/2,numel(scanInfo.bounds)/2+1,numel(scanInfo.bounds)]
     scanInfo.bounds{ii} = exportedTauByTwo;
+end
+if isfield(p,'useCompensatingPulses') && p.useCompensatingPulses
+    compensatingPulses = findPulses(h,'notes','intermission','contains');
+    for ii = 1:numel(compensatingPulses)        
+        scanInfo.bounds{end+1} = p.intermissionBufferDuration + [intermissionScanBound 0];
+        scanInfo.address(end+1) = compensatingPulses(ii);
+    end
 end
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';

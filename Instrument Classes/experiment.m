@@ -295,12 +295,26 @@ classdef experiment
          s = cellfun(@(x)x(2)-x(1),b);
          scanInfo.stepSize = s ./ (n-1);
 
+         %Adds defaults to any fields not already present
+         if ~isempty(h.scan)
+            scanInfo = mustContainField(scanInfo,fieldnames(h.scan),struct2cell(h.scan(1)));
+         end
+
          %Sets scan as the current scanInfo
          if isempty(h.scan)
             h.scan = scanInfo;
          else
             h.scan(end+1) = scanInfo;
          end
+
+         %Deletes empty scan if there are more than 1
+         if all(cellfun(@(x)isempty(x),struct2cell(h.scan(1)))) && numel(h.scan)>1
+             h.scan(1) = [];
+         end
+
+                  assignin("base","scan",h.scan)
+
+         assignin("base","scanInfo",scanInfo)
       end
 
       function h = validateExperimentalConfiguration(h)
