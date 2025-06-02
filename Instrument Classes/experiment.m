@@ -427,7 +427,7 @@ classdef experiment
          end
 
          %Makes cell array of equivalent size to above
-         h.data.values = num2cell(h.data.iteration)';
+         h.data.values = num2cell(h.data.iteration);
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:

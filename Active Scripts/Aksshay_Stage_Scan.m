@@ -2,9 +2,9 @@
 %axisLocations = ex.PIstage.axisSum;
 
 %% User Inputs
-scanBounds = {[19450 19970]};%,[-500 -450]};
+scanBounds = {[19670 19730]};%,[-500 -450]};
 scanAxes = {'z'};%,'y'};
-scanStepSize = {2};%,25};
+scanStepSize = {1};%,25};
 sequenceTimePerDataPoint = 0.5;%Before factoring in forced delay and other pauses
 nIterations = 1;
 contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref

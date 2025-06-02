@@ -3,20 +3,20 @@
 clear p
 
 %Required
-p.scanBounds = [910000 1010000]; %RF duration bounds
+p.scanBounds = [1000 1001000]; %RF duration bounds
 p.scanStepSize = 2000; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
 
 %General
-p.sequenceTimePerDataPoint = 4;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 6;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.AOMCompensation = 850;%How long AOM should be on before DAQ (negative flips to DAQ first)
-p.repolarizationDuration = 10000;%Duration of repolarization
+p.collectionDuration = 1000;%How long to collect data for. 0 means overwritten by DAQ rate
+p.AOMCompensation = 900;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.repolarizationDuration = 50000;%Duration of repolarization
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.perSecond = true;%convert to counts/s if using counter
@@ -33,7 +33,7 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = true;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = false;
+p.plotCurrentSignal = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;

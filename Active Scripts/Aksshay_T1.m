@@ -3,8 +3,8 @@
 clear p
 
 %Required
-p.scanBounds = [200 4200];
-p.scanStepSize = 100;
+p.scanBounds = [1000 1000000];
+p.scanStepSize = 200;
 p.scanNSteps = [];%will override step size
 % p.piTime = 36;
 % p.RFResonanceFrequency = 2.269;

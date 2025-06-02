@@ -3,7 +3,7 @@
 clear p
 
 %Required
-p.scanBounds = [2.8 2.95]; %Frequency bounds
+p.scanBounds = [2.84 2.90]; %Frequency bounds
 p.scanStepSize = .001;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 

@@ -56,8 +56,8 @@ h = condensedAddPulse(h,{'aom'},p.repolarizationDuration,'aom on');
 h = condensedAddPulse(h,{'signal'},mean(p.scanBounds),'scanned τ');
 h = condensedAddPulse(h,{'aom'},p.AOMCompensation,'aom compensation');
 h = condensedAddPulse(h,{'aom','data','signal'},p.collectionDuration,'signal data collection');
-h = condensedAddPulse(h,{'aom','signal'},((p.repolarizationDuration-2000)/2),'repolarization');
-h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration-2000)/2),'repolarization');
+h = condensedAddPulse(h,{'aom','signal'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
+h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
 h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
 
 %Changes number of loops to match desired time
