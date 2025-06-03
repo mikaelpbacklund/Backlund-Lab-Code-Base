@@ -479,12 +479,17 @@ classdef instrumentType < handle
       function properIdentifier = giveProperIdentifier(userIdentifier)
          %Gives identifier based on input name of instrument
 
-         %Checks for multiple inputs and creates empty cell array
-         userIdentifier = c2s(userIdentifier);
-         properIdentifier = cell(1,numel(userIdentifier));
+         %Checks for multiple inputs
+         if isa(userIdentifier,'char')
+            userIdentifier = c2s(userIdentifier)
+            nRepeats = 1;
+         else
+            nRepeats = numel(userIdentifier);
+         end
+         properIdentifier = cell(1,nRepeats);
 
-         for ii = 1:numel(userIdentifier)
-            switch lower(userIdentifier(ii))
+         for ii = 1:nRepeats
+            switch lower(userIdentifier)
                case {'srs','srs_rf','srs rf','srsrf'}
                   properIdentifier{ii} = 'SRS RF';
                case {'wf','windfreak','wind freak','wind_freak','wf rf','wf_rf'}

@@ -311,10 +311,6 @@ classdef experiment
          if all(cellfun(@(x)isempty(x),struct2cell(h.scan(1)))) && numel(h.scan)>1
              h.scan(1) = [];
          end
-
-                  assignin("base","scan",h.scan)
-
-         assignin("base","scanInfo",scanInfo)
       end
 
       function h = validateExperimentalConfiguration(h)
