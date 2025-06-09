@@ -147,7 +147,7 @@ classdef DAQ_controller < instrumentType
             %Reduce number of scans available by 1 to recover from indexing
             %errors caused by NI code. I cannot fix this at the source so
             %it is necessary to fix the symptoms instead
-            scansAvailable = handshake.NumScansAvailable;
+            scansAvailable = handshake.NumScansAvailable-5;
             if scansAvailable > handshake.ScansAvailableFcnCount * 100
                 [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
                 return
@@ -157,7 +157,7 @@ classdef DAQ_controller < instrumentType
             %has been disabled, or if no S/R channel has been designated
             %while differentiation of S/R is enabled, stop this function
             if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
-                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable <= 0
+                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable <= 5
                 return
             end
             

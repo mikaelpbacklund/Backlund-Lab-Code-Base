@@ -425,6 +425,10 @@ classdef experiment
          %Makes cell array of equivalent size to above
          h.data.values = num2cell(h.data.iteration);
 
+         if isscalar(h.scan)
+             h.data.values = h.data.values';
+         end
+
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
          %h.data.values{:} = resetValue;
@@ -432,8 +436,8 @@ classdef experiment
          %using the deal function is quite helpful
          [h.data.values{:}] = deal(resetValue);
 
-         h.data.nPoints = h.data.iteration';
-         h.data.failedPoints = h.data.iteration';
+         h.data.nPoints = h.data.iteration;
+         h.data.failedPoints = h.data.iteration;
 
          %Reset which points are completed
          if ~isempty(h.plots)
