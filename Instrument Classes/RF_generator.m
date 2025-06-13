@@ -21,7 +21,7 @@ classdef RF_generator < instrumentType
 
       methods %Misc
 
-      function h = RF_generator(configFileName)
+      function obj = RF_generator(configFileName)
 
           if nargin < 1
               error('Config file name required as input')
@@ -33,187 +33,187 @@ classdef RF_generator < instrumentType
             'modulationToggleOn','modulationToggleOff','modulationToggleQuery','modulationWaveform',...
             'modulationWaveformQuery','modulationType','modulationTypeQuery','modulationExternalIQ'};
          numericalFields = {'frequency','amplitude'};%has units, conversion factor, and min/max
-         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+         obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);
       end
 
-      function h = connect(h) 
+      function obj = connect(obj) 
 
-         if h.connected
+         if obj.connected
             warning('RF generator is already connected')
             return
          end         
 
-         switch lower(h.connectionInfo.vendor)
+         switch lower(obj.connectionInfo.vendor)
             case {'srs','stanford'}
-                h.connectionInfo.vendor = 'srs'; %Standardization
+                obj.connectionInfo.vendor = 'srs'; %Standardization
                %Validates that config info has needed fields
-               mustContainField(h.connectionInfo,{'checkedValue','fieldToCheck'})
+               mustContainField(obj.connectionInfo,{'checkedValue','fieldToCheck'})
 
                %Connects to instrument from available devices
                devicesList = visadevlist;
-               stanfordRow = contains(lower(devicesList.(h.connectionInfo.fieldToCheck)),lower(h.connectionInfo.checkedValue));
+               stanfordRow = contains(lower(devicesList.(obj.connectionInfo.fieldToCheck)),lower(obj.connectionInfo.checkedValue));
                try
-               h.handshake = visadev(devicesList.ResourceName(stanfordRow));
+               obj.handshake = visadev(devicesList.ResourceName(stanfordRow));
                catch connectionError
                    assignin("base","connectionError",connectionError)
                    error('Unable to identify RF generator.')
                end
 
-               h.uncommonProperties.connectionType = 'visadev';
+               obj.uncommonProperties.connectionType = 'visadev';
 
             case {'wf','windfreak'}
-                h.connectionInfo.vendor = 'wf'; %Standardization
+                obj.connectionInfo.vendor = 'wf'; %Standardization
                %Validates that config info has needed fields
-               mustContainField(h.connectionInfo,{'comPort','baudRate'})
+               mustContainField(obj.connectionInfo,{'comPort','baudRate'})
 
                %If no com port is given, check it using general function
-               if isempty(h.connectionInfo.comPort)
-                  h.connectionInfo.comPort = instrumentType.checkPort();
+               if isempty(obj.connectionInfo.comPort)
+                  obj.connectionInfo.comPort = instrumentType.checkPort();
                end
 
                %Creates connection to instrument
-               h.handshake = serialport(sprintf('COM%d',h.connectionInfo.comPort),h.connectionInfo.baudRate);
+               obj.handshake = serialport(sprintf('COM%d',obj.connectionInfo.comPort),obj.connectionInfo.baudRate);
 
-               h.uncommonProperties.connectionType = 'com';
+               obj.uncommonProperties.connectionType = 'com';
 
                %Whenever a setting is changed for windfreak, it stalls out for ~4-5 seconds and cannot answer queries
                %This setting bypasses ordinary check that makes sure setting has changed properly
                %This does mean, however, that it may be more susceptible to errors
-               h.uncommonProperties.bypassPostCheck = true;
+               obj.uncommonProperties.bypassPostCheck = true;
 
             otherwise
                error('Invalid vendor. Must be SRS or windfreak')
          end
 
-         h.connected = true;
-         h = queryFrequency(h);
-         h = queryAmplitude(h);
-         h = queryToggle(h);
-         h = queryModulationToggle(h);
-         h = queryModulationWaveform(h);
-         h = queryModulationType(h);
+         obj.connected = true;
+         obj = queryFrequency(obj);
+         obj = queryAmplitude(obj);
+         obj = queryToggle(obj);
+         obj = queryModulationToggle(obj);
+         obj = queryModulationWaveform(obj);
+         obj = queryModulationType(obj);
       end
 
-      function h = disconnect(h)
-         if ~h.connected    
+      function obj = disconnect(obj)
+         if ~obj.connected    
              return;   
          end
-         if ~isempty(h.handshake)
-            h.handshake = [];
+         if ~isempty(obj.handshake)
+            obj.handshake = [];
          end
-         h.connected = false;
+         obj.connected = false;
       end
 
-      function h = toggle(h,setState)
-         h.enabled = setState;
+      function obj = toggle(obj,setState)
+         obj.enabled = setState;
       end
 
-      function h = modulationToggle(h,setState)
-         h.modulationEnabled = setState;
+      function obj = modulationToggle(obj,setState)
+         obj.modulationEnabled = setState;
       end
    end
 
    methods %Internal Functions
 
-      function [h,numericalData] = readNumber(h,attributeQuery)          
-          [h,numericalData] = readInstrument(h,attributeQuery);
+      function [obj,numericalData] = readNumber(obj,attributeQuery)          
+          [obj,numericalData] = readInstrument(obj,attributeQuery);
          numericalData = str2double(numericalData);          
       end
 
-      function h = writeNumber(h,attribute,numericalInput)          
-         inputCommand = sprintf(h.commands.(attribute),numericalInput);
+      function obj = writeNumber(obj,attribute,numericalInput)          
+         inputCommand = sprintf(obj.commands.(attribute),numericalInput);
          %For windfreak, a decimal is required otherwise it gives errors
-         if strcmp(h.connectionInfo.vendor,'wf')
+         if strcmp(obj.connectionInfo.vendor,'wf')
              if ~contains(inputCommand,'.')
                  inputCommand(end+1:end+2) = '.0';
              end
          end
-         h = writeInstrument(h,inputCommand);         
+         obj = writeInstrument(obj,inputCommand);         
       end
 
-      function [h,toggleStatus] = readToggle(h,attributeQuery)
-         [h,toggleStatus] = readInstrument(h,attributeQuery);
+      function [obj,toggleStatus] = readToggle(obj,attributeQuery)
+         [obj,toggleStatus] = readInstrument(obj,attributeQuery);
       end
 
-      function h = writeToggle(h,toggleCommand) 
-         h = writeInstrument(h,toggleCommand);
+      function obj = writeToggle(obj,toggleCommand) 
+         obj = writeInstrument(obj,toggleCommand);
          pause(.01)%Wait for RF generator to adjust
       end
 
-      function [h,stringOut] = readString(h)
-         [h,stringOut] = readInstrument(h);
+      function [obj,stringOut] = readString(obj)
+         [obj,stringOut] = readInstrument(obj);
       end
 
-      function writeString(h,stringInput)
-         writeInstrument(h,stringInput);
+      function writeString(obj,stringInput)
+         writeInstrument(obj,stringInput);
          pause(.01)%Wait for RF generator to adjust
       end
 
    end
 
    methods %Instrument Queries
-      function h = queryFrequency(h)
+      function obj = queryFrequency(obj)
           %Windfreak is stupid and gives different units for output than
           %for input
-          if strcmp(h.connectionInfo.vendor,'wf')
-              [h,newVal] = writeNumberProtocol(h,'frequency','query',[],1e-3);
+          if strcmp(obj.connectionInfo.vendor,'wf')
+              [obj,newVal] = writeNumberProtocol(obj,'frequency','query',[],1e-3);
           else
-              [h,newVal] = writeNumberProtocol(h,'frequency','query');
+              [obj,newVal] = writeNumberProtocol(obj,'frequency','query');
           end  
-         h.frequency = newVal;
+         obj.frequency = newVal;
       end
 
-      function h = queryAmplitude(h)
-         [h,newVal] = writeNumberProtocol(h,'amplitude','query');
-         h.amplitude = newVal;
+      function obj = queryAmplitude(obj)
+         [obj,newVal] = writeNumberProtocol(obj,'amplitude','query');
+         obj.amplitude = newVal;
       end
 
-      function h = queryToggle(h)
-         [h,newVal] = writeToggleProtocol(h,'query');
-         h.enabled = newVal;
+      function obj = queryToggle(obj)
+         [obj,newVal] = writeToggleProtocol(obj,'query');
+         obj.enabled = newVal;
       end
 
-      function h = queryModulationToggle(h)
+      function obj = queryModulationToggle(obj)
          %Custom input command rather than default naming convention
-         modToggleCmds.toggleOn = h.commands.modulationToggleOn;
-         modToggleCmds.toggleOff = h.commands.modulationToggleOff;
-         modToggleCmds.query = h.commands.modulationToggleQuery;
+         modToggleCmds.toggleOn = obj.commands.modulationToggleOn;
+         modToggleCmds.toggleOff = obj.commands.modulationToggleOff;
+         modToggleCmds.query = obj.commands.modulationToggleQuery;
          modToggleCmds.toggleName = 'modulationEnabled';
-         [h,foundState] = writeToggleProtocol(h,'query',modToggleCmds);
-         h.modulationEnabled = foundState;
+         [obj,foundState] = writeToggleProtocol(obj,'query',modToggleCmds);
+         obj.modulationEnabled = foundState;
       end
 
-      function h = queryModulationWaveform(h)
-         writeString(h,h.commands.modulationWaveformQuery)
-         [h,waveNumber] = readString(h);
+      function obj = queryModulationWaveform(obj)
+         writeString(obj,obj.commands.modulationWaveformQuery)
+         [obj,waveNumber] = readString(obj);
          waveNumber = s2c(waveNumber);
          switch waveNumber(1)
             case '0'
-               h.modulationWaveform = 'sine';
+               obj.modulationWaveform = 'sine';
             case '1'
-               h.modulationWaveform = 'ramp';
+               obj.modulationWaveform = 'ramp';
             case '2'
-               h.modulationWaveform = 'triangle';
+               obj.modulationWaveform = 'triangle';
             case '3'
-               h.modulationWaveform = 'square';
+               obj.modulationWaveform = 'square';
             case '4'
-               h.modulationWaveform = 'noise';
+               obj.modulationWaveform = 'noise';
             case '5'
-               h.modulationWaveform = 'external';
+               obj.modulationWaveform = 'external';
          end         
       end
 
-      function [h,modType] = queryModulationType(h)
-         writeString(h,h.commands.modulationTypeQuery)
-         [h,modType] = readString(h);
+      function [obj,modType] = queryModulationType(obj)
+         writeString(obj,obj.commands.modulationTypeQuery)
+         [obj,modType] = readString(obj);
          modType = s2c(modType);
          switch modType(1)
              case '0'
-                 h.modulationType = 'amplitude';
+                 obj.modulationType = 'amplitude';
              case '6'
-                 h.modulationType = 'I/Q';
+                 obj.modulationType = 'I/Q';
              otherwise
-                 h.modulationType = 'unknown';
+                 obj.modulationType = 'unknown';
          end
       end
 
@@ -221,59 +221,59 @@ classdef RF_generator < instrumentType
 
    methods %Variable Set Functions
 
-      function set.frequency(h,val)
+      function set.frequency(obj,val)
           %Windfreak is stupid and gives different units for output than
           %for input         
-          if strcmp(h.connectionInfo.vendor,'wf')
-              [h,newVal] = writeNumberProtocol(h,'frequency',val,[],1e-3);
+          if strcmp(obj.connectionInfo.vendor,'wf')
+              [obj,newVal] = writeNumberProtocol(obj,'frequency',val,[],1e-3);
           else
-              [h,newVal] = writeNumberProtocol(h,'frequency',val);
+              [obj,newVal] = writeNumberProtocol(obj,'frequency',val);
           end          
-          h.frequency = newVal;     
+          obj.frequency = newVal;     
       end
 
-      function set.amplitude(h,val)
-         [h,newVal] = writeNumberProtocol(h,'amplitude',val);
-          h.amplitude = newVal;
+      function set.amplitude(obj,val)
+         [obj,newVal] = writeNumberProtocol(obj,'amplitude',val);
+          obj.amplitude = newVal;
       end
 
-      function set.enabled(h,val)
-         [h,foundState] = writeToggleProtocol(h,val);
-          h.enabled = foundState;
+      function set.enabled(obj,val)
+         [obj,foundState] = writeToggleProtocol(obj,val);
+          obj.enabled = foundState;
       end
 
-      function set.modulationEnabled(h,val)
-         modToggleCmds.toggleOn = h.commands.modulationToggleOn; %#ok<*MCSUP>
-         modToggleCmds.toggleOff = h.commands.modulationToggleOff;
-         modToggleCmds.query = h.commands.modulationToggleQuery;
+      function set.modulationEnabled(obj,val)
+         modToggleCmds.toggleOn = obj.commands.modulationToggleOn; %#ok<*MCSUP>
+         modToggleCmds.toggleOff = obj.commands.modulationToggleOff;
+         modToggleCmds.query = obj.commands.modulationToggleQuery;
          modToggleCmds.toggleName = 'modulationEnabled';
-         [h,foundState] = writeToggleProtocol(h,val,modToggleCmds); 
-         h.modulationEnabled = foundState;
+         [obj,foundState] = writeToggleProtocol(obj,val,modToggleCmds); 
+         obj.modulationEnabled = foundState;
       end
 
-      function set.modulationType(h,val)
+      function set.modulationType(obj,val)
          %Can theoretically resend modulation type already present by using "improper" name
          %i.e. 'i/q' when it is currently set to 'iq'. This is so minor I am not fixing it
-         if strcmpi(h.modulationType,val)
-            printOut(h,sprintf('Modulation type already %s',h.modulationType))
+         if strcmpi(obj.modulationType,val)
+            printOut(obj,sprintf('Modulation type already %s',obj.modulationType))
             return
          end
 
          switch lower(val)
             case {'iq','i/q'}
-               h = writeNumber(h,'modulationType',6);
-               writeString(h,h.commands.modulationExternalIQ)             
+               obj = writeNumber(obj,'modulationType',6);
+               writeString(obj,obj.commands.modulationExternalIQ)             
             case 'amplitude'
-               h = writeNumber(h,'modulationType',0);
+               obj = writeNumber(obj,'modulationType',0);
             otherwise
                error('Invalid waveform type. Must be I/Q, or amplitude')
          end      
-         h.modulationType = val;
+         obj.modulationType = val;
       end
 
-      function set.modulationWaveform(h,val)
-         if strcmpi(h.modulationWaveform,val)
-            printOut(h,sprintf('Modulation waveform already %s',val))
+      function set.modulationWaveform(obj,val)
+         if strcmpi(obj.modulationWaveform,val)
+            printOut(obj,sprintf('Modulation waveform already %s',val))
             return
          end
          switch lower(val)
@@ -292,8 +292,8 @@ classdef RF_generator < instrumentType
             otherwise
                error('Invalid waveform type. Must be sine, ramp, triangle, square, noise, or external')
          end
-         h = writeNumber(h,'modulationWaveform',n);
-         h.modulationWaveform = val;
+         obj = writeNumber(obj,'modulationWaveform',n);
+         obj.modulationWaveform = val;
       end
 
    end

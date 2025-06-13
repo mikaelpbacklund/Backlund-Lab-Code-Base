@@ -24,7 +24,7 @@ classdef cam < instrumentType
 
    methods
 
-      function h = cam(configFileName)
+      function obj = cam(configFileName)
          %Creates cam object
 
          if nargin < 1
@@ -35,75 +35,75 @@ classdef cam < instrumentType
          configFields = {'manufacturer','imageType','defaults'};
          commandFields = {};
          numericalFields = {};
-         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+         obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);
 
          %Set identifier as given name
-         h.identifier = 'Hamamatsu';
+         obj.identifier = 'Hamamatsu';
       end
       
-      function delete(h)
+      function delete(obj)
       %What happens when the object is deleted
       %Turn off camera if possible before clearing object
-         if ~isempty(h.camera)
+         if ~isempty(obj.camera)
             try
-            stop(h.camera)
+            stop(obj.camera)
             catch
             end
          end
       end
 
-      function h = connect(h)
+      function obj = connect(obj)
          try
          %Creates the connection to the camera and its source
-         h.camera = videoinput(h.manufacturer,1,h.imageType);
-         h.source = getselectedsource(h.camera);
-         h.connected = true;
+         obj.camera = videoinput(obj.manufacturer,1,obj.imageType);
+         obj.source = getselectedsource(obj.camera);
+         obj.connected = true;
 
          %Overrides only the values that aren't already set with either
          %their preset or default value
-         h = instrumentType.overrideStruct(h,checkSettings(h,fieldnames(h.presets)));
+         obj = instrumentType.overrideStruct(obj,checkSettings(obj,fieldnames(obj.presets)));
          
          %Sets logging to RAM allocated to MatLab rather than saving to
          %disk which takes longer and makes a file
-         h.camera.LoggingMode = 'memory';
+         obj.camera.LoggingMode = 'memory';
          
          %When triggered, immediately takes frames
-         triggerconfig(h.camera, 'immediate');
+         triggerconfig(obj.camera, 'immediate');
          
          %Sets the camera to an active state, ready to be triggered
-         start(h.camera)
+         start(obj.camera)
          
-         printOut(h,'Camera Connected')
+         printOut(obj,'Camera Connected')
          catch ME
-            h.connected = false;
+            obj.connected = false;
             rethrow(ME)
          end
       end
       
-      function [averageImages,frameStacks] = takeImage(h)
-         checkConnection(h)
+      function [averageImages,frameStacks] = takeImage(obj)
+         checkConnection(obj)
          
          %This block of code is used to prevent the camera from ever
          %getting a frame value above 100 (which would cause an error). I
          %am dividing the total frames into sets of 100 and an additional
          %last set of whatever the leftover value is
-         storedFPT = h.camera.FramesPerTrigger;
-         nsets = ceil(h.camera.FramesPerTrigger /100);
-         lastset = mod(h.camera.FramesPerTrigger,100);
-         h.framesPerTrigger = 100;
+         storedFPT = obj.camera.FramesPerTrigger;
+         nsets = ceil(obj.camera.FramesPerTrigger /100);
+         lastset = mod(obj.camera.FramesPerTrigger,100);
+         obj.framesPerTrigger = 100;
          
          for kk = 1:nsets
             %If this is the last set, change the frames per trigger to be
             %whatever the leftover value is
             if kk == nsets
-               h.camera.FramesPerTrigger = lastset;
+               obj.camera.FramesPerTrigger = lastset;
             end
             
             %Tells camera to take frames
-            trigger(h.camera)
+            trigger(obj.camera)
             
             %Obtains data from camera
-            totalImageOut = getdata(h.camera);
+            totalImageOut = getdata(obj.camera);
             
             %Converts to 3D array. Unsure why a 4th is created in the first place
             totalImageOut = double(squeeze(totalImageOut));
@@ -119,56 +119,56 @@ classdef cam < instrumentType
          end
 
          %Get number of expected output images
-         nOutputs = getNumberOfImageOutputs(h,size(totalFrames(:,:,1)));
+         nOutputs = getNumberOfImageOutputs(obj,size(totalFrames(:,:,1)));
          
          %For each set of bounds, take the overall frame stack and cut it
          %down to the correct bounds. Then take the average of that cut
          %image to output
-         for ii = 1:numel(h.useBounds)
-            cutFrameStack = totalFrames(h.bounds{ii,1}(1):h.bounds{ii,1}(2),h.bounds{ii,2}(1):h.bounds{ii,2}(2),:);
+         for ii = 1:numel(obj.useBounds)
+            cutFrameStack = totalFrames(obj.bounds{ii,1}(1):obj.bounds{ii,1}(2),obj.bounds{ii,2}(1):obj.bounds{ii,2}(2),:);
             averageImages{ii} = mean(cutFrameStack,3); %#ok<AGROW>
-            if h.outputFrameStack
+            if obj.outputFrameStack
                frameStacks{ii} = cutFrameStack; %#ok<AGROW>               
             end        
          end
 
          %If number of outputs and number of bounds are not the same, an additional set of images will be added that is
          %for the entire image
-         if numel(h.useBounds) ~= nOutputs
+         if numel(obj.useBounds) ~= nOutputs
             averageImages{end+1} = mean(totalFrames,3);
-            if h.outputFrameStack
+            if obj.outputFrameStack
                frameStacks{end+1} = totalFrames;
             end
          end
 
          %Adds empty output for frameStacks if outputFrameStack is off
-         if ~h.outputFrameStack
+         if ~obj.outputFrameStack
             frameStacks = [];
          end
          
          %Sets frames back to original
-         h.framesPerTrigger = storedFPT;
+         obj.framesPerTrigger = storedFPT;
          
       end
       
-      function h = boundSelector(h)
-         checkConnection(h)
+      function obj = boundSelector(obj)
+         checkConnection(obj)
          
          %Saves previous camera settings
-         oldFramesPerTrigger = h.camera.FramesPerTrigger;
-         h.camera.FramesPerTrigger = 1;
-         oldFullImage = h.outputFullImage;
-         h.outputFullImage = true;
+         oldFramesPerTrigger = obj.camera.FramesPerTrigger;
+         obj.camera.FramesPerTrigger = 1;
+         oldFullImage = obj.outputFullImage;
+         obj.outputFullImage = true;
 
          %Deletes previous bounds
-         h.bounds = {};
+         obj.bounds = {};
          
          %Takes image that will be used to select the bounds
-         totalIm = takeImage(h);
+         totalIm = takeImage(obj);
          
          %Resets camera settings back to what they were originally
-         h.camera.FramesPerTrigger = oldFramesPerTrigger;
-         h.outputFullImage = oldFullImage;
+         obj.camera.FramesPerTrigger = oldFramesPerTrigger;
+         obj.outputFullImage = oldFullImage;
          
          %Two while loops. External loop is for selecting different sets of
          %bounds. Internal loop is for ensuring the bounds selected are
@@ -206,8 +206,8 @@ classdef cam < instrumentType
             %Saves the selected bounds to the cam object
             %nx2 cell array where first column is for row bounds and second
             %is for column bounds
-            h.bounds{n,1} = rowBound;
-            h.bounds{n,2} = colBound;
+            obj.bounds{n,1} = rowBound;
+            obj.bounds{n,2} = colBound;
             
             %If more bounds are desired, restart process and increment
             %counting variable
@@ -217,7 +217,7 @@ classdef cam < instrumentType
          end
       end
       
-      function blankOutput = generateBlankOutput(h,varargin)
+      function blankOutput = generateBlankOutput(obj,varargin)
          %Creates a blank output based on the current bounds and settings
          %2nd argument is the full image size
 
@@ -225,14 +225,14 @@ classdef cam < instrumentType
 
          %For each set of bounds, find the x and y range then make a matrix
          %of zeros according to that size
-         for ii = 1:numel(h.bounds)
+         for ii = 1:numel(obj.bounds)
             xRange = 1 + ex.hamm.bounds{ii,2}(2) - ex.hamm.bounds{ii,2}(1);
             yRange = 1+ ex.hamm.bounds{ii,1}(2) - ex.hamm.bounds{ii,1}(1);
             blankOutput{end+1} = zeros(yRange,xRange); %#ok<AGROW>
          end
 
          %Adds another matrix the size of the full image if it is enabled
-         if h.outputFullImage            
+         if obj.outputFullImage            
             if nargin == 1
                error('Full image size (2nd argument) must be included if outputFullImage is enabled')
             end
@@ -241,34 +241,34 @@ classdef cam < instrumentType
          end
 
          %Repeat for frame stack if enabled
-         if h.outputFrameStack
-            for ii = 1:numel(h.bounds)
+         if obj.outputFrameStack
+            for ii = 1:numel(obj.bounds)
                xRange = ex.hamm.bounds{ii,2}(2) - ex.hamm.bounds{ii,2}(1);
                yRange = ex.hamm.bounds{ii,1}(2) - ex.hamm.bounds{ii,1}(1);
-               blankOutput{end+1} = zeros(yRange,xRange,h.framesPerTrigger); %#ok<AGROW>
+               blankOutput{end+1} = zeros(yRange,xRange,obj.framesPerTrigger); %#ok<AGROW>
             end
-            if h.outputFullImage
-               blankOutput{end+1} = zeros(fullImageSize(1),fullImageSize(2),h.framesPerTrigger);
+            if obj.outputFullImage
+               blankOutput{end+1} = zeros(fullImageSize(1),fullImageSize(2),obj.framesPerTrigger);
             end
          end
 
       end
 
-      function nOutputs = getNumberOfImageOutputs(h,totalSize)
+      function nOutputs = getNumberOfImageOutputs(obj,totalSize)
          %Find number of outputs that will be present based on number of bounds and whether those bounds match the full
          %image
 
-         nOutputs = size(h.bounds,1);
+         nOutputs = size(obj.bounds,1);
 
          %If outputFullImage is off, number of outputs will just be number of bounds
-         if ~h.outputFullImage
+         if ~obj.outputFullImage
             return
          end
 
          %Checks each set of bounds to see if it matches the total size
          hasMaxSizeBounds  = false;
          for ii = 1:nOutputs
-            if [h.bounds{ii,1}(1),h.bounds{ii,1}(2);h.bounds{ii,2}(1),h.bounds{ii,2}(2)] == [1,size(totalSize,1);1,size(totalSize,2)]
+            if [obj.bounds{ii,1}(1),obj.bounds{ii,1}(2);obj.bounds{ii,2}(1),obj.bounds{ii,2}(2)] == [1,size(totalSize,1);1,size(totalSize,2)]
                hasMaxSizeBounds  = true;
             end
          end
@@ -291,62 +291,62 @@ classdef cam < instrumentType
       %because it will not be the same as the real value within source.
       %Thus, I make exposureTime dependent on the value within source,
       %circumnavigating this issue
-      function h = setParameter(h,val,varName,internalName)         
-         if h.connected
-            h.source.(internalName) = val;
+      function obj = setParameter(obj,val,varName,internalName)         
+         if obj.connected
+            obj.source.(internalName) = val;
          else
-            h.presets.(varName) = val;
+            obj.presets.(varName) = val;
          end
       end
-      function val = getParameter(h,varName,internalName)
-         if h.connected
-            val = h.source.(internalName);
-         elseif isfield(h.presets,varName) && ~isempty(h.presets.(varName))
-            val = h.presets.(varName);
-         elseif isfield(h.defaults,varName) && ~isempty(h.defaults.(varName))
-            val = h.defaults.(varName);
+      function val = getParameter(obj,varName,internalName)
+         if obj.connected
+            val = obj.source.(internalName);
+         elseif isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
+            val = obj.presets.(varName);
+         elseif isfield(obj.defaults,varName) && ~isempty(obj.defaults.(varName))
+            val = obj.defaults.(varName);
          else
             val  =[];
          end
       end      
 
-      function set.exposureTime(h,val)
-         h = setParameter(h,val,'exposureTime','ExposureTime'); %#ok<NASGU>
+      function set.exposureTime(obj,val)
+         obj = setParameter(obj,val,'exposureTime','ExposureTime'); %#ok<NASGU>
       end
-      function val = get.exposureTime(h)
-         val = setParameter(h,'exposureTime','ExposureTime');
-      end
-
-      function set.defectCorrectionEnabled(h,val)
-         h = setParameter(h,val,'defectCorrectionEnabled','DefectCorrect'); %#ok<NASGU>
-      end
-      function val = get.defectCorrectionEnabled(h)
-         val = setParameter(h,'defectCorrectionEnabled','DefectCorrect');
+      function val = get.exposureTime(obj)
+         val = setParameter(obj,'exposureTime','ExposureTime');
       end
 
-      function set.defectCorrectionLevel(h,val)
-         h = setParameter(h,val,'defectCorrectionLevel','HotPixelCorrectionLevel'); %#ok<NASGU>
+      function set.defectCorrectionEnabled(obj,val)
+         obj = setParameter(obj,val,'defectCorrectionEnabled','DefectCorrect'); %#ok<NASGU>
       end
-      function val = get.defectCorrectionLevel(h)
-         val = setParameter(h,'defectCorrectionLevel','HotPixelCorrectionLevel');
+      function val = get.defectCorrectionEnabled(obj)
+         val = setParameter(obj,'defectCorrectionEnabled','DefectCorrect');
+      end
+
+      function set.defectCorrectionLevel(obj,val)
+         obj = setParameter(obj,val,'defectCorrectionLevel','HotPixelCorrectionLevel'); %#ok<NASGU>
+      end
+      function val = get.defectCorrectionLevel(obj)
+         val = setParameter(obj,'defectCorrectionLevel','HotPixelCorrectionLevel');
       end
 
       %FramesPerTrigger is in camera not in source
-      function set.framesPerTrigger(h,val)
-         if h.connected
-            h.camera.FramesPerTrigger = val;
+      function set.framesPerTrigger(obj,val)
+         if obj.connected
+            obj.camera.FramesPerTrigger = val;
          else
-            h.presets.framesPerTrigger = val;
+            obj.presets.framesPerTrigger = val;
          end
       end
-      function val = get.framesPerTrigger(h)
+      function val = get.framesPerTrigger(obj)
          varName = 'framesPerTrigger';
-         if h.connected
-            val = h.camera.FramesPerTrigger;
-         elseif isfield(h.presets,varName) && ~isempty(h.presets.(varName))
-            val = h.presets.(varName);
-         elseif isfield(h.defaults,varName) && ~isempty(h.defaults.(varName))
-            val = h.defaults.(varName);
+         if obj.connected
+            val = obj.camera.FramesPerTrigger;
+         elseif isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
+            val = obj.presets.(varName);
+         elseif isfield(obj.defaults,varName) && ~isempty(obj.defaults.(varName))
+            val = obj.defaults.(varName);
          else 
             val = [];
          end

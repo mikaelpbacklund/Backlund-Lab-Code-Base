@@ -1,91 +1,123 @@
 classdef DAQ_controller < instrumentType
-   %The purpose of this class is to provide a very simple end user
-   %experience. Essentially everything that is done here could be
-   %replicated within a script without too much difficulty, but by using
-   %this class it is shorter and more readable.
+   %DAQ_controller - Controls and manages data acquisition devices
+   %
+   % Features:
+   %   - Automatic device detection and connection
+   %   - Support for analog, digital, and counter channels
+   %   - Signal/reference differentiation
+   %   - Continuous and discrete data collection modes
+   %
+   % Usage:
+   %   daq = DAQ_controller('configFileName.json');
+   %   daq.connect();
+   %   daq.setDataChannel(1);
+   %   data = daq.readDAQData();
+   %
+   % Dependencies:
+   %   - MATLAB Data Acquisition Toolbox
+   %   - JSON configuration file with channel definitions
+   %
+   % See also: instrumentType, daq
 
-   %To change ports in use, you need to disconnect the DAQ, change the
-   %config, then reconnect
-
+   %% User Configurable Properties
    properties (Dependent)
-      %User editable, stored within handshake
-      continuousCollection
-      takeData
-      activeDataChannel      
-      differentiateSignal          
+      % Properties that can be modified by the user
+      continuousCollection    % Enable/disable continuous data collection
+      takeData               % Enable/disable data collection
+      activeDataChannel      % Currently active data channel
+      differentiateSignal    % Enable/disable signal/reference differentiation
    end
 
+   %% Internal Properties
    properties (SetAccess = {?DAQ_controller ?instrumentType}, GetAccess = public)
-      %Read-only for user (derived from config), stored in properties
-      manufacturer
-      analogPortNames
-      digitalPortNames
-      counterPortNames
-      daqName
-      handshake
-      channelInfo
-      clockPort
-      dataChannels   
+      % Properties managed internally by the class
+      manufacturer           % DAQ device manufacturer
+      analogPortNames        % Available analog port names
+      digitalPortNames       % Available digital port names
+      counterPortNames       % Available counter port names
+      daqName               % Name of the connected DAQ device
+      handshake             % DAQ device connection handle
+      channelInfo           % Channel configuration information
+      clockPort             % Clock port configuration
+      dataChannels          % Available data channels
+      
+      % Data collection configuration
+      scanBufferMultiplier  % Multiplier for buffer overflow detection
+      minScansAvailable     % Minimum number of scans required for processing
+      maxErrorCount         % Maximum number of errors before stopping
+      voltageScaleFactor    % Scale factor for voltage data conversion
+      maxDataPoints         % Maximum number of data points to store
    end
 
+   %% Read-only Properties
    properties (Dependent, SetAccess = {?DAQ_controller ?instrumentType}, GetAccess = public)
-      %Read-only for user (derived from config), stored in handshake
-      sampleRate
-      toggleChannel
-      signalReferenceChannel
-      dataPointsTaken
-      dataAcquirementMethod
+      % Properties that are read-only for users
+      sampleRate            % Current sample rate
+      toggleChannel         % Channel used for toggling data collection
+      signalReferenceChannel % Channel used for signal/reference differentiation
+      dataPointsTaken       % Number of data points collected
+      dataAcquirementMethod % Method used for data acquisition
    end
    
    methods   
 
-      function h = DAQ_controller(configFileName)
-
+      function obj = DAQ_controller(configFileName)
+          %DAQ_controller Creates a new DAQ controller instance
+          %
+          %   obj = DAQ_controller(configFileName) creates a new DAQ controller
+          %   using the specified configuration file.
+          %
+          %   Throws:
+          %       error - If configFileName is not provided
+          
           if nargin < 1
-              error('Config file name required as input')
+              error('DAQ_controller:MissingConfig', 'Config file name required as input')
           end
 
          %Loads config file and checks relevant field names
-         configFields = {'channelInfo','clockPort','manufacturer','identifier','sampleRate'};
+         configFields = {'channelInfo','clockPort','manufacturer','identifier','sampleRate',...
+                        'scanBufferMultiplier','minScansAvailable','maxErrorCount',...
+                        'voltageScaleFactor','maxDataPoints'};
          commandFields = {};
-         numericalFields = {};%has units, conversion factor, and min/max         
-         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+         numericalFields = {}; %has units, conversion factor, and min/max         
+         obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);
       end
       
-      function h = connect(h)  
-         if h.connected
-            warning('DAQ is already connected')
-            return
+      function obj = connect(obj)  
+         %connect Establishes connection with the DAQ device
+         %
+         %   obj = connect(obj) connects to the DAQ device and initializes
+         %   channels and settings.
+         %
+         %   Throws:
+         %       error - If DAQ is already connected or multiple DAQs detected
+         
+         if obj.connected
+            error('DAQ_controller:AlreadyConnected', 'DAQ is already connected')
          end
 
          %Suppresses a warning generated by daq code provided by matlab
-         %itself in the data acquisition package. See link below for
-         %information about what the warning is specifically for but know
-         %it can pretty safely be ignored
-         %https://www.mathworks.com/matlabcentral/answers/457222-why-do-i-receive-a-warning-about-a-value-indexed-with-no-subscripts
          warning('off','MATLAB:subscripting:noSubscriptsSpecified');
          
          %Checks if config channel labels are valid
-         channels = squeeze(struct2cell(h.channelInfo));
-         channels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
+         channels = squeeze(struct2cell(obj.channelInfo));
+         channels = channels(strcmp(fieldnames(obj.channelInfo),'label'),:);
          
-         h.dataChannels = find(contains(lower(channels),'data'));
-         h.toggleChannel = find(contains(lower(channels),'toggle')  | contains(lower(channels),'enable'));
-         h.signalReferenceChannel = find(contains(lower(channels),'signal') | contains(lower(channels),'reference'));
+         obj.dataChannels = find(contains(lower(channels),'data'));
+         obj.toggleChannel = find(contains(lower(channels),'toggle')  | contains(lower(channels),'enable'));
+         obj.signalReferenceChannel = find(contains(lower(channels),'signal') | contains(lower(channels),'reference'));
          
-         if isempty(h.dataChannels)
-            error('Config file must contain a channel with a label containing "data"')
+         if isempty(obj.dataChannels)
+            error('DAQ_controller:MissingDataChannel', 'Config file must contain a channel with a label containing "data"')
          end
-         if numel(h.toggleChannel) ~= 1
-            error('Config file must contain exactly 1 channel with a label containing "toggle" or "enable"')
+         if numel(obj.toggleChannel) ~= 1
+            error('DAQ_controller:InvalidToggleChannel', 'Config file must contain exactly 1 channel with a label containing "toggle" or "enable"')
          end
-         if numel(h.signalReferenceChannel) ~= 1
-            error('Config file must contain exactly 1 channel with a label containing "signal" or "reference"')
+         if numel(obj.signalReferenceChannel) ~= 1
+            error('DAQ_controller:InvalidSignalChannel', 'Config file must contain exactly 1 channel with a label containing "signal" or "reference"')
          end
          
-         %I hate tables and do not understand how to use them efficiently
-          %Calling substructures is overly complicated to do and works in a
-          %way that my brain does not accept
+         %Find non-simulated device
          a = daqlist;
          b = a.DeviceInfo;
          c = a.DeviceID;
@@ -93,204 +125,71 @@ classdef DAQ_controller < instrumentType
             isSimulated(ii) = b(ii).IsSimulated; %#ok<AGROW>
          end
          
-         %Finds the non-simulated device and stores that as the name
-         h.daqName = c(~isSimulated);
+         obj.daqName = c(~isSimulated);
 
-         if numel(h.daqName) > 1
-             error('Multiple DAQs detected')
+         if numel(obj.daqName) > 1
+             error('DAQ_controller:MultipleDevices', 'Multiple DAQs detected')
          end
          
-         %Stores list of names of ports corresponding to various types of
-         %inputs
-         h.analogPortNames = b(~isSimulated).Subsystems(1).ChannelNames;
-         h.digitalPortNames = b(~isSimulated).Subsystems(3).ChannelNames;
-         h.counterPortNames = b(~isSimulated).Subsystems(4).ChannelNames;         
+         %Store port names
+         obj.analogPortNames = b(~isSimulated).Subsystems(1).ChannelNames;
+         obj.digitalPortNames = b(~isSimulated).Subsystems(3).ChannelNames;
+         obj.counterPortNames = b(~isSimulated).Subsystems(4).ChannelNames;         
          
-         %Creates the connection with the DAQ itself
-         h.handshake = daq(h.manufacturer);
-         h.handshake.Rate = h.sampleRate;
+         %Create DAQ connection
+         obj.handshake = daq(obj.manufacturer);
+         obj.handshake.Rate = obj.sampleRate;
 
-         %Needs to be true for following functions to run
-         h.connected = true;
-
-         h.identifier = 'DAQ';
+         obj.connected = true;
+         obj.identifier = 'DAQ';
          
-         %Default values
-         h = setDataChannel(h,1);
-         h = setContinuousCollection(h,'on');
-         h = setSignalDifferentiation(h,'on');
-         h.takeData = false;
-         h.toggleChannel = h.defaults.toggleChannel;
-         h.signalReferenceChannel = h.defaults.signalReferenceChannel;  
+         %Set default values
+         obj = setDataChannel(obj,1);
+         obj = setContinuousCollection(obj,'on');
+         obj = setSignalDifferentiation(obj,'on');
+         obj.takeData = false;
+         obj.toggleChannel = obj.defaults.toggleChannel;
+         obj.signalReferenceChannel = obj.defaults.signalReferenceChannel;  
 
-         %Sets the function that is triggered whenever the DAQ has the
-         %amount of scans set by ScansAvailableFcnCount. This is how data
-         %is read off the DAQ
-         h.handshake.ScansAvailableFcn = @storeData;
+         %Set data collection callback
+         obj.handshake.ScansAvailableFcn = @storeData;
          
-         %Add each channel based on config info
-         for ii = 1:numel(h.channelInfo)
-            h = addChannel(h,h.channelInfo(ii));    
+         %Add channels
+         for ii = 1:numel(obj.channelInfo)
+            obj = addChannel(obj,obj.channelInfo(ii));    
          end 
-         
-%          addclock(h.handshake,'ScanClock','External',strcat(h.daqName,'/',h.clockPort))
-         
-         function handshake = storeData(handshake,evt) %#ok<INUSD> 
-             % warnError = warning('error', 'MATLAB:DELETE:Permission');%Turns warning into error such that it can be caught
-             try
-            %User data is 2 cell array. First cell is a 1x2 matrix for
-            %signal and reference. The second cell is a structure that
-            %contains information about the data channel, signal reference
-            %channel, and differentiating signal and reference as well as
-            %whether data should be taken at all
-            collectionInfo = handshake.UserData;%Shorthand
-            %Reduce number of scans available by 1 to recover from indexing
-            %errors caused by NI code. I cannot fix this at the source so
-            %it is necessary to fix the symptoms instead
-            scansAvailable = handshake.NumScansAvailable-5;
-            if scansAvailable > handshake.ScansAvailableFcnCount * 100
-                [~] = read(handshake,scansAvailable,"OutputFormat","Matrix"); 
-                return
-            end
-            
-            %If no data channel has been designated, or if data collection
-            %has been disabled, or if no S/R channel has been designated
-            %while differentiation of S/R is enabled, stop this function
-            if ~collectionInfo.takeData || isempty(collectionInfo.dataChannelNumber) || isempty(collectionInfo.toggleChannel)...
-                  || (isempty(collectionInfo.signalReferenceChannel) && collectionInfo.differentiateSignal) || scansAvailable <= 5
-                return
-            end
-            
-            %Read off the data from the device in matrix form
-            unsortedData = read(handshake,scansAvailable,"OutputFormat","Matrix");             
-            
-            if strcmpi(collectionInfo.dataType,'EdgeCount')
-               %Take difference between each data point and the prior one.
-               %This is what is used to actually measure count increases
-                counterDifference = diff(unsortedData(:,collectionInfo.dataChannelNumber));                
-                
-                %Create logical vector corresponding to whether a
-                %difference should be counted or not
-                dataOn = unsortedData(2:end,collectionInfo.toggleChannel);
-                
-               if ~collectionInfo.differentiateSignal
-                  sig = 0;
-                  ref = sum(counterDifference(dataOn));%All data put into reference
-               else
-                  %Determine whether data should be signal or reference
-                  %like what was done with dataOn. Then put all count
-                  %increases corresponding to the signal channel being on
-                  %into signal, and data where the signal channel is off in
-                  %reference
-                  signalOn = unsortedData(2:end,collectionInfo.signalReferenceChannel);
-                  sig = sum(counterDifference(signalOn & dataOn));
-                  ref = sum(counterDifference(~signalOn & dataOn));
-               end
-               handshake.UserData.currentCounts = unsortedData(end,collectionInfo.dataChannelNumber);
-               if ref < 0 || sig < 0
-                   assignin("base","rawDataFromDAQ",unsortedData)
-                   warning('Negative counts obtained, discarding data')
-                   ref = 0;
-                   sig = 0;
-               end
-               
-            else%Voltage
-               dataOn = boolean(unsortedData(:,collectionInfo.toggleChannel));               
-               if any(dataOn)
-                   if strcmpi(collectionInfo.differentiateSignal,'off')
-                       %No signal/reference differentiation
-                       ref = sum(unsortedData(dataOn,collectionInfo.dataChannelNumber));
-                       sig = 0;
-                   else
-                       signalOn = boolean(unsortedData(:,collectionInfo.signalReferenceChannel));
-                       % nCutLocations = 0;
-                       % for jj = 1:2
-                       %     if jj == 1
-                       %         locations = find(dataOn & ~signalOn);
-                       %     else
-                       %         locations = find(dataOn & signalOn);
-                       %     end
-                       %     loopCutoffs = find(diff(locations)~=1);
-                       %     cutoffDiff = diff(loopCutoffs);
-                       %     locationToCut = loopCutoffs(cutoffDiff ~= mode(cutoffDiff))+1;
-                       %     nCutLocations = nCutLocations + numel(locationToCut);
-                       %     locations(locationToCut) = [];
-                       %     if jj == 1
-                       %         ref = sum(unsortedData(locations,collectionInfo.dataChannelNumber));
-                       %     else
-                       %         sig = sum(unsortedData(locations,collectionInfo.dataChannelNumber));
-                       %     end
-                       % end
-                       
-                       sig = sum(unsortedData(dataOn & signalOn,collectionInfo.dataChannelNumber));
-                       ref = sum(unsortedData(dataOn & ~signalOn,collectionInfo.dataChannelNumber));
-                   end
-                   % if ~isfield(handshake.UserData,'unsortedData')
-                   %     handshake.UserData.unsortedData = {};
-                   % end
-                   % if ~isfield(handshake.UserData,'dataOn')
-                   %     handshake.UserData.dataOn = {};
-                   % end
-                   % if ~isfield(handshake.UserData,'signalOn')
-                   %     handshake.UserData.signalOn = {};
-                   % end
-                   % if numel(handshake.UserData.unsortedData) < 100000
-                   %     handshake.UserData.dataOn{end+1} = dataOn;
-                   %     handshake.UserData.signalOn{end+1} = signalOn;
-                   %     convertedData = int16(unsortedData(:,collectionInfo.dataChannelNumber) .* 1000);
-                   %      handshake.UserData.unsortedData{end+1} = convertedData;
-                   % end
-               else
-                   sig = 0;
-                   ref = 0;
-               end
-               
-                
-            end
-            
-            %Add to previous values for reference and signal
-            handshake.UserData.reference = handshake.UserData.reference + ref;
-            handshake.UserData.signal = handshake.UserData.signal + sig;
-
-            if ref ~= 0 %only relevant if data was obtained
-            %Increase number of data points taken. Used primarily for
-            %analog to find average voltage
-            handshake.UserData.nPoints = handshake.UserData.nPoints + sum(dataOn);
-            % if ~strcmpi(collectionInfo.dataType,'EdgeCount') && strcmpi(collectionInfo.differentiateSignal,'on')
-            %     handshake.UserData.nPoints = handshake.UserData.nPoints - nCutLocations;
-            % end
-            elseif ~isfield(handshake.UserData,'nPoints')
-                handshake.UserData.nPoints = 0;
-            end
-
-             catch ME
-                 if ~isfield(handshake.UserData,'numErrors')
-                     handshake.UserData.numErrors = 1;
-                 else
-                    handshake.UserData.numErrors = handshake.UserData.numErrors+1;
-                 end
-                 rethrow(ME)
-             end
-
-             % warning(warnError);%Returns warning to not being error
-
-         end
-
       end
       
-      function h = disconnect(h)
-
-         if ~h.connected    
+      function obj = disconnect(obj)
+         %disconnect Disconnects from the DAQ device
+         %
+         %   obj = disconnect(obj) disconnects from the DAQ device and cleans up
+         %   resources.
+         
+         if ~obj.connected    
              return;   
          end
-         if ~isempty(h.handshake)
-            h.handshake = [];
+         if ~isempty(obj.handshake)
+            obj.handshake = [];
          end
-         h.connected = false;
+         obj.connected = false;
       end
       
-      function h = addChannel(h,channelInfo)
+      function obj = addChannel(obj,channelInfo)
+         %addChannel Adds a channel to the DAQ device
+         %
+         %   obj = addChannel(obj,channelInfo) adds a channel based on the
+         %   provided configuration.
+         %
+         %   Required fields in channelInfo:
+         %       - dataType: 'voltage', 'counter', or 'digital'
+         %       - port: Port name for the channel
+         %
+         %   Throws:
+         %       error - If required fields are missing or invalid
+         
          mustContainField(channelInfo,{'dataType','port'})
+         
          %Set data type and valid port names based on input type
          switch lower(channelInfo.dataType)
             case {'v','voltage','analog'}
@@ -303,44 +202,44 @@ classdef DAQ_controller < instrumentType
                dataType = 'Digital';
                portNames = 'digitalPortNames';
             otherwise
-               error('Invalid dataType for channel %d. Must be "voltage", "counter", or "digital"',ii)
+               error('DAQ_controller:InvalidDataType', ...
+                   'Invalid dataType for channel %d. Must be "voltage", "counter", or "digital"',ii)
          end
          
-         if ~any(strcmp(channelInfo.port,h.(portNames)))
-            error('Invalid port name. See %s for valid names',portNames)
+         if ~any(strcmp(channelInfo.port,obj.(portNames)))
+            error('DAQ_controller:InvalidPort', 'Invalid port name. See %s for valid names',portNames)
          end
 
          %Loads the indicated channel
-         addinput(h.handshake,h.daqName,channelInfo.port,dataType)
-         h.handshake.UserData.dataType = dataType;
+         addinput(obj.handshake,obj.daqName,channelInfo.port,dataType)
+         obj.handshake.UserData.dataType = dataType;
       end
       
-      function h = setDataChannel(h,channelDesignation)
-         %Sets active data channel number/name based on designation given.
-         %Designation can be any part of the channel number, the channel
-         %port, or channel label so long as it is unique to that channel
+      function obj = setDataChannel(obj,channelDesignation)
+         %setDataChannel Sets the active data channel
+         %
+         %   obj = setDataChannel(obj,channelDesignation) sets the active data
+         %   channel by number or name/port.
+         %
+         %   Throws:
+         %       error - If channelDesignation is invalid
          
          %Number input
          if isa(channelDesignation,'double')
-            if channelDesignation > numel(h.channelInfo)
-               error('%d is greater than the %d channels',channelDesignation,numel(h.channelInfo))
+            if channelDesignation > numel(obj.channelInfo)
+               error('DAQ_controller:InvalidChannelNumber', ...
+                   '%d is greater than the %d channels',channelDesignation,numel(obj.channelInfo))
             end
-            h.handshake.UserData.dataChannelNumber = channelDesignation;
-            h.activeDataChannel = h.channelInfo(channelDesignation).label;
+            obj.handshake.UserData.dataChannelNumber = channelDesignation;
+            obj.activeDataChannel = obj.channelInfo(channelDesignation).label;
             return
          end
          
          %Label/port input
-         channels = squeeze(struct2cell(h.channelInfo));
-         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
-         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
-         channelNumber = find(contains(lower(labels),lower(channelDesignation)) | contains(lower(ports),lower(channelDesignation)));
-         if numel(channelNumber) ~= 1
-            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",channelDesignation)
-         end
-         h.activeDataChannel = h.channelInfo(channelNumber).label;
-         h.handshake.UserData.dataChannelNumber = channelNumber;
-         switch lower(h.channelInfo(channelNumber).dataType)
+         channelNumber = getChannelIndex(obj, channelDesignation);
+         obj.activeDataChannel = obj.channelInfo(channelNumber).label;
+         obj.handshake.UserData.dataChannelNumber = channelNumber;
+         switch lower(obj.channelInfo(channelNumber).dataType)
             case {'v','voltage','analog'}
                dataType = 'Voltage';
             case {'counter','cntr','count','edge','edge count','edgecount'}
@@ -348,132 +247,138 @@ classdef DAQ_controller < instrumentType
             case {'digital','binary'}
                dataType = 'Digital';
          end
-         h.handshake.UserData.dataType = dataType;
+         obj.handshake.UserData.dataType = dataType;
       end
       
-      function h = setSignalDifferentiation(h,onOff)
-         %Enables or disables signal/reference differentiation
-         h.differentiateSignal = instrumentType.discernOnOff(onOff);
-         if strcmp(h.differentiateSignal,'on')
-            h.handshake.UserData.differentiateSignal = true;
-            h.continuousCollection = 'on';
+      function obj = setSignalDifferentiation(obj,onOff)
+         %setSignalDifferentiation Enables/disables signal/reference differentiation
+         %
+         %   Note: When enabled, continuous collection is automatically turned on
+         
+         obj.differentiateSignal = instrumentType.discernOnOff(onOff);
+         if strcmp(obj.differentiateSignal,'on')
+            obj.handshake.UserData.differentiateSignal = true;
+            obj.continuousCollection = 'on';
          else
-            h.handshake.UserData.differentiateSignal = false;
+            obj.handshake.UserData.differentiateSignal = false;
          end
       end
 
-      function h = setContinuousCollection(h,onOff)
-         %Sets continuous collection on or off
-         checkConnection(h)
+      function obj = setContinuousCollection(obj,onOff)
+         %setContinuousCollection Sets continuous collection mode
+         %
+         %   obj = setContinuousCollection(obj,onOff) enables/disables
+         %   continuous data collection.
+         %
+         %   Throws:
+         %       error - If DAQ is not connected
          
-         h.continuousCollection = instrumentType.discernOnOff(onOff);
+         checkConnection(obj)
+         obj.continuousCollection = instrumentType.discernOnOff(onOff);
       end
       
-      function h = resetDAQ(h)
-         %Always reset the counters for the DAQ. This is fine for both
-         %continuous and discrete operation. Discrete prepares DAQ for
-         %taking data; continuous resets counter to prevent massive number
-         %accumulation         
+      function obj = resetDAQ(obj)
+         %resetDAQ Resets DAQ counters and data collection
+         %
+         %   For continuous collection: resets accumulated data
+         %   For discrete collection: prepares for new data collection
          
          %If the DAQ is continuously gathering data (signal vs reference is
          %enabled AND/OR continuous is hard set) 
-         if strcmp(h.continuousCollection,'on') || strcmp(instrumentType.discernOnOff(h.handshake.UserData.differentiateSignal),'on')
+         if strcmp(obj.continuousCollection,'on') || strcmp(instrumentType.discernOnOff(obj.handshake.UserData.differentiateSignal),'on')
             %Set the reference and signal to 0
-            h.handshake.UserData.reference = 0;
-            h.handshake.UserData.signal = 0;
-            h.handshake.UserData.nPoints = 0;
-            h.handshake.UserData.currentCounts = 0;   
+            obj.handshake.UserData.reference = 0;
+            obj.handshake.UserData.signal = 0;
+            obj.handshake.UserData.nPoints = 0;
+            obj.handshake.UserData.currentCounts = 0;   
             %Turn on collection
-            if ~h.handshake.Running, start(h.handshake,"continuous"), end     
+            if ~obj.handshake.Running, start(obj.handshake,"continuous"), end     
          else
-            if h.handshake.Running, stop(h.handshake), end
-            resetcounters(h.handshake)
+            if obj.handshake.Running, stop(obj.handshake), end
+            resetcounters(obj.handshake)
          end
-
       end
       
-      function varargout = readDAQData(h)
-         if strcmp(h.differentiateSignal,'on')
-            varargout{1} = h.handshake.UserData.reference;
-            varargout{2} = h.handshake.UserData.signal;
-         elseif strcmp(h.continuousCollection,'on')
-            varargout{1} = h.handshake.UserData.reference;
+      function varargout = readDAQData(obj)
+         %readDAQData Reads data from the DAQ
+         %
+         %   [ref, sig] = readDAQData(obj) returns reference and signal values.
+         %   For continuous collection with differentiation, both values are
+         %   returned. For continuous collection without differentiation, only
+         %   reference is returned. For discrete collection, a single value
+         %   is returned.
+         
+         if strcmp(obj.differentiateSignal,'on')
+            varargout{1} = obj.handshake.UserData.reference;
+            varargout{2} = obj.handshake.UserData.signal;
+         elseif strcmp(obj.continuousCollection,'on')
+            varargout{1} = obj.handshake.UserData.reference;
          else
-            if h.handshake.Running,   stop(h.handshake), end
-            unsortedData = read(h.handshake,"OutputFormat","Matrix");
-            varargout{1} = unsortedData(h.handshake.UserData.dataChannelNumber);
+            if obj.handshake.Running,   stop(obj.handshake), end
+            unsortedData = read(obj.handshake,"OutputFormat","Matrix");
+            varargout{1} = unsortedData(obj.handshake.UserData.dataChannelNumber);
          end
       end
       
    end
 
    methods
-      function h = setParameter(h,val,varName)         
-         if h.connected
-            h.handshake.UserData.(varName) = val;
+      function obj = setParameter(obj,val,varName)         
+         if obj.connected
+            obj.handshake.UserData.(varName) = val;
          else
-            h.presets.(varName) = val;
+            obj.presets.(varName) = val;
          end
       end
-      function val = getParameter(h,varName)
-         if h.connected
-            val =  h.handshake.UserData.(varName);
-         elseif isfield(h.presets,varName) && ~isempty(h.presets.(varName))
-            val = h.presets.(varName);
-         elseif isfield(h.defaults,varName) && ~isempty(h.defaults.(varName))
-            val = h.defaults.(varName);
+      function val = getParameter(obj,varName)
+         if obj.connected
+            val =  obj.handshake.UserData.(varName);
+         elseif isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
+            val = obj.presets.(varName);
+         elseif isfield(obj.defaults,varName) && ~isempty(obj.defaults.(varName))
+            val = obj.defaults.(varName);
          else
             val  =[];
          end
       end      
 
-      function set.continuousCollection(h,val)
-         h = setParameter(h,instrumentType.discernOnOff(val),'continuousCollection');
+      function set.continuousCollection(obj,val)
+         obj = setParameter(obj,instrumentType.discernOnOff(val),'continuousCollection');
          if strcmpi(instrumentType.discernOnOff(val),'off')
-             h = setParameter(h,'off','differentiateSignal');%#ok<NASGU>
+             obj = setParameter(obj,'off','differentiateSignal');%#ok<NASGU>
          end
       end
-      function val = get.continuousCollection(h)
-         val = getParameter(h,'continuousCollection');
+      function val = get.continuousCollection(obj)
+         val = getParameter(obj,'continuousCollection');
       end
 
-      function set.takeData(h,val)
-         h = setParameter(h,val,'takeData'); %#ok<NASGU>
+      function set.takeData(obj,val)
+         obj = setParameter(obj,val,'takeData'); %#ok<NASGU>
       end
-      function val = get.takeData(h)
-         val = getParameter(h,'takeData');
+      function val = get.takeData(obj)
+         val = getParameter(obj,'takeData');
       end
 
-      function set.differentiateSignal(h,val)
-         h = setParameter(h,instrumentType.discernOnOff(val),'differentiateSignal');
+      function set.differentiateSignal(obj,val)
+         obj = setParameter(obj,instrumentType.discernOnOff(val),'differentiateSignal');
          if strcmpi(instrumentType.discernOnOff(val),'on')
-             h = setParameter(h,'on','continuousCollection');%#ok<NASGU>
+             obj = setParameter(obj,'on','continuousCollection');%#ok<NASGU>
          end
       end
-      function val = get.differentiateSignal(h)
-         val = getParameter(h,'differentiateSignal');
+      function val = get.differentiateSignal(obj)
+         val = getParameter(obj,'differentiateSignal');
       end
 
-      function set.activeDataChannel(h,val)
+      function set.activeDataChannel(obj,val)
          %Sets active data channel number/name based on designation given.
-         %Designation can be the channel
-         %port or channel label so long as it is unique to that channel
-
-         if ~h.connected
-            h.presets.activeDataChannel = val;
+         %Designation can be the channel port or channel label so long as it is unique to that channel
+         if ~obj.connected
+            obj.presets.activeDataChannel = val;
             return
          end
-         
-         %Label/port input
-         channels = squeeze(struct2cell(h.channelInfo));
-         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
-         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
-         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
-         if numel(channelNumber) ~= 1
-            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
-         end
-         h.handshake.UserData.dataChannelNumber = channelNumber;
-         switch lower(h.channelInfo(channelNumber).dataType)
+         channelNumber = getChannelIndex(obj, val);
+         obj.handshake.UserData.dataChannelNumber = channelNumber;
+         switch lower(obj.channelInfo(channelNumber).dataType)
             case {'v','voltage','analog'}
                dataType = 'Voltage';
             case {'counter','cntr','count','edge','edge count','edgecount'}
@@ -481,81 +386,244 @@ classdef DAQ_controller < instrumentType
             case {'digital','binary'}
                dataType = 'Digital';
          end
-         h.handshake.UserData.dataType = dataType;
+         obj.handshake.UserData.dataType = dataType;
       end
-      function val = get.activeDataChannel(h)
-         val = h.channelInfo(getParameter(h,'dataChannelNumber')).label;
+      function val = get.activeDataChannel(obj)
+         val = obj.channelInfo(getParameter(obj,'dataChannelNumber')).label;
       end
 
       %Properties below are read-only 
-      function set.toggleChannel(h,val)
-         if ~h.connected
-            h.presets.toggleChannel = val;
+      function set.toggleChannel(obj,val)
+         if ~obj.connected
+            obj.presets.toggleChannel = val;
             return
          end
-         
-         %Label/port input
-         channels = squeeze(struct2cell(h.channelInfo));
-         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
-         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
-         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
-         if numel(channelNumber) ~= 1
-            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
-         end
-         h.handshake.UserData.toggleChannel = channelNumber;
+         channelNumber = getChannelIndex(obj, val);
+         obj.handshake.UserData.toggleChannel = channelNumber;
       end
-      function val = get.toggleChannel(h)
-         val = getParameter(h,'toggleChannel');
+      function val = get.toggleChannel(obj)
+         val = getParameter(obj,'toggleChannel');
       end
 
-      function set.signalReferenceChannel(h,val)
-         if ~h.connected
-            h.presets.signalReferenceChannel = val;
+      function set.signalReferenceChannel(obj,val)
+         if ~obj.connected
+            obj.presets.signalReferenceChannel = val;
             return
          end
-         
-         %Label/port input
-         channels = squeeze(struct2cell(h.channelInfo));
-         labels = channels(strcmp(fieldnames(h.channelInfo),'label'),:);
-         ports = channels(strcmp(fieldnames(h.channelInfo),'port'),:);
-         channelNumber = find(contains(lower(labels),lower(val)) | contains(lower(ports),lower(val)));
-         if numel(channelNumber) ~= 1
-            error("%s is an invalid channel designation. A designation must correspond to exactly 1 channel's port or label",val)
-         end
-         h.handshake.UserData.signalReferenceChannel = channelNumber;
+         channelNumber = getChannelIndex(obj, val);
+         obj.handshake.UserData.signalReferenceChannel = channelNumber;
       end
-      function val = get.signalReferenceChannel(h)
-         val = getParameter(h,'signalReferenceChannel');
+      function val = get.signalReferenceChannel(obj)
+         val = getParameter(obj,'signalReferenceChannel');
       end
 
-      function set.sampleRate(h,val)
-         if h.connected
-            h.handshake.Rate = val;
+      function set.sampleRate(obj,val)
+         if obj.connected
+            obj.handshake.Rate = val;
          else
-            h.presets.sampleRate = val;
+            obj.presets.sampleRate = val;
          end
       end
-      function val = get.sampleRate(h)
+      function val = get.sampleRate(obj)
          varName = 'sampleRate';
-         if h.connected
-            val =  h.handshake.Rate;
-         elseif isfield(h.presets,varName) && ~isempty(h.presets.(varName))
-            val = h.presets.(varName);
-         elseif isfield(h.defaults,varName) && ~isempty(h.defaults.(varName))
-            val = h.defaults.(varName);
+         if obj.connected
+            val =  obj.handshake.Rate;
+         elseif isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
+            val = obj.presets.(varName);
+         elseif isfield(obj.defaults,varName) && ~isempty(obj.defaults.(varName))
+            val = obj.defaults.(varName);
          else
             val  =[];
          end
       end
 
-      function val = get.dataPointsTaken(h)
-         val = getParameter(h,'nPoints');
+      function val = get.dataPointsTaken(obj)
+         val = getParameter(obj,'nPoints');
       end
 
-      function val = get.dataAcquirementMethod(h)
-         val = getParameter(h,'dataType');
+      function val = get.dataAcquirementMethod(obj)
+         val = getParameter(obj,'dataType');
       end      
 
    end
 
+   methods (Access = private)
+      function idx = getChannelIndex(obj, designation)
+         % Returns the index of the channel matching the designation (label or port)
+         channels = squeeze(struct2cell(obj.channelInfo));
+         labels = channels(strcmp(fieldnames(obj.channelInfo),'label'),:);
+         ports = channels(strcmp(fieldnames(obj.channelInfo),'port'),:);
+         idx = find(contains(lower(labels),lower(designation)) | contains(lower(ports),lower(designation)));
+         if numel(idx) ~= 1
+            error('%s is an invalid channel designation. A designation must correspond to exactly 1 channel''s port or label', designation);
+         end
+      end
+   end
+
+end
+
+function handshake = storeData(handshake,evt) %#ok<INUSD> 
+    %storeData Callback function for processing DAQ data
+    %
+    %   Processes data when available and updates accumulated values.
+    %   Handles both counter and voltage data types.
+    
+    try
+        % Get collection info and validate data collection state
+        collectionInfo = handshake.UserData;
+        if ~isValidCollectionState(collectionInfo)
+            return;
+        end
+        
+        % Read data from DAQ
+        [unsortedData, scansAvailable] = readDAQData(handshake);
+        if isempty(unsortedData)
+            return;
+        end
+        
+        % Process data based on type
+        [sig, ref] = processData(unsortedData, collectionInfo);
+        
+        % Update handshake data
+        updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData);
+        
+    catch ME
+        handleDAQError(handshake, ME);
+    end
+end
+
+function isValid = isValidCollectionState(collectionInfo)
+    %isValidCollectionState Validates data collection state
+    %
+    %   Returns true if all required channels are configured and
+    %   data collection is enabled.
+    
+    isValid = collectionInfo.takeData && ...
+             ~isempty(collectionInfo.dataChannelNumber) && ...
+             ~isempty(collectionInfo.toggleChannel) && ...
+             (~isempty(collectionInfo.signalReferenceChannel) || ...
+              ~collectionInfo.differentiateSignal);
+end
+
+function [unsortedData, scansAvailable] = readDAQData(handshake)
+    %readDAQData Reads available data from DAQ
+    %
+    %   Returns raw data matrix and number of available scans.
+    %   Handles buffer overflow conditions.
+    
+    scansAvailable = handshake.NumScansAvailable - handshake.UserData.minScansAvailable;
+    
+    % Handle buffer overflow
+    if scansAvailable > handshake.ScansAvailableFcnCount * handshake.UserData.scanBufferMultiplier
+        [~] = read(handshake, scansAvailable, "OutputFormat", "Matrix");
+        unsortedData = [];
+        return;
+    end
+    
+    if scansAvailable <= handshake.UserData.minScansAvailable
+        unsortedData = [];
+        return;
+    end
+    
+    unsortedData = read(handshake, scansAvailable, "OutputFormat", "Matrix");
+end
+
+function [sig, ref] = processData(unsortedData, collectionInfo)
+    %processData Routes data to appropriate processor
+    %
+    %   Routes data to counter or voltage processor based on type.
+    
+    if strcmpi(collectionInfo.dataType, 'EdgeCount')
+        [sig, ref] = processCounterData(unsortedData, collectionInfo);
+    else
+        [sig, ref] = processVoltageData(unsortedData, collectionInfo);
+    end
+end
+
+function [sig, ref] = processCounterData(unsortedData, collectionInfo)
+    %processCounterData Processes counter data
+    %
+    %   Handles signal/reference differentiation for counter data.
+    %   Validates counts and discards negative values.
+    
+    counterDifference = diff(unsortedData(:, collectionInfo.dataChannelNumber));
+    dataOn = unsortedData(2:end, collectionInfo.toggleChannel);
+    
+    if ~collectionInfo.differentiateSignal
+        sig = 0;
+        ref = sum(counterDifference(dataOn));
+    else
+        signalOn = unsortedData(2:end, collectionInfo.signalReferenceChannel);
+        sig = sum(counterDifference(signalOn & dataOn));
+        ref = sum(counterDifference(~signalOn & dataOn));
+    end
+    
+    % Validate counts
+    if ref < 0 || sig < 0
+        assignin("base", "rawDataFromDAQ", unsortedData);
+        warning('DAQ_controller:NegativeCounts', 'Negative counts obtained, discarding data');
+        sig = 0;
+        ref = 0;
+    end
+end
+
+function [sig, ref] = processVoltageData(unsortedData, collectionInfo)
+    %processVoltageData Processes voltage data
+    %
+    %   Handles signal/reference differentiation for voltage data.
+    %   Returns zero values if no data is available.
+    
+    dataOn = boolean(unsortedData(:, collectionInfo.toggleChannel));
+    
+    if ~any(dataOn)
+        sig = 0;
+        ref = 0;
+        return;
+    end
+    
+    if ~collectionInfo.differentiateSignal
+        ref = sum(unsortedData(dataOn, collectionInfo.dataChannelNumber));
+        sig = 0;
+    else
+        signalOn = boolean(unsortedData(:, collectionInfo.signalReferenceChannel));
+        sig = sum(unsortedData(dataOn & signalOn, collectionInfo.dataChannelNumber));
+        ref = sum(unsortedData(dataOn & ~signalOn, collectionInfo.dataChannelNumber));
+    end
+end
+
+function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)
+    %updateHandshakeData Updates accumulated values
+    %
+    %   Updates signal, reference, and point count in handshake data.
+    
+    handshake.UserData.reference = handshake.UserData.reference + ref;
+    handshake.UserData.signal = handshake.UserData.signal + sig;
+    
+    if ref ~= 0
+        handshake.UserData.nPoints = handshake.UserData.nPoints + ...
+            sum(boolean(unsortedData(:, collectionInfo.toggleChannel)));
+    elseif ~isfield(handshake.UserData, 'nPoints')
+        handshake.UserData.nPoints = 0;
+    end
+end
+
+function handleDAQError(handshake, ME)
+    %handleDAQError Handles DAQ errors
+    %
+    %   Tracks error count and stops collection if max errors exceeded.
+    
+    if ~isfield(handshake.UserData, 'numErrors')
+        handshake.UserData.numErrors = 1;
+    else
+        handshake.UserData.numErrors = handshake.UserData.numErrors + 1;
+    end
+    
+    % Stop if too many errors
+    if handshake.UserData.numErrors >= handshake.UserData.maxErrorCount
+        error('DAQ_controller:MaxErrorsExceeded', ...
+            'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
+            handshake.UserData.maxErrorCount);
+    end
+    
+    rethrow(ME);
 end

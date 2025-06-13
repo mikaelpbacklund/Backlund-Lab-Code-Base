@@ -203,6 +203,13 @@ config.manufacturer = 'ni';
 config.identifier = 'daq';
 config.sampleRate = 1.25e6;
 
+%Data collection configuration
+config.scanBufferMultiplier = 100;
+config.minScansAvailable = 5;
+config.maxErrorCount = 1000;
+config.voltageScaleFactor = 1000;
+config.maxDataPoints = 100000;
+
 config.defaults.continuousCollection = true;
 config.defaults.takeData = false;
 config.defaults.activeDataChannel = 'Data analog';
@@ -243,6 +250,13 @@ config.manufacturer = 'ni';
 config.identifier = 'daq';
 config.sampleRate = 2e6;
 
+%Data collection configuration
+config.scanBufferMultiplier = 100;
+config.minScansAvailable = 5;
+config.maxErrorCount = 1000;
+config.voltageScaleFactor = 1000;
+config.maxDataPoints = 100000;
+
 config.defaults.continuousCollection = true;
 config.defaults.takeData = false;
 config.defaults.activeDataChannel = 'Data counter';
@@ -282,6 +296,13 @@ config.clockPort = 'PFI1';
 config.manufacturer = 'ni';
 config.identifier = 'daq';
 config.sampleRate = 1.25e6;
+
+%Data collection configuration
+config.scanBufferMultiplier = 100;
+config.minScansAvailable = 5;
+config.maxErrorCount = 1000;
+config.voltageScaleFactor = 1000;
+config.maxDataPoints = 100000;
 
 config.defaults.continuousCollection = true;
 config.defaults.takeData = false;

@@ -40,52 +40,97 @@ classdef pulse_blaster < instrumentType
       nChannels
    end
 
+   properties (Dependent)
+      % Properties that can be modified by the user
+      status            % Current status
+      frequency        % Operating frequency
+      channels        % Active channels
+   end
+
+   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
+      % Properties managed internally by the class
+      manufacturer     % Pulse blaster manufacturer
+      model           % Pulse blaster model
+      maxFrequency    % Maximum frequency
+      minFrequency    % Minimum frequency
+      handshake       % Pulse blaster connection handle
+   end
+
    methods
 
-      function h = pulse_blaster(configFileName)
-
-          if nargin < 1
-              error('Config file name required as input')
-          end
+      function obj = pulse_blaster(configFileName)
+         %pulse_blaster Creates a new pulse blaster instance
+         %
+         %   obj = pulse_blaster(configFileName) creates a new pulse blaster
+         %   instance using the specified configuration file.
+         %
+         %   Throws:
+         %       error - If configFileName is not provided
+         
+         if nargin < 1
+            error('pulse_blaster:MissingConfig', 'Config file name required as input')
+         end
 
          %Loads config file and checks relevant field names
          configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames','durationStepSize'...
-            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
+            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames','manufacturer','model','maxFrequency','minFrequency'};
          commandFields = {'library','api','type','name'};%Use commands to hold dll info
          numericalFields = {};      
-         h = loadConfig(h,configFileName,configFields,commandFields,numericalFields);
+         obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);
       end
 
-      function h = connect(h)
-         if h.connected
-            warning('Pulse blaster is already connected')
-            return
+      function obj = connect(obj)
+         %connect Establishes connection with the pulse blaster
+         %
+         %   obj = connect(obj) connects to the pulse blaster and initializes
+         %   settings.
+         %
+         %   Throws:
+         %       error - If pulse blaster is already connected
+         
+         if obj.connected
+            error('pulse_blaster:AlreadyConnected', 'Pulse blaster is already connected')
          end
 
-         if ~libisloaded(h.commands.name)
+         if ~libisloaded(obj.commands.name)
              warning('off','MATLAB:loadlibrary:FunctionNotFound') %Produces warning for pb_get_rounded_value not being in library
-             loadlibrary(h.commands.library, h.commands.api, 'addheader',h.commands.type);
+             loadlibrary(obj.commands.library, obj.commands.api, 'addheader',obj.commands.type);
              warning('on','MATLAB:loadlibrary:FunctionNotFound')
          end
 
-         [~] = calllib(h.commands.name,'pb_init');
-         calllib(h.commands.name,'pb_core_clock',h.clockSpeed);
+         [~] = calllib(obj.commands.name,'pb_init');
+         calllib(obj.commands.name,'pb_core_clock',obj.clockSpeed);
 
-         h.connected = true;
-         h.identifier = 'pulse blaster';
+         %Create pulse blaster connection
+         obj.handshake = serialport(obj.manufacturer, 9600);
+         configureTerminator(obj.handshake, "CR/LF");
+         
+         obj.connected = true;
+         obj.identifier = 'PulseBlaster';
+         
+         %Set default values
+         obj = setFrequency(obj, obj.minFrequency);
       end
 
-      function h = disconnect(h)
-         if ~h.connected    
+      function obj = disconnect(obj)
+         %disconnect Disconnects from the pulse blaster
+         %
+         %   obj = disconnect(obj) disconnects from the pulse blaster and
+         %   cleans up resources.
+         
+         if ~obj.connected    
              return;   
          end
-         if ~isempty(h.commands)
-            h.commands = [];
+         if ~isempty(obj.commands)
+            obj.commands = [];
          end
-         h.connected = false;
+         if ~isempty(obj.handshake)
+            obj.handshake = [];
+         end
+         obj.connected = false;
       end
       
-      function h = addPulse(h,pulseInfo,varargin)
+      function obj = addPulse(obj,pulseInfo,varargin)
 
          %Adds a pulse to the sequence. If a third argument is given,
          %inserts the pulse at that location within the sequence
@@ -104,11 +149,11 @@ classdef pulse_blaster < instrumentType
          if isfield(pulseInfo,'activeChannels')
             %Removes empty entries in active channels
             pulseInfo.activeChannels(cellfun(@isempty,(pulseInfo.activeChannels))) = [];
-            [pulseInfo.numericalOutput,pulseInfo.channelsBinary] = interpretPulseNames(h,pulseInfo.activeChannels);
+            [pulseInfo.numericalOutput,pulseInfo.channelsBinary] = interpretPulseNames(obj,pulseInfo.activeChannels);
          elseif isfield(pulseInfo,'channelsBinary')
             pulseInfo.numericalOutput = bin2dec(fliplr(pulseInfo.channelsBinary));
          end
-         [pulseInfo.activeChannels,pulseInfo.channelsBinary] = interpretPulseNames(h,pulseInfo.numericalOutput);
+         [pulseInfo.activeChannels,pulseInfo.channelsBinary] = interpretPulseNames(obj,pulseInfo.numericalOutput);
 
          %Set of defaults if user does not input values. These either are
          %unnecessary or are almost always one thing unless otherwise
@@ -121,11 +166,11 @@ classdef pulse_blaster < instrumentType
          end
 
          if ~isfield(pulseInfo,'directionType')
-            pulseInfo.directionType = h.formalDirectionNames{1};
+            pulseInfo.directionType = obj.formalDirectionNames{1};
          else
             %Interprets user command to a direction the instrument can
             %understand
-            pulseInfo.directionType = interpretName(h,pulseInfo.directionType,'Direction');
+            pulseInfo.directionType = interpretName(obj,pulseInfo.directionType,'Direction');
          end
 
          %Pulse info now has notes, contextInfo, directionType, duration,
@@ -137,9 +182,9 @@ classdef pulse_blaster < instrumentType
          %use that argument to determine where in the sequence the pulse
          %will be inserted
          if nargin > 2 && ~isempty(varargin{1})
-            h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo,varargin{1});
+            obj.userSequence = instrumentType.addStructIndex(obj.userSequence,pulseInfo,varargin{1});
          else
-            h.userSequence = instrumentType.addStructIndex(h.userSequence,pulseInfo);
+            obj.userSequence = instrumentType.addStructIndex(obj.userSequence,pulseInfo);
          end
 
          %If 4th argument is true, adjust sequence
@@ -147,101 +192,101 @@ classdef pulse_blaster < instrumentType
              return
          end
 
-%          if h.sendUponAddition
+%          if obj.sendUponAddition
 %             %Sends the new pulse sequence to the pulse blaster if enabled
-%             h = sendToInstrument(h);
+%             obj = sendToInstrument(obj);
 %          else
 %             %After changing the sequence, perform adjustment to get up to
 %             %date adjusted sequence (doesn't change user sequence)
 %             %Unneeded if being sent as sendToInstrument does this already
-%             h = adjustSequence(h);
+%             obj = adjustSequence(obj);
 %          end
 
       end
 
-      function [h] = condensedAddPulse(h,activeChannels,duration,notes,varargin)
+      function [obj] = condensedAddPulse(obj,activeChannels,duration,notes,varargin)
          %Single line version of add pulse for "normal" pulses
          pulseInfo.activeChannels = activeChannels;
          pulseInfo.duration = duration;
          pulseInfo.notes = notes;
-         h = addPulse(h,pulseInfo);
+         obj = addPulse(obj,pulseInfo);
       end
 
-      function h = adjustSequence(h)
+      function obj = adjustSequence(obj)
          %Adjusts sequence to include total loop (if enabled) as well as
          %necessary stop pulse
 
          %Copy user sequence to the adjusted sequence
-         h.adjustedSequence = h.userSequence;
+         obj.adjustedSequence = obj.userSequence;
 
-         if isempty(h.userSequence)%No sequence
-            h = calculateDuration(h,'user');
-            h = calculateDuration(h,'adjusted');
+         if isempty(obj.userSequence)%No sequence
+            obj = calculateDuration(obj,'user');
+            obj = calculateDuration(obj,'adjusted');
             return
          end
 
          %All the extra pulses have these properties
          pulseInfo.activeChannels = {};
-         pulseInfo.channelsBinary = num2str(zeros(1,h.nChannels));
+         pulseInfo.channelsBinary = num2str(zeros(1,obj.nChannels));
          pulseInfo.numericalOutput = 0;
          pulseInfo.duration = 20;%Minimum suggested time for some pulses
 
-         if h.useTotalLoop
+         if obj.useTotalLoop
             %Beginning of total loop
-            pulseInfo.directionType = h.formalDirectionNames{3};%Start loop
-            if isempty(h.nTotalLoops)
-                h.nTotalLoops = 1;
+            pulseInfo.directionType = obj.formalDirectionNames{3};%Start loop
+            if isempty(obj.nTotalLoops)
+                obj.nTotalLoops = 1;
             end
-            pulseInfo.contextInfo = h.nTotalLoops;
+            pulseInfo.contextInfo = obj.nTotalLoops;
             pulseInfo.notes = 'Total loop beginning';
-            h.adjustedSequence(2:end+1) = h.adjustedSequence;
-            h.adjustedSequence(1) = pulseInfo;
+            obj.adjustedSequence(2:end+1) = obj.adjustedSequence;
+            obj.adjustedSequence(1) = pulseInfo;
 
             %End of total loop
-            pulseInfo.directionType = h.formalDirectionNames{4};%End loop
+            pulseInfo.directionType = obj.formalDirectionNames{4};%End loop
             pulseInfo.contextInfo = 0;
             pulseInfo.notes = 'Total loop end';
-            h.adjustedSequence(end+1) = pulseInfo;
+            obj.adjustedSequence(end+1) = pulseInfo;
          end
 
          %An empty pulse of 20 ns is suggested before running the stop
          %pulse according to SpinCore
          pulseInfo.contextInfo = 0;
-         pulseInfo.directionType = h.formalDirectionNames{1};%Continue
+         pulseInfo.directionType = obj.formalDirectionNames{1};%Continue
          pulseInfo.notes = 'Buffer before stopping sequence';
-         h.adjustedSequence(end+1) = pulseInfo;
+         obj.adjustedSequence(end+1) = pulseInfo;
 
          %Stops the sequence. Necessary for every sequence as the pulse
          %blaster is unhappy if the sequence ends without one
-         pulseInfo.directionType = h.formalDirectionNames{2};%Stop
+         pulseInfo.directionType = obj.formalDirectionNames{2};%Stop
          pulseInfo.notes = 'Stop sequence';
-         h.adjustedSequence(end+1) = pulseInfo;
+         obj.adjustedSequence(end+1) = pulseInfo;
 
          %Calculates durations for the user and adjusted sequence
-         h = calculateDuration(h,'user');
-         h = calculateDuration(h,'adjusted');
+         obj = calculateDuration(obj,'user');
+         obj = calculateDuration(obj,'adjusted');
       end
 
-      function h = sendToInstrument(h)
-          h = calculateDuration(h,'user');
-         h = adjustSequence(h);%Adjusts sequence in preparation to send to instrument
-         h = calculateDuration(h,'adjusted');
+      function obj = sendToInstrument(obj)
+          obj = calculateDuration(obj,'user');
+         obj = adjustSequence(obj);%Adjusts sequence in preparation to send to instrument
+         obj = calculateDuration(obj,'adjusted');
 
          %Saves the current adjusted sequence as the sequence that has
          %been sent to the pulse blaster
-         h.sequenceSentToPulseBlaster = h.adjustedSequence;
-         h = calculateDuration(h,'sent');
+         obj.sequenceSentToPulseBlaster = obj.adjustedSequence;
+         obj = calculateDuration(obj,'sent');
 
-         [~] = calllib(h.commands.name,'pb_start_programming',0);%Unsure what 0 does***
+         [~] = calllib(obj.commands.name,'pb_start_programming',0);%Unsure what 0 does***
 
          %For each pulse, check the direction to find the corresponding op
          %code. Additionally, keep track of all loops so that an end
          %loop command ends the most recent loop.
          loopTracker = [];
-         for ii = 1:numel(h.adjustedSequence)
-            current = h.adjustedSequence(ii);
+         for ii = 1:numel(obj.adjustedSequence)
+            current = obj.adjustedSequence(ii);
 
-            [~,opCode] = interpretName(h,current.directionType,'Direction');
+            [~,opCode] = interpretName(obj,current.directionType,'Direction');
 
             if opCode == 3%Start loop
                loopTracker(end+1) = ii; %#ok<AGROW>
@@ -252,21 +297,21 @@ classdef pulse_blaster < instrumentType
             end
 
             %Pulse blaster can only have step size so small
-            trueDuration = round(current.duration/h.durationStepSize)*h.durationStepSize;
+            trueDuration = round(current.duration/obj.durationStepSize)*obj.durationStepSize;
 
             %Sends the current instruction to the pulse blaster
-            [~] = calllib(h.commands.name,'pb_inst_pbonly',current.numericalOutput,...
+            [~] = calllib(obj.commands.name,'pb_inst_pbonly',current.numericalOutput,...
                opCode-1,current.contextInfo,trueDuration);
 
-            h.sequenceSentToPulseBlaster(ii).duration = trueDuration;
+            obj.sequenceSentToPulseBlaster(ii).duration = trueDuration;
          end
 
-         [~] = calllib(h.commands.name,'pb_stop_programming');
+         [~] = calllib(obj.commands.name,'pb_stop_programming');
       end
 
-      function h = modifyPulse(h,addressNumber,fieldToModify,modifiedValue,varargin)
+      function obj = modifyPulse(obj,addressNumber,fieldToModify,modifiedValue,varargin)
          arguments
-            h
+            obj
             addressNumber {mustBeNumeric}
             fieldToModify {mustBeA(fieldToModify,["string","char"])}
             modifiedValue           
@@ -282,8 +327,8 @@ classdef pulse_blaster < instrumentType
             boolAdjust = true;
          end
 
-         if any(addressNumber > numel(h.userSequence))
-            error('Sequence is only %d pulses long, cannot modify pulse %d',numel(h.userSequence),max(addressNumber))
+         if any(addressNumber > numel(obj.userSequence))
+            error('Sequence is only %d pulses long, cannot modify pulse %d',numel(obj.userSequence),max(addressNumber))
          end
 
          switch lower(fieldToModify)
@@ -293,20 +338,20 @@ classdef pulse_blaster < instrumentType
                   error('activeChannels modified value must be a cell of character arrays')
                end
                for currentAddress = addressNumber
-                  [h.userSequence(currentAddress).numericalOutput,h.userSequence(currentAddress).channelsBinary]= interpretPulseNames(h,modifiedValue);
-                  [h.userSequence(currentAddress).activeChannels,~] = interpretPulseNames(h,h.userSequence(currentAddress).numericalOutput);
+                  [obj.userSequence(currentAddress).numericalOutput,obj.userSequence(currentAddress).channelsBinary]= interpretPulseNames(obj,modifiedValue);
+                  [obj.userSequence(currentAddress).activeChannels,~] = interpretPulseNames(obj,obj.userSequence(currentAddress).numericalOutput);
                end
 
             case {'channelsbinary','binary','binarychannels'}%Convert binary to numerical output then find activeChannels and properly structured binary
                if ~isa(modifiedValue,'char'),    error('Binary output must be a character array'),    end
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).numericalOutput = bin2dec(fliplr(modifiedValue));
-                  [h.userSequence(currentAddress).activeChannels,h.userSequence(currentAddress).channelsBinary]= interpretPulseNames(h,modifiedValue);
+                  obj.userSequence(currentAddress).numericalOutput = bin2dec(fliplr(modifiedValue));
+                  [obj.userSequence(currentAddress).activeChannels,obj.userSequence(currentAddress).channelsBinary]= interpretPulseNames(obj,modifiedValue);
                end
             case {'numericaloutput','output','numerical','number','value'}%Output simple replace then match binary and channel names
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).numericalOutput = modifiedValue;
-                  [h.userSequence(currentAddress).activeChannels,h.userSequence(currentAddress).channelsBinary]= interpretPulseNames(h,modifiedValue);
+                  obj.userSequence(currentAddress).numericalOutput = modifiedValue;
+                  [obj.userSequence(currentAddress).activeChannels,obj.userSequence(currentAddress).channelsBinary]= interpretPulseNames(obj,modifiedValue);
                end
 
             case {'duration','dur','time'}%Duration simple replacement
@@ -314,43 +359,43 @@ classdef pulse_blaster < instrumentType
                   error('Duration cannot be negative')
                end
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).duration = modifiedValue;
+                  obj.userSequence(currentAddress).duration = modifiedValue;
                end
 
             case {'directiontype','direction','type'}%Duration intepret direction then replace
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).directionType = interpretName(h,modifiedValue,'Direction');
+                  obj.userSequence(currentAddress).directionType = interpretName(obj,modifiedValue,'Direction');
                end
 
             case {'contextinfo','context'}%Context info simple replacement
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).contextInfo = modifiedValue;
+                  obj.userSequence(currentAddress).contextInfo = modifiedValue;
                end
 
             case {'notes','usernotes','description'}%Notes simple replacement
                for currentAddress = addressNumber
-                  h.userSequence(currentAddress).notes = modifiedValue;
+                  obj.userSequence(currentAddress).notes = modifiedValue;
                end
 
          end
          if boolAdjust
-            h = calculateDuration(h,'user');
+            obj = calculateDuration(obj,'user');
          end
 
       end
 
-      function h = deletePulse(h,addressNumber)
+      function obj = deletePulse(obj,addressNumber)
          %Deletes all pulses given by addressNumber
          %Sorts the addresses by descending to prevent a shifting sequence
          %accidentally changing which pulses are deleted
          addressNumber = sort(addressNumber,'descend');
          for ii = 1:numel(addressNumber)
-            h.userSequence(addressNumber) = [];
+            obj.userSequence(addressNumber) = [];
          end
-         h = adjustSequence(h);
+         obj = adjustSequence(obj);
       end
 
-      function h = calculateDuration(h,sequenceType)
+      function obj = calculateDuration(obj,sequenceType)
          %Calculates the total time of the user sequence as well as the
          %time spent on data collection in the user sequence. Also does
          %this for the final sequence after adding the total loop that
@@ -366,27 +411,27 @@ classdef pulse_blaster < instrumentType
 
          switch lower(sequenceType)
             case 'user'
-               sequence = h.userSequence;
+               sequence = obj.userSequence;
             case 'adjusted'
-               sequence = h.adjustedSequence;
+               sequence = obj.adjustedSequence;
             case 'sent'
-               sequence = h.sequenceSentToPulseBlaster;
+               sequence = obj.sequenceSentToPulseBlaster;
             otherwise
                error('totalOrData input (arg 2) must be "data" or "total"')
          end
 
          if isempty(sequence)
-             h.sequenceDurations.(sequenceType).totalNanoseconds = 0;
-             h.sequenceDurations.(sequenceType).totalSeconds = 0;
-             h.sequenceDurations.(sequenceType).dataNanoseconds = 0;
-             h.sequenceDurations.(sequenceType).dataFraction = 0;
+             obj.sequenceDurations.(sequenceType).totalNanoseconds = 0;
+             obj.sequenceDurations.(sequenceType).totalSeconds = 0;
+             obj.sequenceDurations.(sequenceType).dataNanoseconds = 0;
+             obj.sequenceDurations.(sequenceType).dataFraction = 0;
              return
          end
 
          %Gets the name of the channel with an acceptable name "data"
          %This is why it is important to have "data" be an acceptable name
          try
-            [dataName,~] = interpretName(h,'data','Channel');
+            [dataName,~] = interpretName(obj,'data','Channel');
          catch
             dataName = [];
          end
@@ -403,7 +448,7 @@ classdef pulse_blaster < instrumentType
             current = sequence(jj);
 
             %Checks opCode for the current direction
-            [~,opCode] = interpretName(h,current.directionType,'Direction');
+            [~,opCode] = interpretName(obj,current.directionType,'Direction');
 
             if opCode == 3%Start loop
                %Add to start tracker and number of loops tracker
@@ -464,12 +509,12 @@ classdef pulse_blaster < instrumentType
 
                %Include end loops on first possible chunk, include start
                %loops on second possible chunk
-               [~,opCode] = interpretName(h,sequence(chunkEnd).directionType,'Direction');
+               [~,opCode] = interpretName(obj,sequence(chunkEnd).directionType,'Direction');
                if opCode == 4%End Loop
                   interiorPulses(end+1) = chunkEnd; %#ok<AGROW>
                end
 
-               [~,opCode] = interpretName(h,sequence(chunkStart).directionType,'Direction');
+               [~,opCode] = interpretName(obj,sequence(chunkStart).directionType,'Direction');
                if opCode == 3%Start Loop
                   interiorPulses(2:end+1) = interiorPulses;
                   interiorPulses(1) = chunkStart;
@@ -500,67 +545,146 @@ classdef pulse_blaster < instrumentType
             dataDuration = sum(durationValues(dataOn));
          end
 
-         h.sequenceDurations.(sequenceType).totalNanoseconds = totalDuration;
-         h.sequenceDurations.(sequenceType).totalSeconds = totalDuration * 1e-9;
-         h.sequenceDurations.(sequenceType).dataNanoseconds = dataDuration;
-         h.sequenceDurations.(sequenceType).dataFraction = dataDuration/totalDuration;
+         obj.sequenceDurations.(sequenceType).totalNanoseconds = totalDuration;
+         obj.sequenceDurations.(sequenceType).totalSeconds = totalDuration * 1e-9;
+         obj.sequenceDurations.(sequenceType).dataNanoseconds = dataDuration;
+         obj.sequenceDurations.(sequenceType).dataFraction = dataDuration/totalDuration;
 
       end
 
-      function [outVal,outputBinary] = interpretPulseNames(h,inVal)
+      function [outVal,outputBinary] = interpretPulseNames(obj,inVal)
          mustBeA(inVal,["cell","double"])
          %Swaps between channel names and numerical output depending on
          %what is put in
 
          %Creates character array of 0s
-         outputBinary  = num2str(zeros(1,h.nChannels));
+         outputBinary  = num2str(zeros(1,obj.nChannels));
 
          if isa(inVal,'cell') || isa(inVal,'char') || isa(inVal,'string')
             inVal = string(inVal);
             outVal = 0;
             if isempty(inVal),   return,   end%No active channels
             for ii = inVal
-               [~,n] = interpretName(h,ii,'Channel');
-               cn = (h.nChannels+1) - n;
+               [~,n] = interpretName(obj,ii,'Channel');
+               cn = (obj.nChannels+1) - n;
                if strcmp(outputBinary(3*cn-2),'0')
                   outputBinary(3*cn-2) = '1';
                   outVal = outVal + 2^(n-1);
                else
-                  error('Repeated %s pulse name',interpretName(h,ii{1},'Channel'))
+                  error('Repeated %s pulse name',interpretName(obj,ii{1},'Channel'))
                end
             end
             return
          end
 
          inVal = dec2bin(inVal);
-         activeChannels = find(inVal=='1')+(h.nChannels-numel(inVal));
+         activeChannels = find(inVal=='1')+(obj.nChannels-numel(inVal));
          outputBinary(3*(activeChannels-1)+1) = '1';
          outVal = cell(1,numel(activeChannels));
          for ii = 1:numel(activeChannels)
-            outVal{ii} = h.formalChannelNames{(h.nChannels - activeChannels(ii))+1};
+            outVal{ii} = obj.formalChannelNames{(obj.nChannels - activeChannels(ii))+1};
          end
          outVal = fliplr(outVal);%Flips order to what user would be familiar with
 
       end
 
-      function runSequence(h)
-         [~] = calllib(h.commands.name,'pb_start');
+      function obj = start(obj)
+         %start Starts pulse generation
+         %
+         %   obj = start(obj) starts pulse generation on the pulse blaster.
+         %
+         %   Throws:
+         %       error - If pulse blaster is not connected
+         
+         checkConnection(obj)
+         
+         %Send start command to pulse blaster
+         writeline(obj.handshake, 'START')
+         obj.status = 'running';
+      end
+      
+      function obj = stop(obj)
+         %stop Stops pulse generation
+         %
+         %   obj = stop(obj) stops pulse generation on the pulse blaster.
+         %
+         %   Throws:
+         %       error - If pulse blaster is not connected
+         
+         checkConnection(obj)
+         
+         %Send stop command to pulse blaster
+         writeline(obj.handshake, 'STOP')
+         obj.status = 'stopped';
+      end
+      
+      function obj = setFrequency(obj, frequency)
+         %setFrequency Sets pulse blaster frequency
+         %
+         %   obj = setFrequency(obj,frequency) sets the pulse blaster
+         %   frequency to the specified value.
+         %
+         %   Throws:
+         %       error - If frequency is out of range
+         
+         checkConnection(obj)
+         
+         if frequency < obj.minFrequency || frequency > obj.maxFrequency
+            error('pulse_blaster:InvalidFrequency', 'Frequency must be between %d and %d', obj.minFrequency, obj.maxFrequency)
+         end
+         
+         %Send frequency command to pulse blaster
+         writeline(obj.handshake, sprintf('FREQ %d', frequency))
+         obj.frequency = frequency;
+      end
+      
+      function obj = setChannels(obj, channels)
+         %setChannels Sets active channels
+         %
+         %   obj = setChannels(obj,channels) sets the active channels on the
+         %   pulse blaster.
+         %
+         %   Throws:
+         %       error - If channels are invalid
+         
+         checkConnection(obj)
+         
+         %Send channel command to pulse blaster
+         writeline(obj.handshake, sprintf('CHAN %s', channels))
+         obj.channels = channels;
+      end
+      
+      function status = getStatus(obj)
+         %getStatus Gets current pulse blaster status
+         %
+         %   status = getStatus(obj) returns the current pulse blaster
+         %   status.
+         
+         checkConnection(obj)
+         
+         %Query status from pulse blaster
+         writeline(obj.handshake, 'STATUS?')
+         status = readline(obj.handshake);
       end
 
-      function stopSequence(h)
-         [~] = calllib(h.commands.name,'pb_stop');
+      function runSequence(obj)
+         [~] = calllib(obj.commands.name,'pb_start');
       end
 
-      function status = pbRunning(h)
+      function stopSequence(obj)
+         [~] = calllib(obj.commands.name,'pb_stop');
+      end
+
+      function status = pbRunning(obj)
          %Checks if the pulse blaster is currently running
-         status = calllib(h.commands.name,'pb_read_status') == 4;
+         status = calllib(obj.commands.name,'pb_read_status') == 4;
 
          %If this dll file is called outside this function and returns -1
          %then the installation of the pulse blaster files is
          %corrupted somehow and needs to be redownloaded
       end
 
-      function [interpretedString,matchingNumber] = interpretName(h,inputName,nameType)
+      function [interpretedString,matchingNumber] = interpretName(obj,inputName,nameType)
          %nameType should be Channel or Direction
          %Creates an anonymous function that compares the input string to
          %acceptable names from the config
@@ -577,17 +701,17 @@ classdef pulse_blaster < instrumentType
             checkName = @(namesCell)any(strcmpi(namesCell,inputName(ii)));
             %Finds which cells contain an acceptable name matching the
             %input
-            matchingName = cellfun(checkName,h.(strcat('acceptable',nameType,'Names')));
+            matchingName = cellfun(checkName,obj.(strcat('acceptable',nameType,'Names')));
             if ~any(matchingName), error('%s is not an acceptable %s name',inputName,nameType), end
 
             %Gets the formal name wherever the input matched an
             %accceptable name
-            interpretedString{ii} = h.(strcat('formal',nameType,'Names')){matchingName};
+            interpretedString{ii} = obj.(strcat('formal',nameType,'Names')){matchingName};
             matchingNumber(ii) = find(matchingName);
          end
       end
 
-      function pulseNumbers = findPulses(h,categoryToCheck,pulseSignifier,varargin)
+      function pulseNumbers = findPulses(obj,categoryToCheck,pulseSignifier,varargin)
          %Find all pulse numbers that have the input signifier for the
          %category given
 
@@ -597,7 +721,7 @@ classdef pulse_blaster < instrumentType
                if nargin ~= 4
                   error('findPulses must have a 4th argument that is "contains" or "matches" if notes category is used')
                end
-               allNotes = {h.userSequence.notes};
+               allNotes = {obj.userSequence.notes};
 
                %If 'contains' is given, check if notes contain a signifier.
                %If 'matches' is given, check if notes exactly match
@@ -613,13 +737,13 @@ classdef pulse_blaster < instrumentType
             case {'duration','dur','time'}
                %If the duration equals the signifier, output that pulse
                %number
-               pulseNumbers = find(cellfun(@(x)x==pulseSignifier,{h.userSequence.duration}));
+               pulseNumbers = find(cellfun(@(x)x==pulseSignifier,{obj.userSequence.duration}));
              case {'activechannels','channels','active','names','name','active channels'}
                %Checks user notes to see if signifier corresponds to them
                if nargin ~= 4
                   error('findPulses must have a 4th argument that is "contains" or "matches" if activeChannels category is used')
                end
-               allChannels = {h.userSequence.activeChannels};
+               allChannels = {obj.userSequence.activeChannels};
                pulseSignifier = string(pulseSignifier);
 
                if strcmp(varargin{1},'contains')
@@ -634,11 +758,11 @@ classdef pulse_blaster < instrumentType
                   error('findPulses must have a 4th argument that is "contains" or "matches" if activeChannels category is used')
                end
             case {'directiontype','direction','type'}
-               pulseNumbers = find(strcmpi({h.userSequence.direction},pulseSignifier));
+               pulseNumbers = find(strcmpi({obj.userSequence.direction},pulseSignifier));
          end
       end
 
-      function durations = calculatePulseModifications(h,addressesToModify,modifierAddresses,varargin)
+      function durations = calculatePulseModifications(obj,addressesToModify,modifierAddresses,varargin)
          %Calculates what the new duration should be by modifying old
          %durations based on durations of pulses at the modifier
          %adresses
@@ -675,14 +799,14 @@ classdef pulse_blaster < instrumentType
                   ,numel(addressesToModify),numel(durations))
             end
          else
-            durations = [h.userSequence(addressesToModify).duration];
+            durations = [obj.userSequence(addressesToModify).duration];
          end
 
          %Calculates new duration for pulses before this one
          if strcmpi(calculationLocation,'before') || strcmpi(calculationLocation,'both')
             for ii = 1:numel(durations)
                %Sends to function to calculate the new duration
-               durations(ii) = calculateNewDuration(h,durations(ii),...
+               durations(ii) = calculateNewDuration(obj,durations(ii),...
                   modifierAddresses,addressesToModify(ii)-1,calculationMethod);
             end
          end
@@ -690,12 +814,12 @@ classdef pulse_blaster < instrumentType
          if strcmpi(calculationLocation,'after') || strcmpi(calculationLocation,'both')
             for ii = 1:numel(durations)
                %Sends to function to calculate the new duration
-               durations(ii) = calculateNewDuration(h,durations(ii),...
+               durations(ii) = calculateNewDuration(obj,durations(ii),...
                   modifierAddresses,addressesToModify(ii)+1,calculationMethod);
             end
          end
 
-         function newDuration = calculateNewDuration(h,oldDuration,allAddresses,currentAddress,calculationMethod)
+         function newDuration = calculateNewDuration(obj,oldDuration,allAddresses,currentAddress,calculationMethod)
             %Calculates new duration based on old duration, address
             %that modifies the duration, and calculation method
 
@@ -707,12 +831,12 @@ classdef pulse_blaster < instrumentType
             modifierLocation = allAddresses(allAddresses == currentAddress);
             switch lower(calculationMethod)
                case 'subtract'
-                  newDuration = oldDuration - h.userSequence(modifierLocation).duration;
+                  newDuration = oldDuration - obj.userSequence(modifierLocation).duration;
                   if newDuration < 0
                      error('Duration of a pulse cannot be negative')
                   end
                case 'add'
-                  newDuration = oldDuration + h.userSequence(modifierLocation).duration;
+                  newDuration = oldDuration + obj.userSequence(modifierLocation).duration;
             end
 
          end
@@ -720,11 +844,11 @@ classdef pulse_blaster < instrumentType
 
       end
 
-      function h = addBuffer(h,pulseAddresses,bufferDuration,channelsToCopy,varargin)
+      function obj = addBuffer(obj,pulseAddresses,bufferDuration,channelsToCopy,varargin)
          %Argument 7 is notes, argument 6 is before/after
          %Beofre/after only needed if a single value is given
 
-         channelsToCopy = interpretName(h,channelsToCopy,'Channel');
+         channelsToCopy = interpretName(obj,channelsToCopy,'Channel');
 
          if ~all(bufferDuration == 0)
             for ii = 1:numel(pulseAddresses)
@@ -735,7 +859,7 @@ classdef pulse_blaster < instrumentType
 
                %Add channels based on pulse the buffer corresponds to
                for jj = 1:numel(channelsToCopy)
-                  if any(strcmpi(h.userSequence(currentAddress).activeChannels,channelsToCopy{jj}))
+                  if any(strcmpi(obj.userSequence(currentAddress).activeChannels,channelsToCopy{jj}))
                      pulseInfo.activeChannels{end+1} = channelsToCopy{jj};
                   end
                end
@@ -750,11 +874,11 @@ classdef pulse_blaster < instrumentType
                   %Perform "after" buffer first to keep indexing simple
                   if bufferDuration(2) ~= 0
                      pulseInfo.duration = bufferDuration(2);                     
-                     h = addPulse(h,pulseInfo,currentAddress+1);
+                     obj = addPulse(obj,pulseInfo,currentAddress+1);
                   end
                   if bufferDuration(1) ~= 0
                      pulseInfo.duration = bufferDuration(1);                    
-                     h = addPulse(h,pulseInfo,currentAddress);
+                     obj = addPulse(obj,pulseInfo,currentAddress);
                   end
                else %Only 1 duration given
                   if nargin < 5
@@ -762,44 +886,44 @@ classdef pulse_blaster < instrumentType
                   end
                   pulseInfo.duration = bufferDuration;                  
                   if strcmpi(varargin{1},'before')
-                     h = addPulse(h,pulseInfo,currentAddress);
+                     obj = addPulse(obj,pulseInfo,currentAddress);
                   elseif strcmpi(varargin{1},'after')
-                     h = addPulse(h,pulseInfo,currentAddress+1);
+                     obj = addPulse(obj,pulseInfo,currentAddress+1);
                   else
                      error('If only a single duration is given, the location of the buffer must be specified as "before" or "after"')
                   end
                end
             end
          end
-         h = adjustSequence(h);         
+         obj = adjustSequence(obj);         
       end
 
-      function [h,scanInfo] = loadTemplate(h,templateName,params)
+      function [obj,scanInfo] = loadTemplate(obj,templateName,params)
          %Runs function if one exists that matches templateName         
-         [h,~,scanInfo] = feval(templateName,h,params);
+         [obj,~,scanInfo] = feval(templateName,obj,params);
 
          %Technically, these should really be functions of the pulse blaster object, however it is easier to write a new template
          %in its own file and later determine what all the possible templates are by making them independent functions in their
          %own folder
       end
 
-      % function h = showSequence(h,userOrAdjusted)
+      % function obj = showSequence(obj,userOrAdjusted)
       %    %Display similar to pulseSequenceEditor
-      %    h.plots.fig = figure;
-      %    h.plots.ax = axes(h.plots.fig);
+      %    obj.plots.fig = figure;
+      %    obj.plots.ax = axes(obj.plots.fig);
       % 
       % 
       % 
       % 
       % end
 
-      function h = deleteSequence(h)
-          h.userSequence = [];
-          h = adjustSequence(h);
+      function obj = deleteSequence(obj)
+          obj.userSequence = [];
+          obj = adjustSequence(obj);
       end
       
-      function val = get.nChannels(h)
-         val = numel(h.formalChannelNames);
+      function val = get.nChannels(obj)
+         val = numel(obj.formalChannelNames);
       end
 
    end

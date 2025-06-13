@@ -25,13 +25,13 @@ classdef kinesis_piezo < instrumentType
 
     methods
 
-       function h = disconnect(h)
-          h.handshake.StopPolling()
-          h.handshake.Disconnect(true)
+       function obj = disconnect(obj)
+          obj.handshake.StopPolling()
+          obj.handshake.Disconnect(true)
        end
 
-       function h = connect(h,configName)
-          if h.connected
+       function obj = connect(obj,configName)
+          if obj.connected
              return
           end
 
@@ -39,60 +39,60 @@ classdef kinesis_piezo < instrumentType
          configFields = {'defaults','settingsTimeout','fullClassName','pollTime'};
          commandFields = {};
          numericalFields = {};
-         h = loadConfig(h,configName,configFields,commandFields,numericalFields);
+         obj = loadConfig(obj,configName,configFields,commandFields,numericalFields);
 
          %Loads dlls downloaded from thorlabs website
-          loadDLLs(h)
+          loadDLLs(obj)
 
           %Creates the MatLab firmware handshake to the instrument. The
           %classes are specific to the model of controller used (see intro)
-          handshakeStart = strcat(h.fullClassName,'(',h.serialNumber,')');
-          h.handshake = feval(handshakeStart);
-          h.handshake.Connect(h.serialNumber); %Connection between handshake to instrument itself
+          handshakeStart = strcat(obj.fullClassName,'(',obj.serialNumber,')');
+          obj.handshake = feval(handshakeStart);
+          obj.handshake.Connect(obj.serialNumber); %Connection between handshake to instrument itself
 
           %Wait for settings to initialize
-          if ~h.handshake.IsSettingsInitialized 
-             h.handshake.WaitForSettingsInitialized(h.settingsTimeout);
+          if ~obj.handshake.IsSettingsInitialized 
+             obj.handshake.WaitForSettingsInitialized(obj.settingsTimeout);
           end
 
           %Make instrument start listening for external commands
-          h.handshake.StartPolling(h.pollTime)
+          obj.handshake.StartPolling(obj.pollTime)
 
-          wait(h.pollTime*2)%Wait for device to process polling
+          wait(obj.pollTime*2)%Wait for device to process polling
 
           %Set device to ready state
-          h.handshake.EnableDevice()
+          obj.handshake.EnableDevice()
 
           %Initialize and load device's piezo settings
-          h.piezoConfiguration = h.handshake.GetPiezoConfiguration(h.serialNumber);
+          obj.piezoConfiguration = obj.handshake.GetPiezoConfiguration(obj.serialNumber);
        end
 
-       function loadDLLs(h)
-          for ii = 1:numel(h.namespaces)
-            NET.addAssembly(strcat(h.dllPath,h.namespaces{ii},'.dll'))
+       function loadDLLs(obj)
+          for ii = 1:numel(obj.namespaces)
+            NET.addAssembly(strcat(obj.dllPath,obj.namespaces{ii},'.dll'))
           end
        end
 
-       function h = setAbsoluteVoltage(h,voltageSet)
+       function obj = setAbsoluteVoltage(obj,voltageSet)
           %Finds the relative
-          relativeChange = voltageSet - h.voltage;
-          h = setRelativeVoltage(h,relativeChange);
+          relativeChange = voltageSet - obj.voltage;
+          obj = setRelativeVoltage(obj,relativeChange);
        end
 
-       function h = setRelativeVoltage(h,voltageSet)
+       function obj = setRelativeVoltage(obj,voltageSet)
           if abs(voltageSet) < 1
-             h.handshake.Jog(voltageSet)
+             obj.handshake.Jog(voltageSet)
           else
-             h.handshake.SetOutputVoltage(voltageSet)
+             obj.handshake.SetOutputVoltage(voltageSet)
           end
        end
 
-       function set.voltage(h,val)
-          h = setAbsoluteVoltage(h,val); %#ok<NASGU>
+       function set.voltage(obj,val)
+          obj = setAbsoluteVoltage(obj,val); %#ok<NASGU>
        end
 
-       function val = get.voltage(h)
-          val = h.handshake.GetOutputVoltage();
+       function val = get.voltage(obj)
+          val = obj.handshake.GetOutputVoltage();
        end
 
     end

@@ -1,4 +1,27 @@
 classdef instrumentType < handle
+   %instrumentType - Base class for all instrument types
+   %
+   % This class provides common functionality for all instrument types:
+   %   - Connection management
+   %   - Configuration loading
+   %   - Parameter validation
+   %   - Error handling
+   %
+   % Properties:
+   %   connected - Connection status
+   %   identifier - Instrument identifier
+   %   presets - User-defined settings
+   %   defaults - Default settings
+   %
+   % Methods:
+   %   connect - Establish connection
+   %   disconnect - Close connection
+   %   loadConfig - Load configuration
+   %   checkConnection - Validate connection
+   %   discernOnOff - Convert on/off values
+   %   setParameter - Set parameter value
+   %   getParameter - Get parameter value
+
    properties      
       uncommonProperties %Structure containing properties that are uncommonly accessed and would clutter property list
       notifications = false
@@ -17,17 +40,17 @@ classdef instrumentType < handle
    end
 
    methods
-      function h = instrumentType
-         h.uncommonProperties.connectionType = [];
-         h.uncommonProperties.bypassPreCheck = false; %Bypasses
-         h.uncommonProperties.bypassPostCheck = false;
+      function obj = instrumentType
+         obj.uncommonProperties.connectionType = [];
+         obj.uncommonProperties.bypassPreCheck = false; %Bypasses
+         obj.uncommonProperties.bypassPostCheck = false;
       end
       
-      function printOut(h,printMessage)
+      function printOut(obj,printMessage)
          %Prints out a message if notifications are turned on. Incredibly
          %common so it is better to just have a function to make 3 lines
          %into 1
-         if h.notifications
+         if obj.notifications
              %Interestingly, I have to convert it to a string with the
              %ending \n otherwise all other \n in a message will not work
              fullMessage = sprintf('%s\n',printMessage);
@@ -36,7 +59,7 @@ classdef instrumentType < handle
       end
 
 
-      function s = checkSettings(h,propertyNames) %checkSetValue former name
+      function s = checkSettings(obj,propertyNames) %checkSetValue former name
          %Returns what the value for the given property name should be.
          %First check if there already is a value, then check if a preset
          %exists, then use the default if nothing else is present
@@ -51,24 +74,24 @@ classdef instrumentType < handle
             m = p(ii);
             
             %Return the value it already has if it isn't empty
-            if isprop(h,m) && ~isempty(h.(m))
-               s.(m) = h.(m);
+            if isprop(obj,m) && ~isempty(obj.(m))
+               s.(m) = obj.(m);
                continue
             end
             
             %If there is a preset for this property, assign it the preset
-            if isprop(h,'presets') && isfield(h.presets,m) && ~isempty(h.presets.(m))
-               s.(m) = h.presets.(m);
+            if isprop(obj,'presets') && isfield(obj.presets,m) && ~isempty(obj.presets.(m))
+               s.(m) = obj.presets.(m);
                continue
             end
             
             %Use default value if nothing else is present. If there is no
             %default, return empty value and give warning
-            if isprop(h,'defaults') && isfield(h.defaults,m) && ~isempty(h.defaults.(m))
-               s.(m) = h.defaults.(m);
+            if isprop(obj,'defaults') && isfield(obj.defaults,m) && ~isempty(obj.defaults.(m))
+               s.(m) = obj.defaults.(m);
             else
                s.(m) = [];
-               warning('%s property within %s checked for preset/default but neither was present',m,class(h))
+               warning('%s property within %s checked for preset/default but neither was present',m,class(obj))
             end            
          end
          
@@ -79,16 +102,16 @@ classdef instrumentType < handle
          end
       end
       
-      function checkConnection(h)
+      function checkConnection(obj)
          %Checks connection of instrument. Incredibly common so it is
          %better to just have a function to make 3 lines into 1
-         if isempty(h.connected) || ~h.connected
+         if isempty(obj.connected) || ~obj.connected
             error(['Connection must be established to instrument to execute this function. ' ...
                 'Use the connect(object,configName) function to begin connection'])
          end
       end
 
-      function shouldChange = changeNeeded(h,setState,attribute,minimumAttribute,maximumAttribute)
+      function shouldChange = changeNeeded(obj,setState,attribute,minimumAttribute,maximumAttribute)
          %Input is query, no change needed
          if ~isa(setState,'double')
             shouldChange = false;
@@ -96,26 +119,26 @@ classdef instrumentType < handle
          end
          
          %Attribute already what the input is, no change needed
-         if setState == h.(attribute)
-             printOut(h,sprintf('%s already %g',attribute,h.(attribute)))
+         if setState == obj.(attribute)
+             printOut(obj,sprintf('%s already %g',attribute,obj.(attribute)))
             shouldChange = false;
             return
          end
          
          %Check attribute bounds then set new attribute if it is within
          %those bounds
-         if h.(minimumAttribute) < setState && setState <= h.(maximumAttribute)
+         if obj.(minimumAttribute) < setState && setState <= obj.(maximumAttribute)
             shouldChange = true;
             return
          else
             error('%s input must be between %g and %g',...
-               h.(attribute),h.(minimumAttribute),h.(maximumAttribute))
+               obj.(attribute),obj.(minimumAttribute),obj.(maximumAttribute))
          end
             
       end
       
-      function [h,updatedVal] = writeNumberProtocol(h,attribute,setState,varargin)
-         checkConnection(h)
+      function [obj,updatedVal] = writeNumberProtocol(obj,attribute,setState,varargin)
+         checkConnection(obj)
          if ~strcmp(setState,'query') && ~isa(setState,'double') 
             error('Write number input must be double or the string "query"')
          end
@@ -133,32 +156,32 @@ classdef instrumentType < handle
          %the optional input. If it hasn't use the default naming
          %conventions to obtain the value
          if ~exist('attributeInfo','var') || ~isfield(attributeInfo,'query')
-            attributeInfo.query = h.commands.(strcat(attribute,'Query')); 
+            attributeInfo.query = obj.commands.(strcat(attribute,'Query')); 
          end
          attInfoStr = strcat(attribute,'Info');
          if ~isfield(attributeInfo,'conversionFactor')
-            attributeInfo.conversionFactor = h.(attInfoStr).('conversionFactor');%Multiply when writing, divide when reading
+            attributeInfo.conversionFactor = obj.(attInfoStr).('conversionFactor');%Multiply when writing, divide when reading
          end
          if ~isfield(attributeInfo,'minimum')
-            attributeInfo.minimum = h.(attInfoStr).('minimum');
+            attributeInfo.minimum = obj.(attInfoStr).('minimum');
          end
          if ~isfield(attributeInfo,'maximum')
-            attributeInfo.maximum = h.(attInfoStr).('maximum');
+            attributeInfo.maximum = obj.(attInfoStr).('maximum');
          end
          if ~isfield(attributeInfo,'units')
-            attributeInfo.units = h.(attInfoStr).('units');
+            attributeInfo.units = obj.(attInfoStr).('units');
          end
          if ~isfield(attributeInfo,'tolerance')
-            if isfield(h.(attribute),'tolerance') %Not everything has tolerance
-               attributeInfo.tolerance = h.attInfoStr.('tolerance');
+            if isfield(obj.(attribute),'tolerance') %Not everything has tolerance
+               attributeInfo.tolerance = obj.attInfoStr.('tolerance');
             else
                attributeInfo.tolerance = abs(setState)*.00001;
             end        
          end
 
          %Reads data to check if current setting matches input given
-         if ~h.uncommonProperties.bypassPreCheck || strcmpi(setState,'query') 
-            [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+         if ~obj.uncommonProperties.bypassPreCheck || strcmpi(setState,'query') 
+            [obj,numericalData] = readNumber(obj,attributeInfo.query);%Dependent on instrument
             
             %This is remarkably stupid where the write units of the instrument
             %are not the same as the read units. Only the windfreak RF
@@ -174,7 +197,7 @@ classdef instrumentType < handle
 
             %Attribute already what the input is, no change needed
             if setState <= updatedVal + attributeInfo.tolerance && setState >=updatedVal - attributeInfo.tolerance %#ok<BDSCI>
-               printOut(h,sprintf('%s already %g %s',attribute,updatedVal,attributeInfo.units))
+               printOut(obj,sprintf('%s already %g %s',attribute,updatedVal,attributeInfo.units))
                return
             end                     
          end         
@@ -182,19 +205,19 @@ classdef instrumentType < handle
          %Check attribute bounds then set new attribute if it is within those bounds
          if attributeInfo.minimum <= setState && setState <= attributeInfo.maximum
             numericalInput = setState*attributeInfo.conversionFactor;
-            h = writeNumber(h,attribute,numericalInput);%Dependent on instrument
+            obj = writeNumber(obj,attribute,numericalInput);%Dependent on instrument
          else
             error('%s must be between %g and %g %s (%g given)',...
                attribute,attributeInfo.minimum,attributeInfo.maximum,attributeInfo.units,setState)
          end
          
          %If bypassing check after reading, set output to whatever input was given
-         if h.uncommonProperties.bypassPostCheck
+         if obj.uncommonProperties.bypassPostCheck
             updatedVal = setState;
             return
          end
          
-         [h,numericalData] = readNumber(h,attributeInfo.query);%Dependent on instrument
+         [obj,numericalData] = readNumber(obj,attributeInfo.query);%Dependent on instrument
 
          %See previous note about unit mismatch
          if nargin > 4 && ~isempty(varargin{2})
@@ -206,27 +229,27 @@ classdef instrumentType < handle
              assignin("base","numericalInput",numericalInput)
              assignin("base","numericalData",numericalData)
              assignin("base","tol",attributeInfo.tolerance)
-             h.failCase(attribute,numericalInput,numericalData);            
+             obj.failCase(attribute,numericalInput,numericalData);            
          else
             updatedVal = numericalData/attributeInfo.conversionFactor;
          end
          
       end
       
-      function [h,foundState] = writeToggleProtocol(h,setState,varargin)
-         checkConnection(h)
+      function [obj,foundState] = writeToggleProtocol(obj,setState,varargin)
+         checkConnection(obj)
          
          if nargin == 3
             attributeInfo = varargin{1};
          end
           if ~exist('attributeInfo','var') || ~isfield(attributeInfo,'query')
-            attributeInfo.query = h.commands.('toggleQuery');
+            attributeInfo.query = obj.commands.('toggleQuery');
           end
           if ~isfield(attributeInfo,'toggleOn')
-            attributeInfo.toggleOn = h.commands.toggleOn;
+            attributeInfo.toggleOn = obj.commands.toggleOn;
           end
           if ~isfield(attributeInfo,'toggleOff')
-            attributeInfo.toggleOff = h.commands.toggleOff;
+            attributeInfo.toggleOff = obj.commands.toggleOff;
           end
           if ~isfield(attributeInfo,'toggleName')
              attributeInfo.toggleName = 'enabled';
@@ -240,9 +263,9 @@ classdef instrumentType < handle
          end
          
          %Reads data to check if current setting matches input given
-         if (isfield(h,'uncommonProperties') && isfield(h.uncommonProperties.bypassPreCheck) && ~h.uncommonProperties.bypassPreCheck)...
+         if (isfield(obj,'uncommonProperties') && isfield(obj.uncommonProperties.bypassPreCheck) && ~obj.uncommonProperties.bypassPreCheck)...
                  || strcmpi(setState,'query')
-            [h,toggleStatus] = readToggle(h,attributeInfo.query);%Dependent on instrument
+            [obj,toggleStatus] = readToggle(obj,attributeInfo.query);%Dependent on instrument
             foundState = instrumentType.discernOnOff(toggleStatus);
 
             if strcmp(setState,'query')
@@ -250,26 +273,26 @@ classdef instrumentType < handle
             end
 
             if strcmp(setState,toggleStatus)
-               className = class(h);
+               className = class(obj);
                className(className=='_') = ' ';
-               printOut(h,sprintf('%s already %s',className,h.status))
+               printOut(obj,sprintf('%s already %s',className,obj.status))
                return
             end
          end
          
-         h = writeToggle(h,toggleCommand);
+         obj = writeToggle(obj,toggleCommand);
 
          %Bypass check after if enabled
-         if h.uncommonProperties.bypassPostCheck 
+         if obj.uncommonProperties.bypassPostCheck 
             foundState = instrumentType.discernOnOff(setState);
             return
          end
          
-         [h,toggleStatus] = readToggle(h,attributeInfo.query);
+         [obj,toggleStatus] = readToggle(obj,attributeInfo.query);
          toggleStatus = instrumentType.discernOnOff(toggleStatus);
          
          if ~strcmp(toggleStatus,setState)
-            className = class(h);
+            className = class(obj);
             className(className=='_') = ' ';
             error('Attempted to turn %s %s, but it failed ',setState,className)
          else
@@ -278,33 +301,33 @@ classdef instrumentType < handle
          
       end
       
-      function h = loadConfig(h,fileName,configFields,commandFields,numericalFields)
+      function obj = loadConfig(obj,fileName,configFields,commandFields,numericalFields)
          %Load config file with variable "config"
          load(fileName,'config');
          
          %For each field of the loaded file, change the object's field to
          %match
          for ii = fieldnames(config)'
-             if isa(h.(ii{1}),'struct')
+             if isa(obj.(ii{1}),'struct')
                  for jj = fieldnames(config.(ii{1}))'
-                     h.(ii{1}).(jj{1}) = config.(ii{1}).(jj{1});
+                     obj.(ii{1}).(jj{1}) = config.(ii{1}).(jj{1});
                  end
              else
-                 h.(ii{1}) = config.(ii{1});
+                 obj.(ii{1}) = config.(ii{1});
              end
          end
          
          %Check presence of required config fields
          if ~isempty(configFields)
          for ii = configFields
-            if isempty(h.(ii{1}))
+            if isempty(obj.(ii{1}))
                error('Invalid config file. Config must include %s',ii{1})
             end
          end
          end
          if ~isempty(commandFields)
              for ii = commandFields
-                 if ~isfield(h.commands,ii{1})
+                 if ~isfield(obj.commands,ii{1})
                      error('Invalid config file. Config commands must include %s',ii{1})
                  end
              end
@@ -317,7 +340,7 @@ classdef instrumentType < handle
             neededInfo = {'units','conversionFactor','minimum','maximum'};
             for ii = numericalFields            
                for jj = neededInfo
-                  if isempty(h.(strcat(ii{1},'Info')).(jj{1}))
+                  if isempty(obj.(strcat(ii{1},'Info')).(jj{1}))
                      error('Invalid config file. Config must include %s %s',ii{1},jj{1})
                   end
                end
@@ -326,8 +349,8 @@ classdef instrumentType < handle
          
       end
       
-      function [h,outputInfo] = readInstrument(h,varargin)
-         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, serialport'); end
+      function [obj,outputInfo] = readInstrument(obj,varargin)
+         if isempty(obj.uncommonProperties.connectionType), error('No connection type given (com, serialport'); end
 
          %If there is a second argument given, send a write command to the instrument prior to reading
          if nargin > 1
@@ -335,29 +358,29 @@ classdef instrumentType < handle
          end
 
          %Dependent on connection type and whether query command is given, send commands to instrument to obtain data
-         switch lower(h.uncommonProperties.connectionType)
+         switch lower(obj.uncommonProperties.connectionType)
              case {'com','visadev'}
                if nargin > 1
-                  writeline(h.handshake,queryCommand)
+                  writeline(obj.handshake,queryCommand)
                end
-               outputInfo = readline(h.handshake);
+               outputInfo = readline(obj.handshake);
             case 'serialport'
                if nargin > 1
-                  fprintf(h.handshake,queryCommand);
+                  fprintf(obj.handshake,queryCommand);
                end
-               outputInfo = fscanf(h.handshake);
+               outputInfo = fscanf(obj.handshake);
          end
       end
 
-      function h = writeInstrument(h,commandInput)
-         if isempty(h.uncommonProperties.connectionType), error('No connection type given (com, visadev, serialport)'); end
+      function obj = writeInstrument(obj,commandInput)
+         if isempty(obj.uncommonProperties.connectionType), error('No connection type given (com, visadev, serialport)'); end
 
          %Dependent on connection type, send command to instrument
-         switch lower(h.uncommonProperties.connectionType)
+         switch lower(obj.uncommonProperties.connectionType)
              case {'com','visadev'}
-               writeline(h.handshake,commandInput)               
+               writeline(obj.handshake,commandInput)               
             case 'serialport'
-               fprintf(h.handshake,commandInput);
+               fprintf(obj.handshake,commandInput);
          end
       end
 
@@ -392,12 +415,12 @@ classdef instrumentType < handle
          end
       end
       
-      function h = overrideStruct(h,s)
-         %Replaces all fields in h with the values for those fields in s so
+      function obj = overrideStruct(obj,s)
+         %Replaces all fields in obj with the values for those fields in s so
          %long as those fields exist in s     
          sfn = fieldnames(s);
          for ii = 1:numel(sfn)
-            h.(sfn{ii}) = s.(sfn{ii});
+            obj.(sfn{ii}) = s.(sfn{ii});
          end
          
          %Placed into static functions because this can be used for any two
