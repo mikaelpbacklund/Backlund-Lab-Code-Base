@@ -1318,34 +1318,33 @@ classdef experiment
          %Frequency axis in Hz
          %4th argument is boolean for incorporating RF strengh. If so, freq axis is in Hz/T
 
-         for ii = 1:numel(iterations)    
-            %Pull data from every point in each iteration
-            for jj = 1:obj.scan.nSteps
-               switch dataType
-                  case {'ref','r','reference'}
-                     preFFTData(jj) = obj.data.values{jj,ii}(1);
-                  case {'sig','s','signal'}
-                     preFFTData(jj) = obj.data.values{jj,ii}(2);
-                  case {'con','c','contrast'}
-                     refData = obj.data.values{jj,ii}(1);
-                     sigData = obj.data.values{jj,ii}(2);
-                     preFFTData(jj) = (refData-sigData)/refData;
-               end               
-            end            
-            %Performs fft on given data
-            iterationFFT = abs(fftshift(fft(preFFTData-mean(preFFTData))));
-            %Single sided fft
-            iterationFFT = iterationFFT(ceil((obj.scan.nSteps+1)/2)+1:end);
-            if ii == 1
-               fftOut = iterationFFT;
-            else
-               fftOut = fftOut + iterationFFT;
-            end
+         % Preallocate array for all data points
+         preFFTData = zeros(obj.scan.nSteps, numel(iterations));
+         
+         % Extract data based on type using vectorized operations
+         switch dataType
+            case {'ref','r','reference'}
+               for ii = 1:numel(iterations)
+                  preFFTData(:,ii) = cellfun(@(x) x(1), obj.data.values(:,iterations(ii)));
+               end
+            case {'sig','s','signal'}
+               for ii = 1:numel(iterations)
+                  preFFTData(:,ii) = cellfun(@(x) x(2), obj.data.values(:,iterations(ii)));
+               end
+            case {'con','c','contrast'}
+               for ii = 1:numel(iterations)
+                  refData = cellfun(@(x) x(1), obj.data.values(:,iterations(ii)));
+                  sigData = cellfun(@(x) x(2), obj.data.values(:,iterations(ii)));
+                  preFFTData(:,ii) = (refData - sigData) ./ refData;
+               end
          end
 
-         %Dividing by number of iterations squared gives approximately the
-         %same arbitrary units as unaveraged
-%          fftOut = fftOut ./ numel(iterations);
+         % Perform FFT on all iterations at once
+         fftOut = abs(fftshift(fft(preFFTData - mean(preFFTData, 1), [], 1)));
+         % Single sided FFT
+         fftOut = fftOut(ceil((obj.scan.nSteps+1)/2)+1:end, :);
+         % Average across iterations
+         fftOut = mean(fftOut, 2);
 
          frequencyStepSize = obj.scan.stepSize(1)*1e-9;%Hz
          frequencyAxis = (1:(obj.scan.nSteps-1)/2)/(frequencyStepSize*obj.scan.nSteps);

@@ -268,7 +268,7 @@ classdef cam < instrumentType
          %Checks each set of bounds to see if it matches the total size
          hasMaxSizeBounds  = false;
          for ii = 1:nOutputs
-            if [obj.bounds{ii,1}(1),obj.bounds{ii,1}(2);obj.bounds{ii,2}(1),obj.bounds{ii,2}(2)] == [1,size(totalSize,1);1,size(totalSize,2)]
+            if all([obj.bounds{ii,1}(1),obj.bounds{ii,1}(2);obj.bounds{ii,2}(1),obj.bounds{ii,2}(2)] == [1,size(totalSize,1);1,size(totalSize,2)])
                hasMaxSizeBounds  = true;
             end
          end

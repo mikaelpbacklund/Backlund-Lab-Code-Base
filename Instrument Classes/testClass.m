@@ -125,7 +125,7 @@ classdef testClass < instrumentType
 
    methods
       function set.value(obj, val)
-         obj = setParameter(obj, val, 'value');
+         obj = setParameter(obj, val, 'value');%#ok<*NASGU>
       end
       function val = get.value(obj)
          val = getParameter(obj, 'value');

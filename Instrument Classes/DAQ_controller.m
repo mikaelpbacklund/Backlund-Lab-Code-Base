@@ -118,23 +118,18 @@ classdef DAQ_controller < instrumentType
          end
          
          %Find non-simulated device
-         a = daqlist;
-         b = a.DeviceInfo;
-         c = a.DeviceID;
-         for ii = 1:numel(b)
-            isSimulated(ii) = b(ii).IsSimulated; %#ok<AGROW>
-         end
-         
-         obj.daqName = c(~isSimulated);
+         devices = daqlist;
+         isSimulated = [devices.DeviceInfo.IsSimulated];
+         obj.daqName = devices.DeviceID(~isSimulated);
 
          if numel(obj.daqName) > 1
              error('DAQ_controller:MultipleDevices', 'Multiple DAQs detected')
          end
          
          %Store port names
-         obj.analogPortNames = b(~isSimulated).Subsystems(1).ChannelNames;
-         obj.digitalPortNames = b(~isSimulated).Subsystems(3).ChannelNames;
-         obj.counterPortNames = b(~isSimulated).Subsystems(4).ChannelNames;         
+         obj.analogPortNames = devices.DeviceInfo(~isSimulated).Subsystems(1).ChannelNames;
+         obj.digitalPortNames = devices.DeviceInfo(~isSimulated).Subsystems(3).ChannelNames;
+         obj.counterPortNames = devices.DeviceInfo(~isSimulated).Subsystems(4).ChannelNames;         
          
          %Create DAQ connection
          obj.handshake = daq(obj.manufacturer);
@@ -239,14 +234,7 @@ classdef DAQ_controller < instrumentType
          channelNumber = getChannelIndex(obj, channelDesignation);
          obj.activeDataChannel = obj.channelInfo(channelNumber).label;
          obj.handshake.UserData.dataChannelNumber = channelNumber;
-         switch lower(obj.channelInfo(channelNumber).dataType)
-            case {'v','voltage','analog'}
-               dataType = 'Voltage';
-            case {'counter','cntr','count','edge','edge count','edgecount'}
-               dataType = 'EdgeCount';
-            case {'digital','binary'}
-               dataType = 'Digital';
-         end
+         dataType = getDataType(obj, channelNumber);
          obj.handshake.UserData.dataType = dataType;
       end
       
@@ -378,14 +366,7 @@ classdef DAQ_controller < instrumentType
          end
          channelNumber = getChannelIndex(obj, val);
          obj.handshake.UserData.dataChannelNumber = channelNumber;
-         switch lower(obj.channelInfo(channelNumber).dataType)
-            case {'v','voltage','analog'}
-               dataType = 'Voltage';
-            case {'counter','cntr','count','edge','edge count','edgecount'}
-               dataType = 'EdgeCount';
-            case {'digital','binary'}
-               dataType = 'Digital';
-         end
+         dataType = getDataType(obj, channelNumber);
          obj.handshake.UserData.dataType = dataType;
       end
       function val = get.activeDataChannel(obj)
@@ -458,6 +439,18 @@ classdef DAQ_controller < instrumentType
             error('%s is an invalid channel designation. A designation must correspond to exactly 1 channel''s port or label', designation);
          end
       end
+
+      function dataType = getDataType(obj, channelNumber)
+         % Returns the data type of the specified channel
+         switch lower(obj.channelInfo(channelNumber).dataType)
+            case {'v','voltage','analog'}
+               dataType = 'Voltage';
+            case {'counter','cntr','count','edge','edge count','edgecount'}
+               dataType = 'EdgeCount';
+            case {'digital','binary'}
+               dataType = 'Digital';
+         end
+      end
    end
 
 end
@@ -476,7 +469,7 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         end
         
         % Read data from DAQ
-        [unsortedData, scansAvailable] = readDAQData(handshake);
+        [unsortedData, ~] = readDAQData(handshake);
         if isempty(unsortedData)
             return;
         end

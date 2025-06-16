@@ -203,7 +203,7 @@ classdef laser < instrumentType
          if isempty(obj.setPower) || obj.setPower ~= newVal
              obj = queryActualPower(obj);
              obj.setPower = newVal;
-             obj = equilibrium(obj,true);             
+             obj = equilibrium(obj,true);             %#ok<NASGU>
          end
       end
 
