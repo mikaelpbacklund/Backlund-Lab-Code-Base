@@ -329,38 +329,28 @@ classdef experiment
          currentData = squeeze(obj.data.values(dataPoint{:},:));      
 
          %Deletes all the data points that are empty
-         currentData(isempty(currentData)) = [];
+         currentData(cellfun(@isempty, currentData)) = [];
+         if isempty(currentData)
+            dataMatrix = nan;
+            return
+         end
 
          %Used to find dimensionality
          comparisonMatrix = currentData{1};
 
-         if any(size(comparisonMatrix) == 1) %Only happens for a vector
-
+         if isvector(comparisonMatrix)
             %Creates 2 dimensional matrix where first dimension is of size
             %of data vector while second dimension is of number of
             %iterations
-            dataMatrix = zeros([numel(comparisonMatrix) currentIteration]);
-
-            for ii = 1:numel(currentData)
-               dataMatrix(:,ii) = currentData{ii};
-            end
+            dataMatrix = cell2mat(currentData(:)');
             return
          end
-
-         s.type = '()';
-         s.subs = cell(1,ndims(comparisonMatrix)+1);
 
          %Creates n+1 dimensional array where n is the number of dimensions
          %of the data without iterations
          %All dimensions but the last are the same size as their corresponding
          %data and the last is the size of the number of iterations
-         dataMatrix = zeros([size(comparisonMatrix) numel(currentData)]);
-
-         %Converts the "cell" dimension into an additional matrix dimension
-         for ii = 1:numel(currentData)%For each cell
-            s.subs{end} = ii;
-            dataMatrix = subsasgn(dataMatrix,s,currentData{ii});
-         end
+         dataMatrix = cat(ndims(comparisonMatrix)+1, currentData{:});
       end
 
       function obj = resetScan(obj)
@@ -464,36 +454,8 @@ classdef experiment
             oldUseTotalLoop = obj.pulseBlaster.useTotalLoop;
             obj.pulseBlaster.useTotalLoop = false;
 
-            %Creates sequence depending on RF status
-            switch optInfo.rfStatus
-               case {'on',true,'sig'}
-
-                  %Basic data collection
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','RF'},500,'Initial buffer');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ','RF'},optInfo.timePerPoint*1e9,'Taking data');
-
-               case {'off',false,'ref'}
-
-                  %Basic data collection
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM'},500,'Initial buffer');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ'},optInfo.timePerPoint*1e9,'Taking data');
-
-                case {'contrast','con','snr','signaltonoise','signal to noise','noise'}
-
-                  %ODMR sequence
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{},2500,'Initial buffer');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ'},(optInfo.timePerPoint*1e9)/2,'Reference');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{},2500,'Middle buffer signal off');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ','RF','Signal'},(optInfo.timePerPoint*1e9)/2,'Signal');
-                  obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'Signal'},2500,'Final buffer');                  
-
-               otherwise
-                  error('RF status (.rfStatus) must be "on", "off", or "contrast"')
-            end
-
-            %Send new sequence to instrument
-            obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+            % Generate and send pulse sequence using helper
+            obj.pulseBlaster = obj.createOptimizationSequence(optInfo);
          end
 
          optInfo.stageAxes = string(optInfo.stageAxes);       
@@ -501,48 +463,55 @@ classdef experiment
          %Performs stage movement, gets data for each location, then moves to best location along each axis
          for ii = 1:numel(optInfo.stageAxes)
 
-            %Creates empty cell array for storing data
-            rawData = cell(1,numel(optInfo.steps{ii}));
-
-            %Gets row of the current axis
-            axisRow = strcmpi(obj.PIstage.axisSum(:,1),optInfo.stageAxes(ii));
-            %Finds absolute axis locations using step info and current location
+            axisName = optInfo.stageAxes(ii);
+            axisRow = strcmpi(obj.PIstage.axisSum(:,1),axisName);
             stepLocations = optInfo.steps{ii} + obj.PIstage.axisSum{axisRow,2};
 
-            for jj = 1:numel(optInfo.steps{ii})
-               %Moves to location for taking this data
-               obj.PIstage = absoluteMove(obj.PIstage,optInfo.stageAxes(ii),stepLocations(jj));
+            % Initial scan and optimization
+            [maxVal,maxPosition,rawData] = obj.optimizationScan(stepLocations, axisName, optInfo.acquisitionType, optInfo.rfStatus, optInfo.algorithmType);
 
-               %Get data at this location
-               [obj,rawData{jj}] = getData(obj,optInfo.acquisitionType);
-            end
-
-            %After acquiring data, use below algorithms to get single value to fit for each location
-            switch optInfo.acquisitionType
-               case 'pulse sequence'
-                  switch optInfo.rfStatus
-                      case {'off','on',true,false,'ref','sig'}
-                        dataVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                        dataVector = cell2mat(dataVector);
-                     case {'con','contrast'}
-                        dataVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                        dataVector = cell2mat(dataVector);
-                      case {'snr','signaltonoise','signal to noise','noise'}
-                          conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                          refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                          conVector = cell2mat(conVector);
-                          refVector = cell2mat(refVector);
-                          dataVector = conVector .* (refVector .^ (1/2));
-                  end
-               case 'scmos' %unimplemented
-            end
+            % Check if movement is more than 25% of the total range
+            currentPosition = obj.PIstage.axisSum{axisRow,2};
+            movementSize = abs(maxPosition - currentPosition);
+            scanRange = max(stepLocations) - min(stepLocations);
             
-            %Use optimization algorithm to get max value and position
-            [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,optInfo.algorithmType);
+            if movementSize > 0.25 * scanRange
+                if obj.notifications
+                    fprintf('Large movement detected (%.2f%% of range). Performing verification scan...\n', ...
+                        (movementSize/scanRange)*100);
+                end
+                
+                % Move to the suggested position
+                obj.PIstage = absoluteMove(obj.PIstage,axisName,maxPosition);
+                
+                % Create verification scan around this position with 25% of original range
+                verificationRange = scanRange * 0.25;
+                verificationSteps = linspace(maxPosition - verificationRange/2, ...
+                    maxPosition + verificationRange/2, ...
+                    ceil(numel(optInfo.steps{ii})/2)); % Use half the number of original steps
+                
+                % Verification scan and optimization
+                [verificationMaxVal,verificationMaxPosition,~] = obj.optimizationScan(verificationSteps, axisName, optInfo.acquisitionType, optInfo.rfStatus, optInfo.algorithmType);
+                
+                % Compare results
+                if abs(verificationMaxVal - maxVal)/maxVal > 0.2 % If values differ by more than 20%
+                    if obj.notifications
+                        warning('Verification scan shows significant value difference. Keeping original position for safety.');
+                    end
+                elseif abs(verificationMaxPosition - maxPosition) > 0.1 * scanRange % If positions differ by more than 10% of range
+                    if obj.notifications
+                        warning('Verification scan shows different optimal position. Keeping original position for safety.');
+                    end
+                elseif obj.notifications
+                    fprintf('Verification scan confirms original result.\n');
+                    maxVal = verificationMaxVal;
+                    maxPosition = verificationMaxPosition;
+                end
+            end
 
             %Store all values obtained if enabled
             if optInfo.storeAllValues
-               obj.optimizationInfo.allValuesRecord{ii,end+1} = dataVector;
+               obj.optimizationInfo.allValuesRecord{ii,end+1} = rawData;
                %Prevent memory leak by deleting values if past 100,000 elements
                if numel(obj.optimizationInfo.allValuesRecord) > 1e5
                   obj.optimizationInfo.allValuesRecord(:,1:1e4) = [];
@@ -560,7 +529,7 @@ classdef experiment
            end
 
            %Move to maximum location
-            obj.PIstage = absoluteMove(obj.PIstage,optInfo.stageAxes(ii),maxPosition);
+            obj.PIstage = absoluteMove(obj.PIstage,axisName,maxPosition);
          end
 
          %Set pulse blaster back to previous sequence
@@ -579,6 +548,71 @@ classdef experiment
             fprintf('Optimization complete\n')
          end
 
+      end
+
+      function pulseBlaster = createOptimizationSequence(obj, optInfo)
+         % Helper to generate and send the pulse sequence for stage optimization
+         switch optInfo.rfStatus
+            case {'on',true,'sig'}
+               %Basic data collection
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','RF'},500,'Initial buffer');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ','RF'},optInfo.timePerPoint*1e9,'Taking data');
+            case {'off',false,'ref'}
+               %Basic data collection
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM'},500,'Initial buffer');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ'},optInfo.timePerPoint*1e9,'Taking data');
+            case {'contrast','con','snr','signaltonoise','signal to noise','noise'}
+               %ODMR sequence
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{},2500,'Initial buffer');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ'},(optInfo.timePerPoint*1e9)/2,'Reference');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{},2500,'Middle buffer signal off');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'AOM','DAQ','RF','Signal'},(optInfo.timePerPoint*1e9)/2,'Signal');
+               obj.pulseBlaster = condensedAddPulse(obj.pulseBlaster,{'Signal'},2500,'Final buffer');                  
+            otherwise
+               error('RF status (.rfStatus) must be "on", "off", or "contrast"')
+         end
+         pulseBlaster = sendToInstrument(obj.pulseBlaster);
+      end
+
+      function [optVal,optPos,rawDataOut] = optimizationScan(obj, stepLocs, axisName, acquisitionType, rfStatus, algorithmType)
+         % Moves stage, collects data, processes, and optimizes for given step locations
+         rawDataOut = cell(1,numel(stepLocs));
+         for jj = 1:numel(stepLocs)
+            obj.PIstage = absoluteMove(obj.PIstage, axisName, stepLocs(jj));
+            [obj,rawDataOut{jj}] = getData(obj,acquisitionType);
+         end
+         dataVec = experiment.processOptimizationData(rawDataOut, acquisitionType, rfStatus);
+         [optVal,optPos] = experiment.optimizationAlgorithm(dataVec, stepLocs, algorithmType);
+      end
+
+      % Helper function to process optimization data
+      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
+         %Processes raw data from stage optimization scans into a vector for optimization
+         %Input: rawData - cell array of data points
+         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
+         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
+         %Output: processedData - vector of processed values ready for optimization
+
+         switch acquisitionType
+            case 'pulse sequence'
+               switch rfStatus
+                  case {'off','on',true,false,'ref','sig'}
+                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'con','contrast'}
+                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'snr','signaltonoise','signal to noise','noise'}
+                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     conVector = cell2mat(conVector);
+                     refVector = cell2mat(refVector);
+                     processedData = conVector .* (refVector .^ (1/2));
+               end
+            case 'scmos' %unimplemented
+               processedData = [];
+         end
       end
 
       function [obj,performOptimization] = checkOptimization(obj)
@@ -636,7 +670,6 @@ classdef experiment
       end
 
       function [obj,dataOut,nPointsTaken] = getData(obj,acquisitionType)
-
          %Gets "correct" name for experiment type
          acquisitionType = experiment.discernExperimentType(acquisitionType);
 
@@ -648,165 +681,175 @@ classdef experiment
          nPointsTaken = 0;%default to 0
          switch lower(acquisitionType)
             case 'pulse sequence'
-
-               nPauseIncreases = 0;
-               originalPauseTime = obj.forcedCollectionPauseTime;
-               %For slightly changing sequence to get better results
-               bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
-               if numel(bufferPulses) > 0
-                bufferDuration = obj.pulseBlaster.userSequence(bufferPulses(1)).duration;
-               end
-
-               while true
-                  %Reset DAQ in preparation for measurement
-                  obj.DAQ = resetDAQ(obj.DAQ);
-                  obj.DAQ.takeData = true;
-
-                  pause(obj.forcedCollectionPauseTime/2)
-
-                  %Start sequence
-                  runSequence(obj.pulseBlaster)
-
-                  n = 0;
-
-                  %Wait until pulse blaster says it is done running
-                  while pbRunning(obj.pulseBlaster)
-                      if strcmpi(obj.DAQ.continuousCollection,'off')                          
-                          n = n+1;
-                          if n == 1
-                              dataOut = readDAQData(obj.DAQ);
-                          else
-                        dataOut = dataOut + readDAQData(obj.DAQ);
-                          end
-                      else
-                          pause(.001)
-                      end                     
-                  end
-
-                  %Stop sequence. This allows pulse blaster to run the same
-                  %sequence again by calling the runSequence function
-                  stopSequence(obj.pulseBlaster)
-
-                  pause(obj.forcedCollectionPauseTime)
-
-                  % Add something for outliers (more than 3 std devs
-                  % away) ***********
-
-                  obj.DAQ.takeData = false;
-
-                  if strcmpi(obj.DAQ.continuousCollection,'off')
-                      dataOut = dataOut./n;
-                      break
-                  end
-                  nPointsTaken = obj.DAQ.dataPointsTaken;
-                  
-                  %If at least 5 data points to compare to
-                  if sum(obj.data.iteration) > 5
-                      validPoints = ~isoutlier(obj.data.nPoints(obj.data.nPoints~=0));
-                      expectedDataPoints = mean(obj.data.nPoints(validPoints),"all");
-                      if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
-                              nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
-                          successfulCollection = false;
-                      else
-                          successfulCollection = true;
-                      end
-                  else
-                      expectedDataPoints = obj.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
-                      expectedDataPoints = (expectedDataPoints/1e9) * obj.DAQ.sampleRate;
-                      if nPointsTaken > expectedDataPoints*1.05 || nPointsTaken < expectedDataPoints*.95
-                          successfulCollection = false;
-                      else
-                          successfulCollection = true;
-                      end
-                  end
-
-
-                  if successfulCollection
-                      if ~all(cell2mat(obj.odometer) == 0)
-                          obj.data.failedPoints(obj.odometer{:},obj.data.iteration(obj.odometer{:})+1) = nPauseIncreases;
-                      end
-                      if nPauseIncreases ~= 0
-                          obj.forcedCollectionPauseTime = originalPauseTime;
-                          for ii = 1:numel(bufferPulses)
-                              obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
-                          end
-                          obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
-                      end
-                      break
-
-                  elseif nPauseIncreases < obj.maxFailedCollections
-                      nPauseIncreases = nPauseIncreases + 1;
-                      if obj.notifications
-                          warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-                              (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
-                      end
-                      obj.forcedCollectionPauseTime = obj.forcedCollectionPauseTime + originalPauseTime;
-                      %Increases intermission buffer duration by 2 * number
-                      %of failed collections
-                      for ii = 1:numel(bufferPulses)
-                          obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration+(2*nPauseIncreases),false);
-                      end
-                      obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
-                      pause(.1)%For next data point to come in before discarding the read
-                      %Discards any data that might have "carried
-                      %over" from the previous data point
-                      if obj.DAQ.handshake.NumScansAvailable > 0
-                          [~] = read(obj.DAQ.handshake,obj.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
-                      end
-                  else
-
-                      obj.forcedCollectionPauseTime = originalPauseTime;
-                      stop(obj.DAQ.handshake)
-                      error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
-                          nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
-                  end
-               end
-
-               if strcmpi(obj.DAQ.continuousCollection,'on')
-                  dataOut(1) = obj.DAQ.handshake.UserData.reference;
-                  dataOut(2) = obj.DAQ.handshake.UserData.signal;
-                  %FIX THIS**** Should be dividing by signal data points or
-                  %reference data points, not total/2
-                  if strcmp(obj.DAQ.dataAcquirementMethod,'Voltage')
-                      if strcmpi(obj.DAQ.differentiateSignal,'on')
-                        dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken/2);
-                      else
-                          dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken);
-                      end
-                  end
-                  if obj.DAQ.handshake.UserData.currentCounts > 3e9
-                      printOut(obj.DAQ,'Counts nearing max value. Resetting counter')
-                      stop(obj.DAQ.handshake)
-                      resetcounters(obj.DAQ.handshake)
-                      start(obj.DAQ.handshake)
-                  end                  
-               end
-               
+               [obj,dataOut,nPointsTaken] = getPulseSequenceData(obj);
             case 'scmos'
-               %Takes image and outputs as data
-
-               %Output of takeImage is a cell array for meanImages where each cell is the average image for each set of
-               %bounds while frameStacks if a cell array where each cell is a 3D array where each 2D slice is one frame
-               %from the camera and each cell corresponds to a different set of bounds
-
-               %Takes image using the camera and the current settings
-               [meanImages,frameStacks] = takeImage(obj.hamm);
-
-               %First column of cell array is the mean images
-               %Second column is the frame stacks
-               dataOut = meanImages;
-               if ~isempty(frameStacks)
-                  dataOut(:,2) = frameStacks;
-               end
-
-               %If only one output (mean image with 1 set of bounds), convert output to matrix
-               if isscalar(dataOut)
-                  dataOut = dataOut{1};
-               end
-
-               %List number of points taken as frames per trigger
-               nPointsTaken = obj.hamm.framesPerTrigger;
+               [obj,dataOut,nPointsTaken] = getSCMOSData(obj);
          end
+      end
+
+      function [obj,dataOut,nPointsTaken] = getPulseSequenceData(obj)
+         % Helper method for pulse sequence data acquisition
+         nPauseIncreases = 0;
+         originalPauseTime = obj.forcedCollectionPauseTime;
+         dataOut = [];
+         nPointsTaken = 0;
+
+         %For slightly changing sequence to get better results
+         bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
+         if numel(bufferPulses) > 0
+            bufferDuration = obj.pulseBlaster.userSequence(bufferPulses(1)).duration;
+         end
+
+         while true
+            %Reset DAQ in preparation for measurement
+            obj.DAQ = resetDAQ(obj.DAQ);
+            obj.DAQ.takeData = true;
+
+            pause(obj.forcedCollectionPauseTime/2)
+
+            %Start sequence
+            runSequence(obj.pulseBlaster)
+
+            n = 0;
+
+            %Wait until pulse blaster says it is done running
+            while pbRunning(obj.pulseBlaster)
+               if strcmpi(obj.DAQ.continuousCollection,'off')                          
+                  n = n+1;
+                  if n == 1
+                     dataOut = readDAQData(obj.DAQ);
+                  else
+                     dataOut = dataOut + readDAQData(obj.DAQ);
+                  end
+               else
+                  pause(.001)
+               end                     
+            end
+
+            %Stop sequence. This allows pulse blaster to run the same
+            %sequence again by calling the runSequence function
+            stopSequence(obj.pulseBlaster)
+
+            pause(obj.forcedCollectionPauseTime)
+
+            obj.DAQ.takeData = false;
+
+            if strcmpi(obj.DAQ.continuousCollection,'off')
+               dataOut = dataOut./n;
+               break
+            end
+
+            nPointsTaken = obj.DAQ.dataPointsTaken;
+
+            %If at least 5 data points to compare to
+            if sum(obj.data.iteration) > 5
+               validPoints = ~isoutlier(obj.data.nPoints(obj.data.nPoints~=0));
+               expectedDataPoints = mean(obj.data.nPoints(validPoints),"all");
+               if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
+                     nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
+                  successfulCollection = false;
+               else
+                  successfulCollection = true;
+               end
+            else
+               expectedDataPoints = obj.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+               expectedDataPoints = (expectedDataPoints/1e9) * obj.DAQ.sampleRate;
+               if nPointsTaken > expectedDataPoints*1.05 || nPointsTaken < expectedDataPoints*.95
+                  successfulCollection = false;
+               else
+                  successfulCollection = true;
+               end
+            end
+
+            if successfulCollection
+               if ~all(cell2mat(obj.odometer) == 0)
+                  obj.data.failedPoints(obj.odometer{:},obj.data.iteration(obj.odometer{:})+1) = nPauseIncreases;
+               end
+               if nPauseIncreases ~= 0
+                  obj.forcedCollectionPauseTime = originalPauseTime;
+                  for ii = 1:numel(bufferPulses)
+                     obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                  end
+                  obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+               end
+               break
+
+            elseif nPauseIncreases < obj.maxFailedCollections
+               nPauseIncreases = nPauseIncreases + 1;
+               if obj.notifications
+                  warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                     (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
+               end
+               obj.forcedCollectionPauseTime = obj.forcedCollectionPauseTime + originalPauseTime;
+               %Increases intermission buffer duration by 2 * number
+               %of failed collections
+               for ii = 1:numel(bufferPulses)
+                  obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration+(2*nPauseIncreases),false);
+               end
+               obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+               pause(.1)%For next data point to come in before discarding the read
+               %Discards any data that might have "carried
+               %over" from the previous data point
+               if obj.DAQ.handshake.NumScansAvailable > 0
+                  [~] = read(obj.DAQ.handshake,obj.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+               end
+            else
+               obj.forcedCollectionPauseTime = originalPauseTime;
+               stop(obj.DAQ.handshake)
+               error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                  nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
+            end
+         end
+
+         if strcmpi(obj.DAQ.continuousCollection,'on')
+            [obj,dataOut] = finishContinuousCollectionProcessing(obj,dataOut);
+         end
+      end
+
+      function [obj,dataOut] = finishContinuousCollectionProcessing(obj,dataOut)
+         dataOut(1) = obj.DAQ.handshake.UserData.reference;
+            dataOut(2) = obj.DAQ.handshake.UserData.signal;
+            %FIX THIS**** Should be dividing by signal data points or
+            %reference data points, not total/2
+            if strcmp(obj.DAQ.dataAcquirementMethod,'Voltage')
+               if strcmpi(obj.DAQ.differentiateSignal,'on')
+                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken/2);
+               else
+                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken);
+               end
+            end
+            if obj.DAQ.handshake.UserData.currentCounts > 3e9
+               printOut(obj.DAQ,'Counts nearing max value. Resetting counter')
+               stop(obj.DAQ.handshake)
+               resetcounters(obj.DAQ.handshake)
+               start(obj.DAQ.handshake)
+            end       
+      end
+
+      function [obj,dataOut,nPointsTaken] = getSCMOSData(obj)
+         %Takes image and outputs as data
+
+         %Output of takeImage is a cell array for meanImages where each cell is the average image for each set of
+         %bounds while frameStacks if a cell array where each cell is a 3D array where each 2D slice is one frame
+         %from the camera and each cell corresponds to a different set of bounds
+
+         %Takes image using the camera and the current settings
+         [meanImages,frameStacks] = takeImage(obj.hamm);
+
+         %First column of cell array is the mean images
+         %Second column is the frame stacks
+         dataOut = meanImages;
+         if ~isempty(frameStacks)
+            dataOut(:,2) = frameStacks;
+         end
+
+         %If only one output (mean image with 1 set of bounds), convert output to matrix
+         if isscalar(dataOut)
+            dataOut = dataOut{1};
+         end
+
+         %List number of points taken as frames per trigger
+         nPointsTaken = obj.hamm.framesPerTrigger;
       end
 
       function obj = plotData(obj,dataIn,plotName,varargin)
@@ -1475,10 +1518,48 @@ classdef experiment
                   maxPosition = positionVector(absDistance == minDistance);
                end
             case 'gaussian'
-
+               % Fit a Gaussian curve to the data
+               try
+                   % Create fit object with a single Gaussian
+                   gaussFit = fit(positionVector(:), dataVector(:), 'gauss1');
+                   coeffs = coeffvalues(gaussFit);
+                   
+                   % Extract parameters: coeffs = [a1,b1,c1] where
+                   % f(x) = a1*exp(-((x-b1)/c1)^2)
+                   % b1 is the peak position
+                   maxPosition = coeffs(2);
+                   maxValue = coeffs(1); % Peak amplitude
+                   
+                   % Validate the fit result
+                   % Check 1: Position should be within the scanned range
+                   if maxPosition < min(positionVector) || maxPosition > max(positionVector)
+                       warning('Gaussian fit peak position outside scanned range. Using max value method instead.');
+                       [maxValue,maxPosition] = experiment.optimizationAlgorithm(dataVector,positionVector,'max value');
+                       return;
+                   end
+                   
+                   % Check 2: R-squared value should be reasonable (above 0.7)
+                   gof = goodness(gaussFit);
+                   if gof.rsquare < 0.7
+                       warning('Poor Gaussian fit quality (R² < 0.7). Using max value method instead.');
+                       [maxValue,maxPosition] = experiment.optimizationAlgorithm(dataVector,positionVector,'max value');
+                       return;
+                   end
+                   
+                   % Check 3: Width should be reasonable (not too narrow or wide)
+                   width = abs(coeffs(3));
+                   scanRange = max(positionVector) - min(positionVector);
+                   if width < scanRange*0.05 || width > scanRange*0.5
+                       warning('Gaussian fit width unreasonable. Using max value method instead.');
+                       [maxValue,maxPosition] = experiment.optimizationAlgorithm(dataVector,positionVector,'max value');
+                       return;
+                   end
+                   
+               catch ME
+                   warning(ME.identifier, 'Gaussian fitting failed: %s\nUsing max value method instead.', ME.message);
+                   [maxValue,maxPosition] = experiment.optimizationAlgorithm(dataVector,positionVector,'max value');
+               end
          end
-
-
 
       end
 

@@ -401,14 +401,6 @@ classdef pulse_blaster < instrumentType
          %this for the final sequence after adding the total loop that
          %would be sent to the pulseBlaster
 
-         %Note: I am certain that this code could be better written,
-         %however it currently works and it is not worth the time/effort
-         %that would be required to rewrite it
-
-         %Break the pulse sequence into "chunks" that will be individually
-         %evaluated based on what loops they are inside, the cumulative
-         %result of which is the total duration
-
          switch lower(sequenceType)
             case 'user'
                sequence = obj.userSequence;
@@ -421,135 +413,68 @@ classdef pulse_blaster < instrumentType
          end
 
          if isempty(sequence)
-             obj.sequenceDurations.(sequenceType).totalNanoseconds = 0;
-             obj.sequenceDurations.(sequenceType).totalSeconds = 0;
-             obj.sequenceDurations.(sequenceType).dataNanoseconds = 0;
-             obj.sequenceDurations.(sequenceType).dataFraction = 0;
+             obj.sequenceDurations.(sequenceType) = struct(...
+                 'totalNanoseconds', 0, ...
+                 'totalSeconds', 0, ...
+                 'dataNanoseconds', 0, ...
+                 'dataFraction', 0);
              return
          end
 
-         %Gets the name of the channel with an acceptable name "data"
-         %This is why it is important to have "data" be an acceptable name
+         % Precompute opCodes for all pulses
+         directionTypes = {sequence.directionType};
+         opCodes = zeros(1, numel(directionTypes));
+         for ii = 1:numel(directionTypes)
+             [~, opCodes(ii)] = interpretName(obj, directionTypes{ii}, 'Direction');
+         end
+
+         % Precompute dataOn mask
          try
-            [dataName,~] = interpretName(obj,'data','Channel');
+             [dataName,~] = interpretName(obj,'data','Channel');
          catch
-            dataName = [];
+             dataName = [];
+         end
+         dataOn = false(1, numel(sequence));
+         if ~isempty(dataName)
+             for ii = 1:numel(sequence)
+                  dataOn(ii) = any(strcmpi(sequence(ii).activeChannels, dataName));
+             end
          end
 
-         durationValues = [sequence.duration];%Values for duration of each pulse
-         dataOn = false(numel(sequence),1);%Defaults data to false
+         durations = [sequence.duration];
 
-         %The loop below finds the start and end locations for all loops
-         %within the sequence
-         startTracker = [];
-         loopTracker = [];
-         nLoopsTracker = [];
-         for jj = 1:numel(sequence)
-            current = sequence(jj);
-
-            %Checks opCode for the current direction
-            [~,opCode] = interpretName(obj,current.directionType,'Direction');
-
-            if opCode == 3%Start loop
-               %Add to start tracker and number of loops tracker
-               startTracker(end+1) = jj; %#ok<AGROW>
-               if isempty(current.contextInfo)
-                   current.contextInfo = 0;
-               end
-               try
-               nLoopsTracker(end+1) = current.contextInfo;%#ok<AGROW>
-               catch ME
-                   assignin('base','current',current)
-                   assignin('base','nLoopsTracker',nLoopsTracker)
-                   rethrow(ME)
-               end
-            elseif opCode == 4%End loop
-               if isempty(startTracker),   error('Attempted to end loop while no loop has begun'),    end
-               %Adds both the start and number of loops to a new row on
-               %loop tracker then removes those values from their own
-               %tracker to prevent using them again
-               loopTracker(end+1,1) = startTracker(end);%#ok<AGROW>
-               startTracker(end) = [];
-               loopTracker(end,3) = nLoopsTracker(end);
-               nLoopsTracker(end) = [];
-               loopTracker(end,2) = jj;
-               %This effecitvely sorts the loops based on where the end
-               %loop comes first but this is irrelevant as it will only
-               %be used in a resorted form or in a form directly
-               %referenced based on this order
-            end
-
-            %If there is a data name and the data name matches an active
-            %channel of the current pulse, mark this as data collection
-            %on
-            if ~isempty(dataName) && ismember(dataName,current.activeChannels)
-               dataOn(jj) = true;
-            end
-
+         % Stack-based loop multiplier calculation
+         multipliers = ones(1, numel(sequence));
+         loopCounts = zeros(1, numel(sequence));
+         stackTop = 0;
+         for ii = 1:numel(sequence)
+             if opCodes(ii) == 3 % Start loop
+                 stackTop = stackTop + 1;
+                 if isfield(sequence(ii), 'contextInfo') && ~isempty(sequence(ii).contextInfo)
+                     loopCounts(stackTop) = sequence(ii).contextInfo;
+                 else
+                     loopCounts(stackTop) = 1;
+                 end
+             end
+             if stackTop > 0
+                 multipliers(ii) = prod(loopCounts(1:stackTop));
+             else
+                 multipliers(ii) = 1;
+             end
+             if opCodes(ii) == 4 % End loop
+                 if stackTop > 0
+                     stackTop = stackTop - 1;
+                 end
+             end
          end
 
-         totalDuration = 0;
-         dataDuration = 0;
-
-         if ~isempty(loopTracker)
-            %Gets rid of start/end distinction to set the chunk
-            %boundaries at every change in the loop configuration (every
-            %start or end of a loop)
-            chunks = sort(reshape(loopTracker(:,1:2),1,(2/3)*numel(loopTracker)),'ascend');
-
-            for jj = 1:numel(chunks)-1
-               chunkStart = chunks(jj);
-               chunkEnd = chunks(jj+1);
-               %Finds the pulses between chunk boundaries
-               if chunkStart+1<= chunkEnd-1
-                  interiorPulses = chunkStart+1:1:chunkEnd-1;
-               else
-                  interiorPulses = [];
-               end
-
-               %Include end loops on first possible chunk, include start
-               %loops on second possible chunk
-               [~,opCode] = interpretName(obj,sequence(chunkEnd).directionType,'Direction');
-               if opCode == 4%End Loop
-                  interiorPulses(end+1) = chunkEnd; %#ok<AGROW>
-               end
-
-               [~,opCode] = interpretName(obj,sequence(chunkStart).directionType,'Direction');
-               if opCode == 3%Start Loop
-                  interiorPulses(2:end+1) = interiorPulses;
-                  interiorPulses(1) = chunkStart;
-               end
-
-               if ~isempty(interiorPulses)
-                  %Find what loops they are inside
-                  insideLoops =  interiorPulses(1) >= loopTracker(:,1) & interiorPulses(1) <= loopTracker(:,2);
-
-                  %Find duration of chunk as well as what ratio of the
-                  %chunk is taking data
-                  chunkDuration = durationValues(interiorPulses);
-                  dataRatio = sum(chunkDuration(dataOn(interiorPulses)));
-                  chunkDuration = sum(chunkDuration);
-                  dataRatio = dataRatio/chunkDuration;
-
-                  %Multiply by the loops it is in
-                  chunkDuration = prod(loopTracker(insideLoops,3))*chunkDuration;
-
-                  %Add to total
-                  totalDuration = totalDuration + chunkDuration;
-                  dataDuration = dataDuration + chunkDuration*dataRatio;
-               end
-            end            
-
-         else
-            totalDuration = sum(durationValues);
-            dataDuration = sum(durationValues(dataOn));
-         end
+         totalDuration = sum(durations .* multipliers);
+         dataDuration = sum(durations(dataOn) .* multipliers(dataOn));
 
          obj.sequenceDurations.(sequenceType).totalNanoseconds = totalDuration;
          obj.sequenceDurations.(sequenceType).totalSeconds = totalDuration * 1e-9;
          obj.sequenceDurations.(sequenceType).dataNanoseconds = dataDuration;
-         obj.sequenceDurations.(sequenceType).dataFraction = dataDuration/totalDuration;
-
+         obj.sequenceDurations.(sequenceType).dataFraction = dataDuration / totalDuration;
       end
 
       function [outVal,outputBinary] = interpretPulseNames(obj,inVal)
@@ -684,30 +609,38 @@ classdef pulse_blaster < instrumentType
          %corrupted somehow and needs to be redownloaded
       end
 
-      function [interpretedString,matchingNumber] = interpretName(obj,inputName,nameType)
+      function [interpretedString, matchingNumber] = interpretName(obj, inputName, nameType)
          %nameType should be Channel or Direction
-         %Creates an anonymous function that compares the input string to
-         %acceptable names from the config
+         %Optimized for speed: vectorized string comparison, preserves all original functionality
 
-         inputName = string(inputName);
+         % Ensure inputName is a string array
+         if ~isstring(inputName)
+             inputName = string(inputName);
+         end
 
-         %Preallocation
-         interpretedString = cell(1,numel(inputName));
-         matchingNumber = zeros(1,numel(inputName));
+         acceptableNames = obj.(strcat('acceptable', nameType, 'Names'));
+         formalNames = obj.(strcat('formal', nameType, 'Names'));
 
-         for ii = 1:numel(inputName)
-            %Creates function that compares namesCell to the current
-            %inputName
-            checkName = @(namesCell)any(strcmpi(namesCell,inputName(ii)));
-            %Finds which cells contain an acceptable name matching the
-            %input
-            matchingName = cellfun(checkName,obj.(strcat('acceptable',nameType,'Names')));
-            if ~any(matchingName), error('%s is not an acceptable %s name',inputName,nameType), end
+         nInput = numel(inputName);
+         interpretedString = cell(1, nInput);
+         matchingNumber = zeros(1, nInput);
 
-            %Gets the formal name wherever the input matched an
-            %accceptable name
-            interpretedString{ii} = obj.(strcat('formal',nameType,'Names')){matchingName};
-            matchingNumber(ii) = find(matchingName);
+         % Flatten acceptableNames for vectorized comparison
+         flatAcceptable = string([acceptableNames{:}]);
+         cellLens = cellfun(@numel, acceptableNames);
+         cellEnds = cumsum(cellLens);
+         cellStarts = [1, cellEnds(1:end-1)+1];
+
+         for ii = 1:nInput
+             % Vectorized comparison
+             matchIdx = find(strcmpi(inputName(ii), flatAcceptable), 1, 'first');
+             if isempty(matchIdx)
+                 error('%s is not an acceptable %s name', inputName(ii), nameType);
+             end
+             % Find which cell in acceptableNames contains the match
+             cellIdx = find(matchIdx >= cellStarts & matchIdx <= cellEnds, 1, 'first');
+             interpretedString{ii} = formalNames{cellIdx};
+             matchingNumber(ii) = cellIdx;
          end
       end
 
