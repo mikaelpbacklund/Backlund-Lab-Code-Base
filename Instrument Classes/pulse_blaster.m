@@ -40,22 +40,6 @@ classdef pulse_blaster < instrumentType
       nChannels
    end
 
-   properties (Dependent)
-      % Properties that can be modified by the user
-      status            % Current status
-      frequency        % Operating frequency
-      channels        % Active channels
-   end
-
-   properties (SetAccess = {?pulse_blaster ?instrumentType}, GetAccess = public)
-      % Properties managed internally by the class
-      manufacturer     % Pulse blaster manufacturer
-      model           % Pulse blaster model
-      maxFrequency    % Maximum frequency
-      minFrequency    % Minimum frequency
-      handshake       % Pulse blaster connection handle
-   end
-
    methods
 
       function obj = pulse_blaster(configFileName)
@@ -73,7 +57,7 @@ classdef pulse_blaster < instrumentType
 
          %Loads config file and checks relevant field names
          configFields = {'clockSpeed','identifier','nChannels','formalDirectionNames','durationStepSize'...
-            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames','manufacturer','model','maxFrequency','minFrequency'};
+            'acceptableDirectionNames','formalChannelNames','acceptableChannelNames'};
          commandFields = {'library','api','type','name'};%Use commands to hold dll info
          numericalFields = {};      
          obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);
@@ -100,16 +84,10 @@ classdef pulse_blaster < instrumentType
 
          [~] = calllib(obj.commands.name,'pb_init');
          calllib(obj.commands.name,'pb_core_clock',obj.clockSpeed);
-
-         %Create pulse blaster connection
-         obj.handshake = serialport(obj.manufacturer, 9600);
-         configureTerminator(obj.handshake, "CR/LF");
          
          obj.connected = true;
          obj.identifier = 'PulseBlaster';
          
-         %Set default values
-         obj = setFrequency(obj, obj.minFrequency);
       end
 
       function obj = disconnect(obj)
@@ -511,72 +489,6 @@ classdef pulse_blaster < instrumentType
          end
          outVal = fliplr(outVal);%Flips order to what user would be familiar with
 
-      end
-
-      function obj = start(obj)
-         %start Starts pulse generation
-         %
-         %   obj = start(obj) starts pulse generation on the pulse blaster.
-         %
-         %   Throws:
-         %       error - If pulse blaster is not connected
-         
-         checkConnection(obj)
-         
-         %Send start command to pulse blaster
-         writeline(obj.handshake, 'START')
-         obj.status = 'running';
-      end
-      
-      function obj = stop(obj)
-         %stop Stops pulse generation
-         %
-         %   obj = stop(obj) stops pulse generation on the pulse blaster.
-         %
-         %   Throws:
-         %       error - If pulse blaster is not connected
-         
-         checkConnection(obj)
-         
-         %Send stop command to pulse blaster
-         writeline(obj.handshake, 'STOP')
-         obj.status = 'stopped';
-      end
-      
-      function obj = setFrequency(obj, frequency)
-         %setFrequency Sets pulse blaster frequency
-         %
-         %   obj = setFrequency(obj,frequency) sets the pulse blaster
-         %   frequency to the specified value.
-         %
-         %   Throws:
-         %       error - If frequency is out of range
-         
-         checkConnection(obj)
-         
-         if frequency < obj.minFrequency || frequency > obj.maxFrequency
-            error('pulse_blaster:InvalidFrequency', 'Frequency must be between %d and %d', obj.minFrequency, obj.maxFrequency)
-         end
-         
-         %Send frequency command to pulse blaster
-         writeline(obj.handshake, sprintf('FREQ %d', frequency))
-         obj.frequency = frequency;
-      end
-      
-      function obj = setChannels(obj, channels)
-         %setChannels Sets active channels
-         %
-         %   obj = setChannels(obj,channels) sets the active channels on the
-         %   pulse blaster.
-         %
-         %   Throws:
-         %       error - If channels are invalid
-         
-         checkConnection(obj)
-         
-         %Send channel command to pulse blaster
-         writeline(obj.handshake, sprintf('CHAN %s', channels))
-         obj.channels = channels;
       end
       
       function status = getStatus(obj)

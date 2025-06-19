@@ -128,6 +128,12 @@ for ii = startIteration:p.nIterations
       %Gets data points
       dataPoints = ex.data.nPoints(ex.odometer{:},:);
 
+      if isscalar(averageData)
+         averageData(2) = 0;
+      end
+      if isscalar(currentData)
+         currentData(2) = 0;
+      end
       averageContrast = (averageData(1) - averageData(2)) / averageData(1);
       currentContrast = (currentData(1) - currentData(2)) / currentData(1);
 

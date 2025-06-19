@@ -1,23 +1,23 @@
 %Scans stage across 1 dimension
-
+%ex.PIstage = absoluteMove(ex.PIstage,'z',19148)
 %Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
-%ex.PIstage = absoluteMove(ex.PIstage,'z',7500);
+%1;
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-scanBounds = {[6700 6900]};
-scanAxes = {'z'};
-scanStepSize = {2.5};
-sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+scanBounds = {[0 10]};
+scanAxes = {'x'};
+scanStepSize = {1};
+sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
-contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.41;
+contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+RFfrequency = 2.304;
 
 %Uncommonly changed parameters
-dataType = 'counter';%'counter' or 'analog'
-RFamplitude = 10;
-timeoutDuration = 5;
+dataType = 'analog';%'counter' or 'analog'
+RFamplitude = 0;
+p.timeoutDuration = 5;
 forcedDelayTime = .125;
 
 p.baselineSubtraction = 0;
@@ -129,13 +129,13 @@ ex.maxFailedCollections = 3;
 ex.nPointsTolerance = nDataPointDeviationTolerance;
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,...
-    ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
+% scanStartInfo(ex.scan.nSteps,...
+%     ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
-cont = checkContinue(timeoutDuration*2);
-if ~cont
-    return
-end
+% cont = checkContinue(timeoutDuration*2);
+% if ~cont
+%     return
+% end
 
 
 ex.optimizationInfo.enableOptimization = false;

@@ -51,14 +51,27 @@ h.useTotalLoop = true;
 %First pulse is variable RF duration, second is data collection
 %Second input is active channels, third is duration, fourth is notes
 
-h = condensedAddPulse(h,{},mean(p.scanBounds),'scanned τ');%Scanned
-h = condensedAddPulse(h,{'aom'},p.repolarizationDuration,'aom on');
+% h = condensedAddPulse(h,{},mean(p.scanBounds),'scanned τ');%Scanned
+% h = condensedAddPulse(h,{'aom'},p.repolarizationDuration,'aom on');
+% h = condensedAddPulse(h,{'signal'},mean(p.scanBounds),'scanned τ');
+% h = condensedAddPulse(h,{'aom','signal'},p.AOMCompensation,'aom compensation');
+% h = condensedAddPulse(h,{'aom','data','signal'},p.collectionDuration,'signal data collection');
+% h = condensedAddPulse(h,{'aom','signal'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
+% h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
+% h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
+
+h = condensedAddPulse(h,{},5000,'intermission buffer 1');
+h = condensedAddPulse(h,{'aom','signal'},p.repolarizationDuration,'repolarization for signal');
 h = condensedAddPulse(h,{'signal'},mean(p.scanBounds),'scanned τ');
-h = condensedAddPulse(h,{'aom'},p.AOMCompensation,'aom compensation');
+
+h = condensedAddPulse(h,{'aom','signal'},p.AOMCompensation,'aom compensation');
 h = condensedAddPulse(h,{'aom','data','signal'},p.collectionDuration,'signal data collection');
-h = condensedAddPulse(h,{'aom','signal'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
-h = condensedAddPulse(h,{'aom'},((p.repolarizationDuration)/2-p.collectionDuration),'repolarization');
+h = condensedAddPulse(h,{'aom','signal'},5000,'laser consistency post collection');
+h = condensedAddPulse(h,{'signal'},5000,'intermission buffer 2');
+% h = condensedAddPulse(h,{'aom'},p.repolarizationDuration,'repolarization for reference with compensating τ');
+h = condensedAddPulse(h,{'aom'},p.repolarizationDuration,'repolarization for reference');
 h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
+h = condensedAddPulse(h,{'aom'},5000,'laser consistency post collection');
 
 %Changes number of loops to match desired time
 h = adjustSequence(h);
