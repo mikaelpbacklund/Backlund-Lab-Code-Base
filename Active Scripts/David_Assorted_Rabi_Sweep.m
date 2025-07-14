@@ -7,17 +7,17 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [100 3000];
-p.scanStepSize = 100;
+p.scanBounds = [100 1000];
+p.scanStepSize = 50;
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.003;
-p.piTime = 36;
+p.RFResonanceFrequency = 2.178;
+p.piTime = 28;
 p.pulseNotes = 'AOM/DAQ delay compensation';%Exact notes of pulses to scan
 %'AOM/DAQ delay compensation','Repolarization,{'Reference Data collection','Signal Data collection'}
 %'Intermission between halves'
 
 %General
-p.RFAmplitude = 8;
+p.RFAmplitude = 10;
 p.sequenceTimePerDataPoint = 2;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 5; %How long before auto-continue occurs

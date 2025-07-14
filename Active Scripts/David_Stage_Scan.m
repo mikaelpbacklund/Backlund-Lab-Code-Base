@@ -6,16 +6,16 @@
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-scanBounds = {[0 10]};
-scanAxes = {'x'};
-scanStepSize = {1};
+scanBounds = {[19000 19600]};
+scanAxes = {'z'};
+scanStepSize = {2};
 sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
 contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
 RFfrequency = 2.304;
 
 %Uncommonly changed parameters
-dataType = 'analog';%'counter' or 'analog'
+dataType = 'counter';%'counter' or 'analog'
 RFamplitude = 0;
 p.timeoutDuration = 5;
 forcedDelayTime = .125;

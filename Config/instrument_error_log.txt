@@ -1,0 +1,420 @@
+[23-Jun-2025 11:45:03] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[23-Jun-2025 11:46:09] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:47:41] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:48:55] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:49:45] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:49:45] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:50:26] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:50:26] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:15] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:51:16] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:52:04] Creating a second device for the GPIB0::27::INSTR resource is not supported.
+See <a href="matlab: helpview('instrument', 'visadev_connectError')">related documentation</a> for troubleshooting steps. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[23-Jun-2025 11:52:04] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[23-Jun-2025 11:54:49] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:54:49] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:55:05] Not enough input arguments. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  command: ENBR 0
+  handshake: visalib.GPIB
+----------------------------------------
+[23-Jun-2025 11:55:05] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------
+[23-Jun-2025 11:55:28] Not enough input arguments. - Device: SRS RF
+State at error:
+  modulationWaveform: 
+  response: 3
+
+----------------------------------------
+[23-Jun-2025 11:55:28] Not enough input arguments. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------

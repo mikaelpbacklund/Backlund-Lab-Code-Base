@@ -125,7 +125,7 @@ classdef instrumentType < handle
               end
           catch connErr
               currentState = struct('connected', obj.connected);
-              obj.logError(connErr, currentState);
+              obj.logError(obj,connErr, currentState);
               rethrow(connErr);
           end
       end
@@ -376,7 +376,7 @@ classdef instrumentType < handle
               end
 
               % Save state before operation
-              obj.saveState();
+              obj.saveState(obj);
 
               %If there is a second argument given, send a write command to the instrument prior to reading
               if nargin > 1
@@ -405,12 +405,12 @@ classdef instrumentType < handle
                   'handshake', class(obj.handshake));
               
               % Log the error
-              obj.logError(readErr, currentState);
+              obj.logError(obj,readErr, currentState);
               
               % Attempt recovery
-              if ~obj.recoverState()
-                  warning('Failed to recover device state after read error');
-              end
+              % if ~obj.recoverState(obj)
+              %     warning('Failed to recover device state after read error');
+              % end
               
               rethrow(readErr);
           end
@@ -426,7 +426,7 @@ classdef instrumentType < handle
               end
 
               % Save state before operation
-              obj.saveState();
+              obj.saveState(obj);
 
               %Dependent on connection type, send command to instrument
               switch lower(obj.uncommonProperties.connectionType)
@@ -445,12 +445,12 @@ classdef instrumentType < handle
                   'handshake', class(obj.handshake));
               
               % Log the error
-              obj.logError(writeErr, currentState);
+              obj.logError(obj,writeErr, currentState);
               
               % Attempt recovery
-              if ~obj.recoverState()
-                  warning('Failed to recover device state after write error');
-              end
+              % if ~obj.recoverState(obj)
+              %     warning('Failed to recover device state after write error');
+              % end
               
               rethrow(writeErr);
           end
@@ -726,7 +726,7 @@ classdef instrumentType < handle
               
           catch recoverErr
               warning('Recovery:Failed', '%s', recoverErr.message);
-              obj.logError(recoverErr, obj.lastKnownGoodState);
+              obj.logError(obj,recoverErr, obj.lastKnownGoodState);
           end
       end
 

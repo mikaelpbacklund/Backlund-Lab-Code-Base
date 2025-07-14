@@ -5,26 +5,26 @@
 %resulting in failed and/or erroneous points
 
 %% User Inputs
-scanBounds = [12 512];%ns
-scanStepSize = 10;
-scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
-nIterations = 3;
-RFFrequency = 2.036;
-sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
-timeoutDuration = 10;
-forcedDelayTime = .2;
+p.scanBounds = [10 210];%ns
+p.scanStepSize = 2;
+p.scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
+p.nIterations = 1;
+p.RFResonanceFrequency = 2.1775;
+p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
+p.timeoutDuration = 10;
+p.forcedDelayTime = .2;
 %Offset for AOM pulses relative to the DAQ in particular
 %Positive for AOM pulse needs to be on first, negative for DAQ on first
-aomCompensation = 600;
-RFReduction = 0;
+p.aomCompensation = 600;
+p.RFReduction = 0;
 
 %Lesser used settings
-RFAmplitude = 10;
-dataType = 'analog';
-scanNSteps = [];%Will override step size if set
-nDataPointDeviationTolerance = .01;
-collectionDuration = (1/1.25)*1000;
-collectionBufferDuration = 1000;
+p.RFAmplitude = 10;
+p.dataType = 'analog';
+p.scanNSteps = [];%Will override step size if set
+p.nDataPointDeviationTolerance = .01;
+p.collectionDuration = (1/1.25)*1000;
+p.collectionBufferDuration = 1000;
 
 %% Loading Instruments
 %See ODMR example script for instrument loading information
@@ -48,13 +48,13 @@ end
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
 ex.SRS_RF.modulationEnabled = 'off';
-ex.SRS_RF.amplitude = RFAmplitude;
-ex.SRS_RF.frequency = RFFrequency;
+ex.SRS_RF.amplitude = p.RFAmplitude;
+ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = dataType;
+ex.DAQ.activeDataChannel = p.dataType;
 
 %% Use template to create sequence and scan
 
@@ -63,19 +63,20 @@ ex.DAQ.activeDataChannel = dataType;
 
 %Set parameters
 %Leaves intermissionBufferDuration, collectionDuration, repolarizationDuration, and collectionBufferDuration as default
-parameters.RFResonanceFrequency = RFFrequency;
-parameters.tauStart = scanBounds(1);
-parameters.tauEnd = scanBounds(2);
-parameters.timePerDataPoint = sequenceTimePerDataPoint;
-parameters.AOM_DAQCompensation = aomCompensation;
-parameters.collectionBufferDuration = collectionBufferDuration;
-parameters.collectionDuration = collectionDuration;
-if ~isempty(scanNSteps) %Use number of steps if set otherwise use step size
-   parameters.tauNSteps = scanNSteps;
+parameters.RFResonanceFrequency = p.RFResonanceFrequency;
+parameters.tauStart = p.scanBounds(1);
+parameters.tauEnd = p.scanBounds(2);
+parameters.scanBounds=p.scanBounds;
+parameters.timePerDataPoint = p.sequenceTimePerDataPoint;
+parameters.AOM_DAQCompensation = p.aomCompensation;
+parameters.collectionBufferDuration = p.collectionBufferDuration;
+parameters.collectionDuration = p.collectionDuration;
+if ~isempty(p.scanNSteps) %Use number of steps if set otherwise use step size
+   parameters.tauNSteps = p.scanNSteps;
 else
-   parameters.tauStepSize = scanStepSize;
+   parameters.scanStepSize = p.scanStepSize;
 end
-parameters.RFReduction = RFReduction;
+parameters.RFReduction = p.RFReduction;
 
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
@@ -89,20 +90,21 @@ ex.scan = [];
 ex = addScans(ex,scanInfo);
 
 %Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = forcedDelayTime;
+ex.forcedCollectionPauseTime = p.forcedDelayTime;
 
 %Changes tolerance from .01 default to user setting
-ex.nPointsTolerance = nDataPointDeviationTolerance;
+ex.nPointsTolerance = p.nDataPointDeviationTolerance;
 
 ex.maxFailedCollections = 3;
 
-%Checks if the current configuration is valid. This will give an error if not
-ex = validateExperimentalConfiguration(ex,'pulse sequence');
+%Checks if the current configuration is valid. This will give an error if
+%not #ANR: I commented it out since this is a deprecated function
+%ex = validateExperimentalConfiguration(ex,'pulsesequence');
 
 %Sends information to command window
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,nIterations,.28)
+scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
 
-cont = checkContinue(timeoutDuration*4);
+cont = checkContinue(p.timeoutDuration*4);
 if ~cont
    return
 end
@@ -118,7 +120,7 @@ ex = resetAllData(ex,[0 0]);
 
 avgData = zeros([ex.scan.nSteps 1]);
 
-for ii = 1:nIterations
+for ii = 1:p.nIterations
 
    %Prepares scan for a fresh start while keeping data from previous
    %iterations
@@ -169,8 +171,8 @@ for ii = 1:nIterations
       end
    end
 
-   if ii ~= nIterations
-       cont = checkContinue(timeoutDuration);
+   if ii ~= p.nIterations
+       cont = checkContinue(p.timeoutDuration);
        if ~cont
            break
        end

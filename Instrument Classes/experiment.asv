@@ -144,7 +144,6 @@ classdef experiment
                   case {'duration','dur'}
                      %For each pulse address, modify the duration based on
                      %the new values
-                     assignin("base","currentScan",currentScan)
                      for ii = 1:numel(currentScan.address)
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
@@ -722,9 +721,10 @@ classdef experiment
 
             %If at least 5 data points to compare to
             if sum(obj.data.iteration,"all") > 5
-               temp = obj.data.nPoints(obj.data.nPoints ~= 0);
-               validPoints = ~isoutlier(temp);
-               expectedDataPoints = mean(temp(validPoints), "all");
+               validPoints = obj.data.nPoints;
+
+               validPoints = ~isoutlier(obj.data.nPoints(obj.data.nPoints~=0));
+               expectedDataPoints = mean(obj.data.nPoints(validPoints),"all");
                if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
                      nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
                   successfulCollection = false;
