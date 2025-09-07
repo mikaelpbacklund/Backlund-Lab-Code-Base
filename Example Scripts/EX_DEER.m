@@ -60,12 +60,14 @@ p.normalizeFFTByMagnet = false;
 
 %Stage optimization
 p.optimizationEnabled = true; %Set to false to disable stage optimization
-p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
+p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 300; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 60; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
+p.useOptimizationTimer = true;
+p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the

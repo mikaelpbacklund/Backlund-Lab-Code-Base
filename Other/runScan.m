@@ -35,7 +35,18 @@ if p.resetData
 else
     iterationsForInfo = p.nIterations - size(ex.data.values,2);
 end
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+if isscalar(ex.scan)
+    nSteps = ex.scan.nSteps;    
+else
+    nSteps = 1;
+    for ii = 1:numel(ex.scan)
+        nSteps = nSteps * ex.scan(ii).nSteps;
+    end    
+end
+
+scanStartInfo(nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+
+ex.notifications = true;
 
 cont = checkContinue(p.timeoutDuration*2);
 if ~cont

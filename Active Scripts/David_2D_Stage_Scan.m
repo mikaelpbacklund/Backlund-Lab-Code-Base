@@ -6,7 +6,7 @@
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-p.scanBounds = {[-1395 -1390],[-72 -68]};
+p.scanBounds = {[865 870],[-225 -220]};
 p.scanAxes = {'x','y'};
 p.scanStepSize = {.2,.2};
 p.collectionType = 'counter';%analog or counter

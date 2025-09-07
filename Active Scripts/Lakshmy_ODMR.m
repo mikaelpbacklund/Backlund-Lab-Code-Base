@@ -1,15 +1,15 @@
 clear p
 
 %Required
-p.scanBounds = [2.35 2.55]; %Frequency bounds
-p.scanStepSize = .05; %Step size for RF frequency
+p.scanBounds = [2.15 2.3]; %Frequency bounds
+p.scanStepSize = .005; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
 p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
 p.sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.nIterations = 15; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
@@ -32,9 +32,9 @@ p.plotCurrentSNR = false;
 p.invertSignalForSNR = false;
 
 %Stage optimization
-p.optimizationEnabled = false; %Set to false to disable stage optimization
-p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
-p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationAxes = {'z'}; % {'x','y','z'}The axes which will be optimized over
+p.optimizationSteps = {-0.5:0.1:.5}; %{-0.3:0.05:.3, -0.3:0.05:.3, -0.5:0.1:.5}Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 30; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)

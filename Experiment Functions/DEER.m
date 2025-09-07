@@ -120,6 +120,17 @@ else
     [ex.pulseBlaster,scanInfo] = DEER_frequency_template(ex.pulseBlaster,sentParams);
 end
 
+%Sets all optimization info into appropriate place in experiment object
+ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
+ex.optimizationInfo.stageAxes = p.optimizationAxes;
+ex.optimizationInfo.steps = p.optimizationSteps;
+ex.optimizationInfo.timePerPoint = p.timePerOpimizationPoint;
+ex.optimizationInfo.timeBetweenOptimizations = p.timeBetweenOptimizations;
+ex.optimizationInfo.percentageToForceOptimization = p.percentageForcedOptimization;
+ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
+ex.optimizationInfo.useTimer = p.useOptimizationTimer;
+ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
+
 %Deletes any pre-existing scan
 ex.scan = [];
 

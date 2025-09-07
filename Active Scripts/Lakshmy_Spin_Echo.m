@@ -4,25 +4,25 @@ clear p
 
 %Required
 p.tauStart = 200;
-p.tauEnd = 5200;
-p.tauStepSize = 1000;
+p.tauEnd = 2100;
+p.tauStepSize = 200;
 p.collectionType = 'counter';
-p.piTime = 110;
-p.RFResonanceFrequency = 2.44;
+p.piTime = 70;
+p.RFResonanceFrequency = 2.23;
 p.tauNSteps = [];%will override step size
 
 %All parameters below this are optional in that they will revert to defaults if not specified 
 p.timePerDataPoint = 4;%seconds
-p.collectionDuration = 0;
-p.collectionBufferDuration = 100;
+p.collectionDuration = 800;
+p.collectionBufferDuration = 1000;%500 before
 p.intermissionBufferDuration = 1000;
-p.repolarizationDuration = 7000;
+p.repolarizationDuration = 6500;
 p.extraRF = 10;
-p.AOM_DAQCompensation = 700;%550
+p.AOM_DAQCompensation = 50;%550
 p.dataOnBuffer = 800;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 100;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [22 0];
-p.nIterations = 1;
+p.nIterations = 10;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
@@ -48,11 +48,11 @@ p.invertSignalForSNR = false;
 
 %Stage optimization
 p.optimizationEnabled = true; %Set to false to disable stage optimization
-p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
-p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationAxes = {'x','y','z'}; %{'x','y','z'}The axes which will be optimized over
+p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %{-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 60; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 90; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationTimer = true;
 p.useOptimizationPercentage = false;

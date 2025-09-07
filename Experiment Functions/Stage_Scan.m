@@ -53,6 +53,8 @@ instrumentNames = ["pulse blaster","daq","stage"];
 instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.stageConfig)];
 ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
 
+ex.optimizationInfo.enableOptimization = false;
+
 %Temporarily disables taking data and sets data channel to collectionType
 ex.DAQ.takeData = false;
 ex.DAQ.activeDataChannel = p.collectionType;

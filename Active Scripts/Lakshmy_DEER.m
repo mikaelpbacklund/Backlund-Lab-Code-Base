@@ -3,37 +3,36 @@
 clear p
 
 %Required
-p.scanType = 'duration';%Either frequency or duration
-p.scanBounds = [20 320]; %windfreak frequency (GHz)[400e-3 500e-3] or duration (ns)
-p.scanStepSize = 20;%1e-3
+p.scanType = 'frequency';%Either frequency or duration
+p.scanBounds = [500e-3 800e-3]; %windfreak frequency (GHz)[400e-3 500e-3] or duration (ns)
+p.scanStepSize = 5e-3;%1e-3
 % p.scanBounds = [100 500]; %windfreak frequency (GHz) or duration (ns)
 % p.scanStepSize = 20;
 p.collectionType = 'counter';%analog or counter
-p.RF2Frequency = .430;%GHz. Overwritten by scan if frequency selected
-p.RF2Duration = 400;%ns. Overwritten by scan if duration selected
+p.RF2Frequency = .62055;%GHz. Overwritten by scan if frequency selected
+p.RF2Duration = 100;%ns. Overwritten by scan if duration selected
 p.nRF2Pulses = 2;%1 for centered on pi pulse, 2 for during tau
-p.RF1ResonanceFrequency = 2.4055;
-p.piTime = 90;
-p.tauTime = 550;
+p.RF1ResonanceFrequency = 2.23;
+p.piTime = 60;
+p.tauTime = 600;
 
 %General
-p.timePerDataPoint = 5;%Before factoring in forced delay and other pauses
-p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
+p.timePerDataPoint = 4;%Before factoring in forced delay and other pauses
+p.collectionDuration = 800;%How long to collect data for. 0 means overwritten by DAQ rate
+p.collectionBufferDuration = 1000;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 1000;
-p.repolarizationDuration = 7000;
+p.repolarizationDuration = 6500;
 p.extraRF = 10;
-p.AOMCompensation = 700;%550
+p.AOMCompensation = 50;%550
 p.dataOnBuffer = 800;
 p.extraBuffer = 100;
-p.IQPreBufferDuration = 22;
-p.IQPostBufferDuration = 0;
+p.IQBuffers = [22 0];
 p.RF1Amplitude = 10;
-p.RF2Amplitude = 23;%neg 20 dBm attn
-p.nIterations = 100; %Number of iterations of scan to perform
-p.timeoutDuration = 10; %How long before auto-continue occurs
-p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.RF2Amplitude = 21;%neg 20 dBm attn 23 before
+p.nIterations = 500; %Number of iterations of scan to perform
+p.timeoutDuration = 3; %How long before auto-continue occurs
+p.forcedDelayTime = .25; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = Inf;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.maxFailedCollections = 3;
 p.perSecond = true;
@@ -46,7 +45,7 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = true;
 p.plotCurrentReference = true;
 p.plotAverageSNR = false;
@@ -55,13 +54,15 @@ p.plotAveragePercentageDataPoints = true;
 p.plotCurrentPercentageDataPoints = true;
 
 %Stage optimization
-p.optimizationEnabled = false; %Set to false to disable stage optimization
-p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
-p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationEnabled = true; %Set to false to disable stage optimization
+p.optimizationAxes = {'z'}; %{'x','y','z'}The axes which will be optimized over
+p.optimizationSteps = {-0.5:0.1:0.5}; %{-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
+p.useOptimizationTimer = true;
+p.useOptimizationPercentage = false;
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.
 %After every optimization, the reference value of the next data point is recorded. After every data point, if the
@@ -73,3 +74,7 @@ if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs deer
 ex = DEER(ex,p);
+
+% savedData = ex.data.values;
+% savedScan = ex.scan;
+% save("MyFileName","savedData","savedScan")

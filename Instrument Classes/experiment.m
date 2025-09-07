@@ -496,9 +496,16 @@ classdef experiment
 
             %Send new sequence to instrument
             h.pulseBlaster = sendToInstrument(h.pulseBlaster);
+
+            expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+            expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
          end
 
-         optInfo.stageAxes = string(optInfo.stageAxes);       
+         optInfo.stageAxes = string(optInfo.stageAxes);  
+         startVal = max(h.optimizationInfo.maxValueRecord(:,end));
+
+         nFails = 0;
+         while true
 
          %Performs stage movement, gets data for each location, then moves to best location along each axis
          for ii = 1:numel(optInfo.stageAxes)
@@ -516,7 +523,11 @@ classdef experiment
                h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),stepLocations(jj));
 
                %Get data at this location
-               [h,rawData{jj}] = getData(h,optInfo.acquisitionType);
+               [h,rawData{jj}] = getData(h,optInfo.acquisitionType,expectedDataPoints);
+
+               if h.notifications
+                   fprintf('Axis %d Step %d value: %.4e\n',ii,jj,rawData{jj}(1))
+               end
             end
 
             %After acquiring data, use below algorithms to get single value to fit for each location
@@ -539,9 +550,11 @@ classdef experiment
                case 'scmos' %unimplemented
             end
             
+            
             %Use optimization algorithm to get max value and position
             [maxVal,maxPosition] = experiment.optimizationAlgorithm(dataVector,stepLocations,optInfo.algorithmType);
 
+            
             %Store all values obtained if enabled
             if optInfo.storeAllValues
                h.optimizationInfo.allValuesRecord{ii,end+1} = dataVector;
@@ -550,7 +563,6 @@ classdef experiment
                   h.optimizationInfo.allValuesRecord(:,1:1e4) = [];
                end
             end
-
             %Records maximum value and location
            h.optimizationInfo.maxValueRecord(ii,end+1) = maxVal;
            h.optimizationInfo.maxLocationRecord(ii,end+1) = maxPosition;
@@ -565,6 +577,21 @@ classdef experiment
             h.PIstage = absoluteMove(h.PIstage,optInfo.stageAxes(ii),maxPosition);
          end
 
+         if maxVal > startVal*.75
+             break
+         else
+             nFails = nFails+1;
+             if nFails > 2
+                 break
+             end
+             if h.notifications
+                 fprintf('Optimization gave %.3g which is less than 75% of start value %.3g. Retrying\n',...
+                     maxVal,startVal)
+             end
+         end
+
+         end         
+
          %Set pulse blaster back to previous sequence
          if strcmpi(optInfo.acquisitionType,'pulse sequence')
             h.pulseBlaster.useTotalLoop = oldUseTotalLoop;
@@ -578,8 +605,11 @@ classdef experiment
          h.optimizationInfo.needNewValue = true;      
 
          if h.notifications
-            fprintf('Optimization complete\n')
+            fprintf('Optimization complete. Start value: %.4e, end value: %.4e\n'...
+                ,startVal,maxVal)
          end
+
+         
 
       end
 
@@ -588,7 +618,7 @@ classdef experiment
          %performOptimization is boolean 
 
          %Required fields and default values
-         optimizationDefaults = {'enableOptimization',true;...
+         optimizationDefaults = {'enableOptimization',false;...
             'algorithmType','max value';...
             'acquisitionType','pulse blaster';...
             'stageAxes',[];...
@@ -624,6 +654,8 @@ classdef experiment
             return
          end
 
+         %If it is the first data point of the first iteration
+         %OR
          %If timer is enabled and time since last optimization is greater than set timeBetweenOptimizations
          %OR
          %If percentage difference is enabled and the current data point is less than postOptimizationValue*percentageToForceOptimization
@@ -631,13 +663,23 @@ classdef experiment
                || ...
             (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
                h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}(1) < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
-            performOptimization = true;
+            %  if (all([h.odometer{:}] == 0) && any(h.data.iteration == 0)) ...
+            %      || ...
+            %      (timerOn && (isempty(optInfo.lastOptimizationTime) || seconds(datetime - optInfo.lastOptimizationTime) > optInfo.timeBetweenOptimizations)) ...
+            %    || ...
+            % (percentageOn && (isempty(optInfo.percentageToForceOptimization) || ...
+            %    h.data.values{h.odometer{:},h.data.iteration(h.odometer{:})}(1) < optInfo.postOptimizationValue * optInfo.percentageToForceOptimization))
+            
+             performOptimization = true;    
+
          else
-            performOptimization = false;
+
+            performOptimization = false;            
          end
       end
 
-      function [h,dataOut,nPointsTaken] = getData(h,acquisitionType)
+      function [h,dataOut,nPointsTaken] = getData(h,acquisitionType,varargin)
+          %3rd input is for manual points checking
 
          %Gets "correct" name for experiment type
          acquisitionType = experiment.discernExperimentType(acquisitionType);
@@ -699,11 +741,38 @@ classdef experiment
                       break
                   end
                   nPointsTaken = h.DAQ.dataPointsTaken;
-                  expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
-                  expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
+                  % expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                  % expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
 
-                  if nPointsTaken > expectedDataPoints*(1-h.nPointsTolerance) ||...
-                          nPointsTaken > expectedDataPoints *(1+h.nPointsTolerance)
+                  %If at least 5 data points to compare to                  
+                  if sum(h.data.iteration) > 5
+                      validPoints = ~isoutlier(h.data.nPoints(h.data.nPoints~=0));
+                      expectedDataPoints = mean(h.data.nPoints(validPoints),"all");
+                      if nPointsTaken > expectedDataPoints*(1+h.nPointsTolerance) ||...
+                              nPointsTaken < expectedDataPoints*(1-h.nPointsTolerance)
+                          successfulCollection = false;
+                      else
+                          successfulCollection = true;
+                      end
+                  else
+                      expectedDataPoints = h.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                      expectedDataPoints = (expectedDataPoints/1e9) * h.DAQ.sampleRate;
+                      if nPointsTaken > expectedDataPoints*1.05 || nPointsTaken < expectedDataPoints*.95
+                          successfulCollection = false;
+                      else
+                          successfulCollection = true;
+                      end
+                  end
+
+                  if nargin >= 3
+                      if nPointsTaken > varargin{1}*1.05 || nPointsTaken < varargin{1}*.95
+                          successfulCollection = false;
+                      else
+                          successfulCollection = true;
+                      end
+                  end
+
+                  if successfulCollection
                           if ~all(cell2mat(h.odometer) == 0)
                             h.data.failedPoints(h.odometer{:},h.data.iteration(h.odometer{:})+1) = nPauseIncreases;
                           end
@@ -756,7 +825,9 @@ classdef experiment
                       stop(h.DAQ.handshake)
                       resetcounters(h.DAQ.handshake)
                       start(h.DAQ.handshake)
-                  end                  
+                  end
+               elseif isscalar(dataOut)
+                   dataOut(2) = 0;
                end
                
             case 'scmos'
@@ -1451,6 +1522,12 @@ classdef experiment
                   %value
                   minDistance = min(absDistance(dataVector == maxValue),[],'all');
                   maxPosition = positionVector(absDistance == minDistance);
+                  %If there are two positions with same absolute distance (neg
+                  %and pos) to center that also have the same value, take
+                  %the first one arbitrarily
+                  if numel(maxPosition) > 1
+                      maxPosition = maxPosition(1);
+                  end
                end
             case 'gaussian'
 
