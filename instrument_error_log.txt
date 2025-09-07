@@ -1,0 +1,33 @@
+[20-Jul-2025 15:22:37] Creating a second device for the GPIB0::27::INSTR resource is not supported.
+See <a href="matlab: helpview('instrument', 'visadev_connectError')">related documentation</a> for troubleshooting steps. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[20-Jul-2025 15:22:37] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[20-Jul-2025 15:22:47] Creating a second device for the GPIB0::27::INSTR resource is not supported.
+See <a href="matlab: helpview('instrument', 'visadev_connectError')">related documentation</a> for troubleshooting steps. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[20-Jul-2025 15:22:47] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[21-Jul-2025 13:33:02] Creating a second device for the GPIB0::27::INSTR resource is not supported.
+See <a href="matlab: helpview('instrument', 'visadev_connectError')">related documentation</a> for troubleshooting steps. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[21-Jul-2025 13:33:02] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------

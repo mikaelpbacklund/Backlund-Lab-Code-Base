@@ -144,6 +144,7 @@ classdef experiment
                   case {'duration','dur'}
                      %For each pulse address, modify the duration based on
                      %the new values
+                     assignin("base","currentScan",currentScan)
                      for ii = 1:numel(currentScan.address)
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
@@ -689,10 +690,12 @@ classdef experiment
             runSequence(obj.pulseBlaster)
 
             n = 0;
+            %Perform check prior to repeated while loop
+            contCollection = strcmpi(obj.DAQ.continuousCollection,'off');
 
             %Wait until pulse blaster says it is done running
             while pbRunning(obj.pulseBlaster)
-               if strcmpi(obj.DAQ.continuousCollection,'off')                          
+               if contCollection                        
                   n = n+1;
                   if n == 1
                      dataOut = readDAQData(obj.DAQ);
@@ -721,10 +724,9 @@ classdef experiment
 
             %If at least 5 data points to compare to
             if sum(obj.data.iteration,"all") > 5
-               validPoints = obj.data.nPoints;
-
-               validPoints = ~isoutlier(obj.data.nPoints(obj.data.nPoints~=0));
-               expectedDataPoints = mean(obj.data.nPoints(validPoints),"all");
+               temp = obj.data.nPoints(obj.data.nPoints ~= 0);
+               validPoints = ~isoutlier(temp);
+               expectedDataPoints = mean(temp(validPoints), "all");
                if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
                      nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
                   successfulCollection = false;
@@ -1386,8 +1388,11 @@ classdef experiment
       function objectMatch = findInstrument(obj,identifierInput)
          %Finds the location within instrumentCells for a given instrument
 
-         %Ensures up to date list of instruments
-         obj = getInstrumentNames(obj);
+         if numel(obj.instrumentIdentifiers) ~= numel(obj.instrumentCells)
+            %Ensures up to date list of instruments
+            obj = getInstrumentNames(obj);
+            disp('test')
+         end
 
          %Obtain proper identifier for the input and compare with instruments present
          properIdentifier = instrumentType.giveProperIdentifier(identifierInput);

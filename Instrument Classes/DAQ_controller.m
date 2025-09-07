@@ -494,6 +494,8 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
     %
     %   Processes data when available and updates accumulated values.
     %   Handles both counter and voltage data types.
+
+    nAvailableAtStart = 0;
     
     try
         % Get collection info and validate data collection state
@@ -501,6 +503,8 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         if ~isValidCollectionState(collectionInfo)
             return;
         end
+
+        nAvailableAtStart = handshake.NumScansAvailable;
         
         % Read data from DAQ
         [unsortedData, ~] = readDAQData(handshake);
@@ -510,20 +514,13 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         
         % Process data based on type
         [sig, ref] = processData(unsortedData, collectionInfo);
-
-        if ref > 0
-           assignin("base","unsortedData",unsortedData)
-        end
         
         % Update handshake data
         updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData);
-
-        % if ref ~= 0
-        %  handshake.UserData.unsortedExample = unsortedData;
-        % end
         
     catch ME
         handleDAQError(handshake, ME);
+        warning('Number of scans reported available: %d',nAvailableAtStart)
     end
 end
 
@@ -546,16 +543,23 @@ function [unsortedData, scansAvailable] = readDAQData(handshake)
     %   Returns raw data matrix and number of available scans.
     %   Handles buffer overflow conditions.
     
-    scansAvailable = handshake.NumScansAvailable - 10;
+    scansAvailable = handshake.NumScansAvailable - 25;
+
+    if ~isfield(handshake.UserData,'ndiscards')
+       handshake.UserData.ndiscards = 0;
+    end
     
     % Handle buffer overflow
     if scansAvailable > handshake.ScansAvailableFcnCount * 100
-        [~] = read(handshake, scansAvailable, "OutputFormat", "Matrix");
+       multDiscard = 25;
+        [~] = read(handshake, handshake.ScansAvailableFcnCount*multDiscard, "OutputFormat", "Matrix");
+        handshake.UserData.ndiscards = handshake.UserData.ndiscards+1;
+        fprintf('Discarded %d scans\n Number of total discards: %d\n',handshake.ScansAvailableFcnCount*multDiscard,handshake.UserData.ndiscards)
         unsortedData = [];
         return;
     end
     
-    if scansAvailable <= 10
+    if scansAvailable <= 0
         unsortedData = [];
         return;
     end
@@ -654,7 +658,7 @@ function handleDAQError(handshake, ME)
     end
     
     % Stop if too many errors
-    if handshake.UserData.numErrors >= handshake.UserData.maxErrorCount
+    if handshake.UserData.numErrors >= 3
         error('DAQ_controller:MaxErrorsExceeded', ...
             'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
             handshake.UserData.maxErrorCount);

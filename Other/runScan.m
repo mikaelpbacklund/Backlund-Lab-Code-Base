@@ -54,29 +54,28 @@ try
 %Plots the pulse sequence on the first iteration if desired
 if p.plotPulseSequence
    seq = ex.pulseBlaster.userSequence;
-   xax = [];
    yax = [];
+   xax = 0;
+   nBin = sum(~isspace(seq(1).channelsBinary));   
+
    for kk = 1:numel(seq)
       binChannels = seq(kk).channelsBinary;
       binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
-      nBin = numel(binChannels);
-      if kk == 1
-         xax = 0;
-         for jj = 1:nBin
-            yax(kk,jj) = (nBin-(jj-1))*2+.5; %#ok<*SAGROW>
-         end
-      else
-         xax = [xax,xax(end)+seq(kk-1).duration]; %#ok<*AGROW>
-         for jj = 1:numel(binChannels)
-            yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
-         end
+
+      xax = [xax,xax(end)+seq(kk).duration]; %#ok<*AGROW>
+      for jj = 1:nBin
+         yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
       end
    end
+
+   ySize = size(yax,1);
+   for jj = 1:nBin
+      yax(ySize+1,jj) = yax(numel(seq),jj); %#ok<*SAGROW>
+   end
+
    pulseSequenceFig = figure(51);
    pulseSequenceAxes = axes(pulseSequenceFig);
-   for jj = 1:numel(binChannels)
-      stairs(pulseSequenceAxes,xax,yax)
-   end
+   stairs(pulseSequenceAxes,xax,yax)
 end
 
 if p.resetData

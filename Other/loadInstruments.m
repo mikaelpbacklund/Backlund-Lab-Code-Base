@@ -32,11 +32,14 @@ for ii = 1:numel(instrumentNames)
       case {'daq','nidaq','ni daq','ni_daq','data','data acquisition'}
          ex = connectToInstrument(ex,'DAQ','DAQ_controller');
 
-      case {'ndyag','ndyov','532','532 nm','532nm','green laser','nv laser'}
+      case {'ndyag','nd yag','nd yov','ndyov','532','532 nm','532nm','green laser','nv laser'}
          ex = connectToInstrument(ex,'ndYAG','laser');
+      otherwise
+         error('Invalid instrument name')
    end
 end
 
+ex = getInstrumentNames(ex);
 
    function ex = connectToInstrument(ex,experimentPropertyName,className,varargin)
       informalName = experimentPropertyName;

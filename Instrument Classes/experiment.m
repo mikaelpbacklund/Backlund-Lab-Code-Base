@@ -398,9 +398,11 @@ classdef experiment
          if isempty(obj.instrumentCells)
             obj.instrumentIdentifiers = [];
             obj.instrumentClasses = [];
+            disp('deleted identifiers')
          else
             obj.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),obj.instrumentCells,'UniformOutput',false);
             obj.instrumentClasses = cellfun(@(x)class(x),obj.instrumentCells,'UniformOutput',false);
+            % disp(numel(obj.instrumentIdentifiers))
          end
       end
 
@@ -690,10 +692,12 @@ classdef experiment
             runSequence(obj.pulseBlaster)
 
             n = 0;
+            %Perform check prior to repeated while loop
+            contCollection = strcmpi(obj.DAQ.continuousCollection,'off');
 
             %Wait until pulse blaster says it is done running
             while pbRunning(obj.pulseBlaster)
-               if strcmpi(obj.DAQ.continuousCollection,'off')                          
+               if contCollection                        
                   n = n+1;
                   if n == 1
                      dataOut = readDAQData(obj.DAQ);
@@ -1386,8 +1390,11 @@ classdef experiment
       function objectMatch = findInstrument(obj,identifierInput)
          %Finds the location within instrumentCells for a given instrument
 
-         %Ensures up to date list of instruments
-         obj = getInstrumentNames(obj);
+         if numel(obj.instrumentIdentifiers) ~= numel(obj.instrumentCells)
+            %Ensures up to date list of instruments
+            obj = getInstrumentNames(obj);
+            
+         end
 
          %Obtain proper identifier for the input and compare with instruments present
          properIdentifier = instrumentType.giveProperIdentifier(identifierInput);

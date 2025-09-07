@@ -3,32 +3,32 @@
 clear p
 
 %Required
-p.scanBounds = [1000 1000000];
-p.scanStepSize = 200;
+p.scanBounds = [1000 101000];
+p.scanStepSize = 2000;
 p.scanNSteps = [];%will override step size
-% p.piTime = 36;
-% p.RFResonanceFrequency = 2.269;
-p.collectionType = 'analog';
+p.piTime = 36;
+p.RFResonanceFrequency = 2.116;
+p.collectionType = 'counter';
 
 %Other
-p.sequenceTimePerDataPoint = 6;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint =6;%seconds
+p.collectionDuration = 1000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
+p.intermissionBufferDuration = 5000;
+p.repolarizationDuration = 30000;
 % p.extraRF = 4;
-p.AOMCompensation = 400;
+p.AOMCompensation = 150;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [30 0];
-p.nIterations = 1;
+p.nIterations = 2;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
-p.perSecond = false;
+p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names
@@ -43,7 +43,7 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = false;
+p.plotCurrentSignal = true;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = false;
@@ -71,4 +71,4 @@ p.useOptimizationPercentage = false;
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs Spin Echo
-ex = SpinEcho(ex,p);
+ex = T1(ex,p);

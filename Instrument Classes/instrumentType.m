@@ -50,7 +50,6 @@ classdef instrumentType < handle
       defaults  % Default instrument settings
       connected = false  % Connection status
       identifier  % Unique instrument identifier
-      lastKnownGoodState  % Last known working configuration
       errorLog  % History of errors and states
    end
 
@@ -67,7 +66,6 @@ classdef instrumentType < handle
           obj.uncommonProperties.bypassPreCheck = false;
           obj.uncommonProperties.bypassPostCheck = false;
           obj.errorLog = struct('timestamp', {}, 'error', {}, 'state', {});
-          obj.lastKnownGoodState = struct();
       end
       
       function printOut(obj,printMessage)
@@ -375,9 +373,6 @@ classdef instrumentType < handle
                   error('No connection type given (com, serialport')
               end
 
-              % Save state before operation
-              obj.saveState(obj);
-
               %If there is a second argument given, send a write command to the instrument prior to reading
               if nargin > 1
                  queryCommand = varargin{1};
@@ -405,12 +400,7 @@ classdef instrumentType < handle
                   'handshake', class(obj.handshake));
               
               % Log the error
-              obj.logError(obj,readErr, currentState);
-              
-              % Attempt recovery
-              % if ~obj.recoverState(obj)
-              %     warning('Failed to recover device state after read error');
-              % end
+              obj.logError(obj,readErr, currentState);             
               
               rethrow(readErr);
           end
@@ -424,9 +414,6 @@ classdef instrumentType < handle
               if isempty(obj.uncommonProperties.connectionType)
                   error('No connection type given (com, visadev, serialport)')
               end
-
-              % Save state before operation
-              obj.saveState(obj);
 
               %Dependent on connection type, send command to instrument
               switch lower(obj.uncommonProperties.connectionType)
@@ -447,10 +434,6 @@ classdef instrumentType < handle
               % Log the error
               obj.logError(obj,writeErr, currentState);
               
-              % Attempt recovery
-              % if ~obj.recoverState(obj)
-              %     warning('Failed to recover device state after write error');
-              % end
               
               rethrow(writeErr);
           end
@@ -617,8 +600,7 @@ classdef instrumentType < handle
           % Create new error entry with timestamp
           newError = struct(...
               'timestamp', datetime('now'), ...
-              'error', errorInfo, ...
-              'state', currentState);
+              'error', errorInfo);
           
           % Add to memory log with size limit
           if isempty(obj.errorLog)
@@ -654,79 +636,8 @@ classdef instrumentType < handle
               end
               fprintf(logFile, '----------------------------------------\n');
               fclose(logFile);
-          catch logError
-              warning(logError.identifier, 'Failed to write to error log file: %s', logError.message);
-          end
-      end
-
-      function saveState(obj)
-          % Save current device state for potential recovery
-          
-          % Get all public properties via metaclass
-          mc = metaclass(obj);
-          props = mc.PropertyList;
-          
-          % Save only non-transient, non-hidden properties
-          for ii = 1:numel(props)
-              prop = props(ii);
-              if ~prop.Transient && ~prop.Hidden && isprop(obj, prop.Name)
-                  try
-                      obj.lastKnownGoodState.(prop.Name) = obj.(prop.Name);
-                  catch
-                      % Skip properties that can't be copied
-                      continue
-                  end
-              end
-          end
-          
-          % Add timestamp to saved state
-          obj.lastKnownGoodState.timestamp = datetime('now');
-      end
-
-      function success = recoverState(obj)
-          % Attempt to restore device to last known good state
-          
-          success = false;
-          
-          % Check for available saved state
-          if isempty(fields(obj.lastKnownGoodState))
-              warning('No saved state available for recovery');
-              return;
-          end
-          
-          try
-              % Ensure device is connected before recovery
-              if ~obj.connected
-                  warning('Device not connected, attempting reconnection...');
-                  try
-                      obj.connect();
-                  catch connErr
-                      warning('Connection:Failed', '%s', connErr.message);
-                      return;
-                  end
-              end
-              
-              % Get restorable fields (excluding timestamp and internal)
-              stateFields = fields(obj.lastKnownGoodState);
-              stateFields = stateFields(~strcmp(stateFields, 'timestamp'));
-              
-              % Attempt to restore each property
-              for ii = 1:numel(stateFields)
-                  field = stateFields{ii};
-                  if isprop(obj, field) && ~strcmp(field, 'connected')
-                      try
-                          obj.(field) = obj.lastKnownGoodState.(field);
-                      catch setErr
-                          warning('Recovery:PropertySet', 'Failed to restore %s: %s', field, setErr.message);
-                      end
-                  end
-              end
-              
-              success = true;
-              
-          catch recoverErr
-              warning('Recovery:Failed', '%s', recoverErr.message);
-              obj.logError(obj,recoverErr, obj.lastKnownGoodState);
+          catch failedLog
+              warning(failedLog.identifier, 'Failed to write to error log file: %s', failedLog.message);
           end
       end
 

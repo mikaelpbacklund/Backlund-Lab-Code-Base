@@ -3,14 +3,14 @@
 clear p
 
 %Required
-p.scanBounds = [1.9 2.2]; %Frequency bounds
+p.scanBounds = [2.05 2.2]; %Frequency bounds
 p.scanStepSize = .0025;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
-p.RFAmplitude = 10;
+p.RFAmplitude = 10;  
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 0.5;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
 p.maxFailedCollections = 10;
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long besfore auto-continue occurs
@@ -27,17 +27,17 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = false;
-p.plotCurrentReference = true;
+p.plotCurrentReference = false;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = true;
+p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = false;
+p.plotPulseSequence = true;
 p.plotAverageContrastFFT = false;
 p.plotCurrentContrastFFT = false;
 

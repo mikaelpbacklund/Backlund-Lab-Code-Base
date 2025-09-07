@@ -6,11 +6,11 @@ clear p
 p.scanBounds = [1000 11000];
 p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.tauDuration = 412;
-p.piTime = 36;
-p.RFResonanceFrequency = 2.075;
+p.tauDuration = 540;
+p.piTime = 48;
+p.RFResonanceFrequency = 2.155;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 24;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -19,17 +19,17 @@ p.collectionDuration = 2000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFRampTime = 6;
+p.RFRampTime = 8;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 400;
+p.AOMCompensation = 450;
 p.IQBuffers = [30 10];
 p.nIterations = 100;
-p.RFAmplitude = 6;
+p.RFAmplitude = 8;
 p.timeoutDuration = 3;
-p.forcedDelayTime = .5;
+p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .001;
-p.maxFailedCollections = 25;
+p.maxFailedCollections = 5;
 p.baselineSubtraction = 0;
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
@@ -55,7 +55,7 @@ p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
 p.plotAverageContrastFFT = true;
 p.plotCurrentContrastFFT = true;
-p.verticalLineInfo = {10.705,'13C';42.576,'1H'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.verticalLineInfo = {10.705,'13C';42.576,'1H';40.05,'19F'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
 p.normalizeFFTByMagnet = true;
 
 %Stage optimization

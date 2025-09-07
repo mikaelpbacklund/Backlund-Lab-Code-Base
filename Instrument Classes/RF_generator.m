@@ -64,9 +64,6 @@ classdef RF_generator < instrumentType
                   return
               end         
 
-              % Save initial state before connection attempt
-              obj.saveState(obj);
-
               switch lower(obj.connectionInfo.vendor)
                   case {'srs','stanford'}
                       obj.connectionInfo.vendor = 'srs'; % Standardization
@@ -253,9 +250,6 @@ classdef RF_generator < instrumentType
               [obj,waveNumber] = readString(obj);
               waveNumber = s2c(waveNumber);
               
-              % Save state before processing response
-              obj.saveState(obj);
-              
               switch waveNumber(1)
                   case '0'
                       obj.modulationWaveform = 'sine';
@@ -279,10 +273,6 @@ classdef RF_generator < instrumentType
                   'response', waveNumber);
               obj.logError(obj,waveErr, currentState);
               
-              % Attempt recovery
-              % if ~obj.recoverState(obj)
-              %     warning('Failed to recover modulation waveform state');
-              % end
               rethrow(waveErr);
           end
       end
@@ -292,8 +282,6 @@ classdef RF_generator < instrumentType
           %   Types: amplitude(0), I/Q(6)
           
           try
-              % Save state before query
-              obj.saveState(obj);
               
               writeString(obj,obj.commands.modulationTypeQuery);
               [obj,modType] = readString(obj);
@@ -315,10 +303,6 @@ classdef RF_generator < instrumentType
                   'response', modType);
               obj.logError(obj,typeErr, currentState);
               
-              % Attempt recovery
-              % if ~obj.recoverState(obj)
-              %     warning('Failed to recover modulation type state');
-              % end
               rethrow(typeErr);
           end
       end
