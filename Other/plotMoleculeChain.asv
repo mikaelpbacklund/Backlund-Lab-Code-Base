@@ -1,0 +1,17 @@
+close all
+% load("Coords_log.mat")
+nTimesteps =1;
+nChains = 5;
+nCarbons = 100;
+pauseTimePerTimestep = 1;
+
+% maxVal = 
+
+cmap = turbo(size(mdData,2));
+f{1} = figure(1);
+a{1} = axes(f{1});
+view(3)
+
+clear currentChain
+clear currentTimestep
+

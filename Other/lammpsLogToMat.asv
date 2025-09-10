@@ -1,0 +1,85 @@
+%Converts lammps dump file to usable matlab data
+
+%Each cell of mdData represents one timestamp
+%Each column of mdData.positions represents 1 polymer chain
+%Each row of mdData.positions represents the carbon's position on its chain
+%3 numbers in vector ar xu, yu, and zu respectively
+
+fileName = 'C_dump.lammpstrj';
+fID = fopen(fileName, 'r');
+%%
+nCarbonsPerChain = 100;
+nChains = 136;
+nTimesteps = 3628;
+mdData = single(zeros(nTimesteps,nCarbonsPerChain,nChains,3));
+stepN = 0;
+
+fprintf('Be')
+
+while ~feof(fID)
+   currentLine = strtrim(fgetl(fID));
+   switch currentLine
+      case 'ITEM: TIMESTEP'
+         stepN = stepN+1;%Increase step number
+         if mod(stepN,10) == 0
+            fprintf('Starting step %d\n',stepN)
+         end         
+         timesteps = str2double(fgetl(fID)); %#ok<*SAGROW>
+      case 'ITEM: NUMBER OF ATOMS'
+         %always remains constant
+         if stepN == 1
+            nAtoms = str2double(fgetl(fID));
+         else
+            [~] = fgetl(fID);
+         end
+          
+      case 'ITEM: BOX BOUNDS pp pp ff'
+         %always remains constant
+         if stepN == 1
+            bb = fgetl(fID);
+            boxBounds.pp(1) = str2double(bb(3:end));
+            bb = fgetl(fID);
+            boxBounds.pp(2) = str2double(bb(3:end));
+            bb = fgetl(fID);
+            boxBounds.ff = str2double(bb(3:end));
+         else
+            [~] = fgetl(fID);
+            [~] = fgetl(fID);
+            [~] = fgetl(fID);
+         end         
+         
+      case {'ITEM: ATOMS id mol xu yu zu','ITEM: ATOMS id mol xu yu zu c_cs[1] c_cs[2] c_cs[3] '}
+         %next lines will be atom locations
+      otherwise
+         nums = single(str2double(strsplit(strtrim(currentLine))));
+         cID = mod(nums(1),nCarbonsPerChain);%Gets carbon id
+         if cID == 0
+            cID = nCarbonsPerChain;%last carbon goes to 100th spot, not 0th
+         end
+         %First dim is timestep
+         %Second dim is chain
+         %Third dim is carbon on a particular chain
+         %Fourth dim is x,y,z coords
+         mdData(stepN,nums(2),cID,1:3) = nums(3:5);
+
+   end
+end
+
+fclose(fID);
+
+%%
+% %Only single precision needed for this 
+% mdData = single(zeros(numel(mdData),size(mdData{1}.positions,1),size(mdData{1}.positions,2),3));
+% tic
+% for ii = 1:numel(mdData)
+%    for jj = 1:size(mdData{1}.positions,1)
+%       for kk = 1:size(mdData{1}.positions,2)
+%          floatData(ii,jj,kk,1:3) = mdData{ii}.positions{jj,kk}(1:3);
+%       end
+%    end
+%    if toc > 2
+%       tic
+%       fprintf('%d timesteps completed\n',ii)
+%    end
+% end
+% fprintf('%d timesteps completed\n',ii)
