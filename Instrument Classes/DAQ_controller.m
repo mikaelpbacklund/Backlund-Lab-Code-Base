@@ -26,6 +26,12 @@ classdef DAQ_controller < instrumentType
       takeData               % Enable/disable data collection
       activeDataChannel      % Currently active data channel
       differentiateSignal    % Enable/disable signal/reference differentiation
+      maxErrorCount         % Maximum number of errors before stopping
+      % Data collection configuration
+      scanBufferMultiplier  % Multiplier for buffer overflow detection
+      minScansAvailable     % Minimum number of scans required for processing
+      voltageScaleFactor    % Scale factor for voltage data conversion
+      maxDataPoints         % Maximum number of data points to store
    end
 
    %% Internal Properties
@@ -40,13 +46,6 @@ classdef DAQ_controller < instrumentType
       channelInfo           % Channel configuration information
       clockPort             % Clock port configuration
       dataChannels          % Available data channels
-      
-      % Data collection configuration
-      scanBufferMultiplier  % Multiplier for buffer overflow detection
-      minScansAvailable     % Minimum number of scans required for processing
-      maxErrorCount         % Maximum number of errors before stopping
-      voltageScaleFactor    % Scale factor for voltage data conversion
-      maxDataPoints         % Maximum number of data points to store
    end
 
    %% Read-only Properties
@@ -357,6 +356,41 @@ classdef DAQ_controller < instrumentType
          val = getParameter(obj,'differentiateSignal');
       end
 
+      function set.maxErrorCount(obj,val)
+         obj = setParameter(obj,val,'maxErrorCount'); %#ok<NASGU>
+      end
+      function val = get.maxErrorCount(obj)
+         val = getParameter(obj,'maxErrorCount');
+      end
+
+      function set.scanBufferMultiplier(obj,val)
+         obj = setParameter(obj,val,'scanBufferMultiplier'); %#ok<NASGU>
+      end
+      function val = get.scanBufferMultiplier(obj)
+         val = getParameter(obj,'scanBufferMultiplier');
+      end
+
+      function set.minScansAvailable(obj,val)
+         obj = setParameter(obj,val,'minScansAvailable'); %#ok<NASGU>
+      end
+      function val = get.minScansAvailable(obj)
+         val = getParameter(obj,'minScansAvailable');
+      end
+
+      function set.voltageScaleFactor(obj,val)
+         obj = setParameter(obj,val,'voltageScaleFactor'); %#ok<NASGU>
+      end
+      function val = get.voltageScaleFactor(obj)
+         val = getParameter(obj,'voltageScaleFactor');
+      end
+
+      function set.maxDataPoints(obj,val)
+         obj = setParameter(obj,val,'voltageScaleFactor'); %#ok<NASGU>
+      end
+      function val = get.maxDataPoints(obj)
+         val = getParameter(obj,'voltageScaleFactor');
+      end
+
       function set.activeDataChannel(obj,val)
          %Sets active data channel number/name based on designation given.
          %Designation can be the channel port or channel label so long as it is unique to that channel
@@ -460,6 +494,8 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
     %
     %   Processes data when available and updates accumulated values.
     %   Handles both counter and voltage data types.
+
+    nAvailableAtStart = 0;
     
     try
         % Get collection info and validate data collection state
@@ -467,6 +503,8 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         if ~isValidCollectionState(collectionInfo)
             return;
         end
+
+        nAvailableAtStart = handshake.NumScansAvailable;
         
         % Read data from DAQ
         [unsortedData, ~] = readDAQData(handshake);
@@ -482,6 +520,7 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         
     catch ME
         handleDAQError(handshake, ME);
+        warning('Number of scans reported available: %d',nAvailableAtStart)
     end
 end
 
@@ -504,16 +543,23 @@ function [unsortedData, scansAvailable] = readDAQData(handshake)
     %   Returns raw data matrix and number of available scans.
     %   Handles buffer overflow conditions.
     
-    scansAvailable = handshake.NumScansAvailable - handshake.UserData.minScansAvailable;
+    scansAvailable = handshake.NumScansAvailable - 25;
+
+    if ~isfield(handshake.UserData,'ndiscards')
+       handshake.UserData.ndiscards = 0;
+    end
     
     % Handle buffer overflow
-    if scansAvailable > handshake.ScansAvailableFcnCount * handshake.UserData.scanBufferMultiplier
-        [~] = read(handshake, scansAvailable, "OutputFormat", "Matrix");
+    if scansAvailable > handshake.ScansAvailableFcnCount * 100
+       multDiscard = 25;
+        [~] = read(handshake, handshake.ScansAvailableFcnCount*multDiscard, "OutputFormat", "Matrix");
+        handshake.UserData.ndiscards = handshake.UserData.ndiscards+1;
+        fprintf('Discarded %d scans\n Number of total discards: %d\n',handshake.ScansAvailableFcnCount*multDiscard,handshake.UserData.ndiscards)
         unsortedData = [];
         return;
     end
     
-    if scansAvailable <= handshake.UserData.minScansAvailable
+    if scansAvailable <= 0
         unsortedData = [];
         return;
     end
@@ -612,7 +658,7 @@ function handleDAQError(handshake, ME)
     end
     
     % Stop if too many errors
-    if handshake.UserData.numErrors >= handshake.UserData.maxErrorCount
+    if handshake.UserData.numErrors >= 3
         error('DAQ_controller:MaxErrorsExceeded', ...
             'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
             handshake.UserData.maxErrorCount);

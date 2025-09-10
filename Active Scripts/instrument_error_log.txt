@@ -1,0 +1,46 @@
+[24-Jun-2025 11:20:05] Invalid argument at position 1. Value must be a scalar. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[24-Jun-2025 11:20:05] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[25-Jun-2025 10:09:41] Invalid argument at position 1. Value must be a scalar. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[25-Jun-2025 10:09:41] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[25-Jun-2025 10:10:03] Invalid argument at position 1. Value must be a scalar. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[25-Jun-2025 10:10:03] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
+[03-Jul-2025 13:41:34] Connection must be established to instrument to execute this function - Device: stage
+State at error:
+  connected: 0
+----------------------------------------
+[08-Jul-2025 13:14:12] Invalid waveform type. Must be I/Q, or amplitude - Device: SRS RF
+State at error:
+  modulationType: 
+  response: 1
+
+----------------------------------------
+[08-Jul-2025 13:14:12] Invalid waveform type. Must be I/Q, or amplitude - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 1
+  connectionType: visadev
+----------------------------------------

@@ -398,11 +398,9 @@ classdef experiment
          if isempty(obj.instrumentCells)
             obj.instrumentIdentifiers = [];
             obj.instrumentClasses = [];
-            disp('deleted identifiers')
          else
             obj.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),obj.instrumentCells,'UniformOutput',false);
             obj.instrumentClasses = cellfun(@(x)class(x),obj.instrumentCells,'UniformOutput',false);
-            % disp(numel(obj.instrumentIdentifiers))
          end
       end
 
@@ -1393,7 +1391,7 @@ classdef experiment
          if numel(obj.instrumentIdentifiers) ~= numel(obj.instrumentCells)
             %Ensures up to date list of instruments
             obj = getInstrumentNames(obj);
-            
+            disp('test')
          end
 
          %Obtain proper identifier for the input and compare with instruments present

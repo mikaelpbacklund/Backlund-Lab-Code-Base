@@ -3,22 +3,21 @@
 clear p
 
 %Required
-p.scanBounds = [2.84 2.90]; %Frequency bounds
-p.scanStepSize = .001;%Step size for RF frequency
+p.scanBounds = [2.05 2.2]; %Frequency bounds
+p.scanStepSize = .0025;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
-p.RFAmplitude = 8;
-p.scanNotes = 'ODMR'; %Notes describ1
-% ing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
+p.RFAmplitude = 10;  
+p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
+p.sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
 p.maxFailedCollections = 10;
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long besfore auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = 1e-5;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.perSecond = true;
+p.perSecond = false;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -28,17 +27,17 @@ p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = true;
+p.plotCurrentContrast = false;
 p.plotAverageReference = false;
-p.plotCurrentReference = true;
+p.plotCurrentReference = false;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = true;
+p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = false;
+p.plotPulseSequence = true;
 p.plotAverageContrastFFT = false;
 p.plotCurrentContrastFFT = false;
 

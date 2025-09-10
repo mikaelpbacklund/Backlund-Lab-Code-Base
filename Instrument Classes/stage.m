@@ -7,30 +7,12 @@ classdef stage < instrumentType
    %   - Limit detection
    %   - Status monitoring
    %
-   % Usage:
-   %   stage = stage('configFileName.json');
-   %   stage.connect();
-   %   stage.moveTo(100);
-   %   pos = stage.getPosition();
    %
    % Dependencies:
    %   - JSON configuration file with stage settings
 
-   properties (Dependent)
-      % Properties that can be modified by the user
-      position           % Current position
-      speed             % Movement speed
-      acceleration      % Movement acceleration
-   end
-
    properties (SetAccess = {?stage ?instrumentType}, GetAccess = public)
       % Properties managed internally by the class
-      manufacturer      % Stage manufacturer
-      model            % Stage model
-      maxPosition      % Maximum position
-      minPosition      % Minimum position
-      maxSpeed         % Maximum speed
-      minSpeed         % Minimum speed
       handshake        % Stage connection handle
       controllerInfo
       pathObject
@@ -71,7 +53,7 @@ classdef stage < instrumentType
          addpath(getenv('PI_MATLAB_DRIVER'))
 
          %Loads config file and checks relevant field names
-         configFields = {'manufacturer','model','maxPosition','minPosition','maxSpeed','minSpeed'};
+         configFields = {'controllerInfo','identifier'};
          commandFields = {};
          numericalFields = {};
          obj = loadConfig(obj,configFileName,configFields,commandFields,numericalFields);

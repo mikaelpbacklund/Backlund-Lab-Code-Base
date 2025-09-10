@@ -7,17 +7,17 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 210]; %RF duration bounds
+p.scanBounds = [10 130]; %RF duration bounds
 p.scanStepSize = 2; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.075;
+p.RFResonanceFrequency = 2.115; %on axis
 
 %General
-p.RFAmplitude = 0;
+p.RFAmplitude = 10;
 p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
-p.forcedDelayTime = .5; %Time to force pause before (1/2) and after (full) collecting data
+p.forcedDelayTime = .25; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 2000;%How long to collect data for. 0 means overwritten by DAQ rate
@@ -40,16 +40,16 @@ p.stageConfig = 'PI_stage';
 %Plotting
 p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
-p.plotAverageReference = true;
-p.plotCurrentReference = true;
+p.plotAverageReference = false;
+p.plotCurrentReference = false;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = true;
+p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = true;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

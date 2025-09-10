@@ -64,9 +64,6 @@ classdef RF_generator < instrumentType
                   return
               end         
 
-              % Save initial state before connection attempt
-              obj.saveState();
-
               switch lower(obj.connectionInfo.vendor)
                   case {'srs','stanford'}
                       obj.connectionInfo.vendor = 'srs'; % Standardization
@@ -79,7 +76,7 @@ classdef RF_generator < instrumentType
                       try
                           obj.handshake = visadev(devicesList.ResourceName(stanfordRow));
                       catch connectionError
-                          obj.logError(connectionError, struct('vendor', 'srs', 'devicesList', devicesList));
+                          obj.logError(obj,connectionError, struct('vendor', 'srs', 'devicesList', devicesList));
                           error('Unable to identify RF generator.')
                       end
 
@@ -125,7 +122,7 @@ classdef RF_generator < instrumentType
                   'vendor', obj.connectionInfo.vendor, ...
                   'connected', obj.connected, ...
                   'connectionType', obj.uncommonProperties.connectionType);
-              obj.logError(connectErr, currentState);
+              obj.logError(obj,connectErr, currentState);
               rethrow(connectErr);
           end
       end
@@ -253,9 +250,6 @@ classdef RF_generator < instrumentType
               [obj,waveNumber] = readString(obj);
               waveNumber = s2c(waveNumber);
               
-              % Save state before processing response
-              obj.saveState();
-              
               switch waveNumber(1)
                   case '0'
                       obj.modulationWaveform = 'sine';
@@ -277,12 +271,8 @@ classdef RF_generator < instrumentType
               currentState = struct(...
                   'modulationWaveform', obj.modulationWaveform, ...
                   'response', waveNumber);
-              obj.logError(waveErr, currentState);
+              obj.logError(obj,waveErr, currentState);
               
-              % Attempt recovery
-              if ~obj.recoverState()
-                  warning('Failed to recover modulation waveform state');
-              end
               rethrow(waveErr);
           end
       end
@@ -292,8 +282,6 @@ classdef RF_generator < instrumentType
           %   Types: amplitude(0), I/Q(6)
           
           try
-              % Save state before query
-              obj.saveState();
               
               writeString(obj,obj.commands.modulationTypeQuery);
               [obj,modType] = readString(obj);
@@ -313,12 +301,8 @@ classdef RF_generator < instrumentType
               currentState = struct(...
                   'modulationType', obj.modulationType, ...
                   'response', modType);
-              obj.logError(typeErr, currentState);
+              obj.logError(obj,typeErr, currentState);
               
-              % Attempt recovery
-              if ~obj.recoverState()
-                  warning('Failed to recover modulation type state');
-              end
               rethrow(typeErr);
           end
       end
