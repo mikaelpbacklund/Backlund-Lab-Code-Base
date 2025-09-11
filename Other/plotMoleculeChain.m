@@ -1,14 +1,14 @@
 close all
 % load("Coords_log.mat")
-nTimesteps =10;
+nTimesteps = 15;
 nChains = 136;
 nCarbons = 100;
-pauseTimePerTimestep = 3;
+pauseTimePerTimestep = 1;
 
 xAll = squeeze(mdData(1:nTimesteps,1:nChains,1:nCarbons,1));  % All x positions [timestep × chain × carbon]
 yAll = squeeze(mdData(1:nTimesteps,1:nChains,1:nCarbons,2));
 zAll = squeeze(mdData(1:nTimesteps,1:nChains,1:nCarbons,3));
-
+ 
 xBounds = [min(xAll(:)),max(xAll(:))];
 yBounds = [min(yAll(:)),max(yAll(:))];
 zBounds = [min(zAll(:)),max(zAll(:))];

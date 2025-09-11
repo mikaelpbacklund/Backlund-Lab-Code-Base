@@ -23,7 +23,7 @@ defaultParameters.IQBuffers = [0 0];
 defaultParameters.dataOnBuffer = 0;
 defaultParameters.extraBuffer = 0;
 defaultParameters.useCompensatingPulses = 0;
-defaultParameters.templateScanCalculation = true;
+defaultParameters.perf
 
 parameterFieldNames = string(fieldnames(defaultParameters));
 
@@ -124,12 +124,8 @@ end
 intermissionScanBound = diff(p.scanBounds).*p.setsXYN.*p.nXY;
 h = completeSequence(h,p,intermissionScanBound);
 
-%Output pulse blaster object
-varargout{1} = h;
-
 %% Scan Calculations
 
-if p.templateScanCalculations
 %Finds pulses designated as τ which will be scanned
 scanInfo.address = findPulses(h,'notes','τ','contains');
 
@@ -153,7 +149,8 @@ scanInfo.identifier = 'Pulse Blaster';
 scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
-%Output scan info
-varargout{2} = scanInfo;
-end
+%% Outputs
+varargout{1} = h;%returns pulse blaster object
+varargout{2} = scanInfo;%returns scan info
+
 end
