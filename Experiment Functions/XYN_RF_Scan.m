@@ -124,7 +124,7 @@ RFScans = findPulses(ex.pulseBlaster,'notes','π','contains');
 nRF = numel(RFScans);
 
 %Find tau pulses which will be scanned inverse to RF pulse to keep consistent tau
-TauScans = findPulses(ex.pulseBlaster,'notes','π','contains');
+TauScans = findPulses(ex.pulseBlaster,'notes','τ','contains');
 nTau = numel(TauScans);
 
 %Finds pulses designated as π or τ which will be scanned
@@ -144,6 +144,11 @@ for ii = [nRF+1,nRF + nTau/2,nRF+nTau/2+1,numel(scanInfo.address)]
     scanInfo.bounds{ii} = tauBoundsByTwo;
 end
 
+%Calculates number of steps if only step size is given
+if isempty(p.scanNSteps)
+   p.scanNSteps = ceil(abs(RFBounds(2)-RFBounds(1))/p.scanStepSize)+1;
+end
+
 scanInfo.nSteps = p.scanNSteps;
 scanInfo.parameter = 'duration';
 scanInfo.identifier = 'Pulse Blaster';
@@ -151,7 +156,7 @@ scanInfo.notes = sprintf('XY%d-%d (tau: %d, RF: %.3f GHz)',p.nXY,p.setsXYN,round
 scanInfo.RFFrequency = p.RFResonanceFrequency;
 
 %Adds x offset to account for extra pulses, swaps bounds to plot to be tau
-p.xOffset = scanInfo.reducedTauTime;
+p.xOffset = -p.RFRampTime;
 p.boundsToUse = 2;
 
 %Deletes any pre-existing scan
