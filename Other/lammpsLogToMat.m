@@ -5,7 +5,7 @@
 %Each row of mdData.positions represents the carbon's position on its chain
 %3 numbers in vector ar xu, yu, and zu respectively
 
-fileName = 'IO.DATA.lammpstrj';
+fileName = 'C_dump.lammpstrj';
 fID = fopen(fileName, 'r');
 %%
 tic
@@ -71,19 +71,3 @@ end
 fclose(fID);
 fprintf('Completed read of log file %s\nRuntime: %.1f minutes\n',fileName,toc/60)
 save("Coords_log","mdData","timesteps")
-%%
-% %Only single precision needed for this 
-% mdData = single(zeros(numel(mdData),size(mdData{1}.positions,1),size(mdData{1}.positions,2),3));
-% tic
-% for ii = 1:numel(mdData)
-%    for jj = 1:size(mdData{1}.positions,1)
-%       for kk = 1:size(mdData{1}.positions,2)
-%          floatData(ii,jj,kk,1:3) = mdData{ii}.positions{jj,kk}(1:3);
-%       end
-%    end
-%    if toc > 2
-%       tic
-%       fprintf('%d timesteps completed\n',ii)
-%    end
-% end
-% fprintf('%d timesteps completed\n',ii)
