@@ -3,10 +3,10 @@
 clear p
 
 %Required
-p.scanBounds = [30 50];
+p.scanBounds = [20 70];
 p.scanStepSize = 2;
 p.scanNSteps = [];%will override step size
-p.tauTime = 200;
+p.tauTime = 422;
 p.RFResonanceFrequency = 2.115;
 p.nXY = 8;%N in XYN-m
 p.setsXYN = 8;%m in XYN-m
@@ -18,7 +18,7 @@ p.collectionDuration = 2000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFRampTime = 6;
+p.RFRampTime = 8;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 450;

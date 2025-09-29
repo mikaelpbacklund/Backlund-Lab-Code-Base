@@ -129,7 +129,7 @@ varargout{1} = h;
 
 %% Scan Calculations
 
-if p.templateScanCalculations
+if p.templateScanCalculation
 %Finds pulses designated as τ which will be scanned
 scanInfo.address = findPulses(h,'notes','τ','contains');
 

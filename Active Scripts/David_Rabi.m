@@ -8,7 +8,7 @@ clear p
 
 %Required
 p.scanBounds = [10 130]; %RF duration bounds
-p.scanStepSize = 2; %Step size for RF duration
+p.scanStepSize = 4; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
 p.RFResonanceFrequency = 2.115; %on axis
 
