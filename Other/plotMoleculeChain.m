@@ -1,5 +1,5 @@
 close all
-% load("Coords_log.mat")
+load("Coords_log.mat")
 nTimesteps = 15;
 nChains = 136;
 nCarbons = 100;
