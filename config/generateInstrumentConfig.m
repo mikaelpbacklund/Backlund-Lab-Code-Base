@@ -109,6 +109,73 @@ saveLocation = pwd;%Default is to save to current directory
 saveName = '\pulse_blaster_default';
 save(strcat(saveLocation,saveName),'config')
 
+%% Pulse Blaster (Testing)
+clear config
+
+%Using commands to store dll information
+config.commands.library = 'C:\SpinCore\SpinAPI\lib\spinapi64.dll';%Default path when loading spincore from exe
+config.commands.api = 'C:\SpinCore\SpinAPI\include\spinapi.h';
+config.commands.type = 'C:\SpinCore\SpinAPI\include\pulseblaster.h';
+config.commands.name = 'spinapi64';
+
+%Channel names. Formal name is what is displayed when viewing the sequence;
+%acceptable names are valid names that will "point" to the formal name when
+%used for adding/modifying pulses. The order in which they are listed
+%corresponds to the channel order itself e.g. the first channel name
+%corresponds to the first channel of the pulse blaster (called channel 0 by
+%the pulse blaster because their counting starts at 0)
+config.formalChannelNames{1} = 'AOM';
+config.acceptableChannelNames{1} = {'aom','laser'};%Case insensitive
+
+config.formalChannelNames{2} = 'Data';
+config.acceptableChannelNames{2} = {'data','daq','nidaq'};
+%data is an important acceptable name to have somewhere. It indicates where
+%the data collection is happening and is necessary to determine data
+%collection duration
+
+config.formalChannelNames{3} = 'Empty';
+config.acceptableChannelNames{3} = {'mt'};
+
+config.formalChannelNames{4} = 'EmptyToo';
+config.acceptableChannelNames{4} = {'mt2'};
+
+config.formalChannelNames{5} = 'I';
+config.acceptableChannelNames{5} = {'i','i switch'};
+
+config.formalChannelNames{6} = 'Q';
+config.acceptableChannelNames{6} = {'q','q switch'};
+
+config.formalChannelNames{7} = 'Signal';
+config.acceptableChannelNames{7} = {'s/r','sr','signal','signal/reference','signal reference','sig','sig/ref'};
+
+config.formalChannelNames{8} = 'RF';
+config.acceptableChannelNames{8} = {'rf','mw'};
+
+%Sensitive to order. Continue must be first, followed by stop, start loop,
+%then end loop
+config.formalDirectionNames{1} = 'Continue';
+config.acceptableDirectionNames{1} = {'continue','proceed','go','nothing','standard','normal'};
+
+config.formalDirectionNames{2} = 'Stop';
+config.acceptableDirectionNames{2} = {'stop'};
+
+config.formalDirectionNames{3} = 'Start Loop';
+config.acceptableDirectionNames{3} = {'loop','startloop','start_loop','start','start loop'};
+
+config.formalDirectionNames{4} = 'End Loop';
+config.acceptableDirectionNames{4} = {'endloop','end_loop','end','end loop'};
+
+config.identifier = 'pb';
+config.clockSpeed = 500;%MHz
+config.durationStepSize = 2;%ns, minimum step size of pulse blaster
+config.units = 'nanoseconds';
+config.defaults.useTotalLoop = true;%Encompass the entire sequence in a loop
+config.defaults.nTotalLoops = 1;%How many loops the above should run for
+config.defaults.sendUponAddition = false;%Send sequence to pulse blaster when running addPulse
+
+saveLocation = pwd;%Default is to save to current directory
+saveName = '\pulse_blaster_testing';
+save(strcat(saveLocation,saveName),'config')
 %% Pulse Blaster (DEER)
 clear config
 

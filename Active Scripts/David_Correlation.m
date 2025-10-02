@@ -6,11 +6,11 @@ clear p
 p.scanBounds = [1000 11000];
 p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.tauDuration = 540;
-p.piTime = 48;
+p.tauDuration = 430;
+p.piTime = 50;
 p.RFResonanceFrequency = 2.155;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 24;%m in XYN-m
+p.setsXYN = 12;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -19,7 +19,7 @@ p.collectionDuration = 2000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFRampTime = 8;
+p.RFRampTime = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.AOMCompensation = 450;

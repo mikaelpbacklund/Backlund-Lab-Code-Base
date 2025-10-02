@@ -31,3 +31,13 @@ State at error:
   connected: 0
   connectionType: 
 ----------------------------------------
+[19-Sep-2025 11:59:47] Invalid argument at position 1. Value must be a scalar. - Device: SRS RF
+State at error:
+  vendor: srs
+----------------------------------------
+[19-Sep-2025 11:59:47] Unable to identify RF generator. - Device: SRS RF
+State at error:
+  vendor: srs
+  connected: 0
+  connectionType: 
+----------------------------------------
