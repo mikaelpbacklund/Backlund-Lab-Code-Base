@@ -1,9 +1,9 @@
 close all
-load("Coords_log.mat")
-nTimesteps = 15;
+% load("Coords_log.mat")
+nTimesteps = 20;
 nChains = 136;
 nCarbons = 100;
-pauseTimePerTimestep = 1;
+pauseTimePerTimestep = .1;
 
 xAll = squeeze(mdData(1:nTimesteps,1:nChains,1:nCarbons,1));  % All x positions [timestep × chain × carbon]
 yAll = squeeze(mdData(1:nTimesteps,1:nChains,1:nCarbons,2));
