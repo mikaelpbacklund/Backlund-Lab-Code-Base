@@ -82,6 +82,8 @@ classdef pulse_blaster < instrumentType
              warning('on','MATLAB:loadlibrary:FunctionNotFound')
          end
 
+         %Selects first pulse blaster board
+         [~] = calllib(obj.commands.name,'pb_select_board',0);
          [~] = calllib(obj.commands.name,'pb_init');
          calllib(obj.commands.name,'pb_core_clock',obj.clockSpeed);
          
@@ -240,15 +242,33 @@ classdef pulse_blaster < instrumentType
          pulseInfo.notes = 'Stop sequence';
          obj.adjustedSequence(end+1) = pulseInfo;
 
+         % Obtains start and end loop locations
+         startLocations = [];
+         endLocations = [];
+         for ii = 1:numel(obj.adjustedSequence)
+            if strcmpi(obj.adjustedSequence(ii).directionType,'start loop')
+               startLocations(end+1) = ii; %#ok<AGROW>
+            elseif strcmpi(obj.adjustedSequence(ii).directionType,'end loop')
+               endLocations(end+1) = ii; %#ok<AGROW>
+            end
+         end
+
+         %Runs function to match start and end loops together
+         loopPairs = pulse_blaster.matchLoops(startLocations,endLocations);
+
+         %Changes context info (which start loop pulse to reference) of end
+         %loop pulses
+         for ii = 1:numel(startLocations)
+            obj.adjustedSequence(loopPairs(ii,2)).contextInfo = loopPairs(ii,1)-1;
+         end
+
          %Calculates durations for the user and adjusted sequence
          obj = calculateDuration(obj,'user');
          obj = calculateDuration(obj,'adjusted');
       end
 
       function obj = sendToInstrument(obj)
-          obj = calculateDuration(obj,'user');
          obj = adjustSequence(obj);%Adjusts sequence in preparation to send to instrument
-         obj = calculateDuration(obj,'adjusted');
 
          %Saves the current adjusted sequence as the sequence that has
          %been sent to the pulse blaster
@@ -505,6 +525,7 @@ classdef pulse_blaster < instrumentType
       end
 
       function runSequence(obj)
+         [~] = calllib(obj.commands.name,'pb_reset');
          [~] = calllib(obj.commands.name,'pb_start');
       end
 
@@ -776,6 +797,51 @@ classdef pulse_blaster < instrumentType
       function params = queryTemplateParameters(templateName)
          %Obtains the template parameters from a function with the given template name
          [~,params] = feval(templateName,[],[]);
+      end
+
+      %The function below is obtained from chatgpt to match start and end
+      %loop locations
+      function loop_pairs = matchLoops(start_locs, end_locs)
+         % matchLoops - Match start and end loop locations logically
+         % Inputs:
+         %   start_locs - array of start positions
+         %   end_locs   - array of end positions
+         % Output:
+         %   loop_pairs - Nx2 matrix where each row is [start_loc, end_loc]
+
+         % Initialize output
+         loop_pairs = zeros(length(start_locs), 2);
+
+         % Stack for managing nested loops
+         stack = [];
+         pair_idx = 1;
+
+         % Create a combined and sorted list of all events
+         events = [start_locs(:); end_locs(:)];
+         types = [ones(length(start_locs), 1); zeros(length(end_locs), 1)]; % 1 = start, 0 = end
+         [sorted_events, idx] = sort(events);
+         sorted_types = types(idx);
+
+         for ii = 1:length(sorted_events)
+            if sorted_types(ii) == 1  % start
+               stack(end+1) = sorted_events(ii);  %#ok<AGROW>
+            else  % end
+               if isempty(stack)
+                  error('Unmatched end loop at position %d', sorted_events(ii));
+               end
+               start_pos = stack(end);
+               stack(end) = [];  % pop
+               loop_pairs(pair_idx, :) = [start_pos, sorted_events(ii)];
+               pair_idx = pair_idx + 1;
+            end
+         end
+
+         if ~isempty(stack)
+            error('Unmatched start loops remaining');
+         end
+
+         % Sort pairs by start location for readability
+         loop_pairs = sortrows(loop_pairs, 1);
       end
    end
 end

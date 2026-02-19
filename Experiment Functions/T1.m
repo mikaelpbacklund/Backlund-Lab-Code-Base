@@ -69,6 +69,12 @@ ex.optimizationInfo.rfStatus = p.optimizationRFStatus;
 ex.optimizationInfo.useTimer = p.useOptimizationTimer;
 ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
+% ex.SRS_RF.enabled = 'on';
+% ex.SRS_RF.modulationEnabled = 'on';
+% ex.SRS_RF.modulationType = 'iq';
+% ex.SRS_RF.amplitude = p.RFAmplitude;
+% ex.SRS_RF.frequency = p.RFResonanceFrequency;
+
 %Sends DAQ settings
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';

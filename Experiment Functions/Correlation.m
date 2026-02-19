@@ -92,7 +92,8 @@ if p.collectionDuration == 0
 end
 
 %Load empty parameter structure from template
-[sentParams,~] = Correlation_template([],[]);
+% [sentParams,~] = Correlation_template([],[]);
+[sentParams,~] = Correlation_looped([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
@@ -104,7 +105,8 @@ end
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = Correlation_template(ex.pulseBlaster,sentParams);
+% [ex.pulseBlaster,scanInfo] = Correlation_template(ex.pulseBlaster,sentParams);
+[ex.pulseBlaster,scanInfo] = Correlation_looped(ex.pulseBlaster,sentParams);
 
 %Deletes any pre-existing scan
 ex.scan = [];

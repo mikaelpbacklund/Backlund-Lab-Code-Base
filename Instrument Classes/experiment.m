@@ -675,6 +675,9 @@ classdef experiment
          dataOut = [];
          nPointsTaken = 0;
 
+         %Stops pulse blaster execution upon forced close
+         cleanupObj = onCleanup(@() stopSequence(obj.pulseBlaster));
+
          %For slightly changing sequence to get better results
          bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
          if numel(bufferPulses) > 0

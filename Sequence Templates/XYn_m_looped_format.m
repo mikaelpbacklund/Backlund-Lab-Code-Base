@@ -1,5 +1,5 @@
 function [varargout] = XYn_m_looped_format(h,p)
-%Creates Spin Echo sequence based on given parameters
+%Creates XYN sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
 %τ/2 cannot be shorter than (sum(IQ buffers) + (3/4)*π + RF reduction)
@@ -64,6 +64,9 @@ end
 
 %% Sequence Creation
 
+%Note: to get the looping behavior to be correct without messing up the τ/2
+%pulses, it is necessary to separate the end xy8 from the looped section
+
 %Deletes prior sequence
 h = deleteSequence(h);
 h.nTotalLoops = 1;%Will be overwritten later, used to find time for 1 loop
@@ -83,32 +86,21 @@ for rs = 1:2 %singal half and reference half
    %π/2 to create superposition
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
 
-   %Scanned (τ/2) between π/2 and π pulses
-   h = condensedAddPulse(h,{addedSignal},mean(exportedTauByTwo),'Scanned τ/2');
+   %Looped xy8 (only relevant if >1 XY8s)
+   if p.setsXYN > 1
 
-   if p.nXY == 4
-
-   elseif p.nXY == 8
-      %start loop π/2
-      meantau = mean(p.scanBounds);
-      halftau = meantau/2;
-
-      clear pulseInfo 
-      pulseInfo.activeChannels = {};
-      pulseInfo.duration = halfTotalPiTime;
-      pulseInfo.notes = 'Initial π/2';
-      pulseInfo.contextInfo = p.setsXYN;%how many loops there will be
+      %Create pulse for τ/2 to begin but be excluded from loop
+      clear pulseInfo
+      pulseInfo.activeChannels = {addedSignal};
+      pulseInfo.duration = mean(exportedTauByTwo);
+      pulseInfo.notes = 'Scanned τ/2';
+      pulseInfo.contextInfo = p.setsXYN-1;%how many loops there will be
       pulseInfo.directionType = 'START LOOP';
-      ex.pulseBlaster = addPulse(ex.pulseBlaster,pulseInfo);
-      startLoopLocation = numel(ex.pulseBlaster.userSequence);
-      %Add 1 if using total loop
-      if obj.useTotalLoop
-         startLoopLocation = startLoopLocation + 1;
-      end
-      %loop τ/2 x τ y τ x τ y τ y τ x τ y τ x τ/2 (last τ/2 is end loop)
+      h = addPulse(h,pulseInfo);
+
+      %Loop: x τ y τ x τ y τ y τ x τ y x τ
 
       %Begin loop
-      h = condensedAddPulse(h,{addedSignal},halftau,'Scanned τ/2');      
       h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
       h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
       h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
@@ -124,36 +116,40 @@ for rs = 1:2 %singal half and reference half
       h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
       h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
       h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-      clear pulseInfo 
-      pulseInfo.activeChannels = {};
-      pulseInfo.duration = halfTotalPiTime;
-      pulseInfo.notes = 'Scanned τ/2';
+
+      clear pulseInfo
+      pulseInfo.activeChannels = {addedSignal};
+      pulseInfo.duration = mean(exportedTau);
+      pulseInfo.notes = 'Scanned τ';
       pulseInfo.directionType = 'END LOOP';
-      pulseInfo.contextInfo = startLoopLocation;%Points to start loop pulse
-      ex.pulseBlaster = addPulse(ex.pulseBlaster,pulseInfo);
-      h = condensedAddPulse(h,{addedSignal},halftau,'Scanned τ/2');
+      h = addPulse(h,pulseInfo);
+
       %End loop
+
    else
-      error('This sequence template is only formatted for XY4 and XY8 sequences')
+      %Scanned (τ/2) between π/2 and π pulses
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTauByTwo),'Scanned τ/2');
    end
 
-   for m = 1:p.setsXYN
-      for n = 1:p.nXY/2
-          %for 4: x-y-x-y
-          %for 8: x-y-x-y-y-x-y-x
-         if mod(n,4) == 0 || mod(n,4) == 1
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
-            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
-         else
-            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
-         end
-      end
-   end
+   %Ending xy8
+   h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+   h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+
+   %Scanned (τ/2) between π/2 and π pulses
+   h = condensedAddPulse(h,{addedSignal},mean(exportedTauByTwo),'Scanned τ/2');
 
    %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
    if rs == 1
@@ -171,44 +167,37 @@ end
 intermissionScanBound = diff(p.scanBounds).*p.setsXYN.*p.nXY;
 h = completeSequence(h,p,intermissionScanBound);
 
-%Find tau/2. For first tau's, remove pre-buffer; for 2nd tau's remove post-buffer
-%START LOOP SHOULD BE POST BUFFER ON PI/2
-%END LOOP SHOULD BE TAU BEFORE PRE BUFFER ON PI/2
-
 %Output pulse blaster object
 varargout{1} = h;
 
 %% Scan Calculations
 
-if p.templateScanCalculations
-%Finds pulses designated as τ which will be scanned
-scanInfo.address = findPulses(h,'notes','τ','contains');
-for ii = 1:numel(scanInfo.address)
-   scanInfo.bounds{ii} = exportedTau;
-end
+if p.templateScanCalculation
+   %Finds pulses designated as τ which will be scanned
+   scanInfo.address = findPulses(h,'notes','τ','contains');
+   for ii = 1:numel(scanInfo.address)
+      switch ii
+         case {1,numel(scanInfo.address)/2,numel(scanInfo.address)/2+1,numel(scanInfo.address)}
+            scanInfo.bounds{ii} = exportedTauByTwo;
+         otherwise
+            scanInfo.bounds{ii} = exportedTau;
+      end
+   end
 
-%First tau/2 should only factor in pre buffers, Second tau/2 should only factor in post buffers
-firstTau = (p.scanBounds./2) - p.IQBuffers(1);
-scanInfo.bounds{1} = firstTau;
-scanInfo.bounds{numel(scanInfo.bounds)/2+1} = firstTau;
-lastTau = (p.scanBounds./2) - p.IQBuffers(2);
-scanInfo.bounds{numel(scanInfo.bounds)/2} = lastTau;
-scanInfo.bounds{numel(scanInfo.bounds)} = lastTau;
+   % if isfield(p,'useCompensatingPulses') && p.useCompensatingPulses
+   %    compensatingPulses = findPulses(h,'notes','intermission','contains');
+   %    for ii = 1:numel(compensatingPulses)
+   %       scanInfo.bounds{end+1} = p.intermissionBufferDuration + [intermissionScanBound 0];
+   %       scanInfo.address(end+1) = compensatingPulses(ii);
+   %    end
+   % end
+   scanInfo.nSteps = p.scanNSteps;
+   scanInfo.parameter = 'duration';
+   scanInfo.identifier = 'Pulse Blaster';
+   scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);
+   scanInfo.RFFrequency = p.RFResonanceFrequency;
 
-if isfield(p,'useCompensatingPulses') && p.useCompensatingPulses
-    compensatingPulses = findPulses(h,'notes','intermission','contains');
-    for ii = 1:numel(compensatingPulses)        
-        scanInfo.bounds{end+1} = p.intermissionBufferDuration + [intermissionScanBound 0];
-        scanInfo.address(end+1) = compensatingPulses(ii);
-    end
-end
-scanInfo.nSteps = p.scanNSteps;
-scanInfo.parameter = 'duration';
-scanInfo.identifier = 'Pulse Blaster';
-scanInfo.notes = sprintf('XY%d-%d (π: %d ns, RF: %.3f GHz)',p.nXY,p.setsXYN,round(p.piTime),p.RFResonanceFrequency);
-scanInfo.RFFrequency = p.RFResonanceFrequency;
-
-%Output scan info
-varargout{2} = scanInfo;
+   %Output scan info
+   varargout{2} = scanInfo;
 end
 end

@@ -3,32 +3,33 @@
 clear p
 
 %Required
-p.scanBounds = [1000 101000];
-p.scanStepSize = 2000;
+p.scanBounds = [100000 5001000];
+p.scanStepSize = 100000;
 p.scanNSteps = [];%will override step size
-p.piTime = 36;
-p.RFResonanceFrequency = 2.116;
-p.collectionType = 'counter';
+%p.piTime = 36;
+p.RFResonanceFrequency = 2.220;
+p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint =6;%seconds
+p.sequenceTimePerDataPoint =10;%seconds
 p.collectionDuration = 1000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 5000;
-p.repolarizationDuration = 30000;
+p.repolarizationDuration = 100000;
 % p.extraRF = 4;
-p.AOMCompensation = 150;
-p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
+p.AOMCompensation = 1800;
+p.dataOnBuffer = 0;%Time after AOM is on where DAQ1
+% continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [30 0];
-p.nIterations = 2;
+p.nIterations = 3;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .1;
-p.maxFailedCollections = 3;
+p.nDataPointDeviationTolerance = .01;
+p.maxFailedCollections = 5;
 p.baselineSubtraction = 0;
-p.perSecond = true;
+p.perSecond = false;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %Config file names

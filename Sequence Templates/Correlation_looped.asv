@@ -1,4 +1,4 @@
-function [varargout] = Correlation_template(h,p)
+function [varargout] = Correlation_looped(h,p)
 %Creates Correlation sequence based on given parameters
 %h is pulse blaster object, p is parameters structure
 %τ is defined as time between the center of one π pulse and the next
@@ -79,42 +79,73 @@ for rs = 1:2 %singal half and reference half
    end
    for corrSet = 1:2
 
-   %π/2 to create superposition
+      %π/2 to create superposition
    h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
 
-   %Scanned (τ/2) between π/2 and π pulses
-   h = condensedAddPulse(h,{addedSignal},reducedTauByTwoDuration,'τ/2');
+   %Looped xy8 (only relevant if >1 XY8s)
+   if p.setsXYN > 1
 
-   for m = 1:p.setsXYN
-      for n = 1:p.nXY/2
-         if mod(n,4) == 1 || mod(n,4) == 2 %odd set
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
-            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
-         else %even set
-            h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
-            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
-            h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
-            h = condensedAddPulse(h,{addedSignal},reducedTauDuration,'τ');
-         end
-      end
+      %Create pulse for τ/2 to begin but be excluded from loop
+      clear pulseInfo
+      pulseInfo.activeChannels = {addedSignal};
+      pulseInfo.duration = mean(exportedTauByTwo);
+      pulseInfo.notes = 'Scanned τ/2';
+      pulseInfo.contextInfo = p.setsXYN-1;%how many loops there will be
+      pulseInfo.directionType = 'START LOOP';
+      h = addPulse(h,pulseInfo);
+
+      %Loop: x τ y τ x τ y τ y τ x τ y x τ
+
+      %Begin loop
+      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
+      h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
+
+      clear pulseInfo
+      pulseInfo.activeChannels = {addedSignal};
+      pulseInfo.duration = mean(exportedTau);
+      pulseInfo.notes = 'Scanned τ';
+      pulseInfo.directionType = 'END LOOP';
+      h = addPulse(h,pulseInfo);
+
+      %End loop
+
+   else
+      %Scanned (τ/2) between π/2 and π pulses
+      h = condensedAddPulse(h,{addedSignal},mean(exportedTauByTwo),'Scanned τ/2');
    end
 
-   %modify final tau to tau/2
-   h = modifyPulse(h,numel(h.userSequence),'duration',reducedTauByTwoDuration,false);
-   h = modifyPulse(h,numel(h.userSequence),'notes','τ/2',false);
-   
-   if corrSet == 1
-      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
-      h = condensedAddPulse(h,{addedSignal},mean(p.scanBounds),'Scanned t corr');
-   elseif rs == 1 %corrSet 2
-      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
-      h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
-   else %rs 2, corrSet 2
+   %π/2 to create collapse superposition to either 0 or -1 state for reference or signal
+   if rs == 1
       h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
       h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
+   else
+      h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
+      h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Signal data collection');
    end
+
+      if corrSet == 1
+         h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
+         h = condensedAddPulse(h,{addedSignal},mean(p.scanBounds),'Scanned t corr');
+      elseif rs == 1 %corrSet 2
+         h = condensedAddPulse(h,{'RF',addedSignal},halfTotalPiTime,'π/2 x');
+         h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
+      else %rs 2, corrSet 2
+         h = condensedAddPulse(h,{'RF','I','Q',addedSignal},halfTotalPiTime,'π/2 -x');
+         h = condensedAddPulse(h,{'Data','AOM',addedSignal},p.collectionDuration,'Reference data collection');
+      end
 
    end
 end

@@ -3,15 +3,15 @@
 clear p
 
 %Required
-p.scanBounds = [100 4100];
+p.scanBounds = [2000 10000];
 p.scanStepSize = 250;
 p.scanNSteps = [];%will override step size
-p.piTime = 28;
-p.RFResonanceFrequency = 2.1775;
+p.piTime = 50;
+p.RFResonanceFrequency = 2.286;
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 3;%seconds
+p.sequenceTimePerDataPoint = 10;%seconds
 p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
@@ -20,7 +20,7 @@ p.RFRampTime = 6;
 p.AOMCompensation = 450;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.IQBuffers = [30 30];
+p.IQBuffers = [30 10];
 p.nIterations = 1;
 p.RFAmplitude = 10;
 p.timeoutDuration = 5;
@@ -49,7 +49,7 @@ p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = true;
+p.plotPulseSequence = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization

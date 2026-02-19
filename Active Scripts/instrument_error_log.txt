@@ -44,3 +44,12 @@ State at error:
   connected: 1
   connectionType: visadev
 ----------------------------------------
+[06-Dec-2025 12:33:06] Error writing String.
+Error writing data to the transport.
+Adaptor command 'write' failed with status code: -550. - Device: SRS RF
+State at error:
+  connectionType: visadev
+  connected: 1
+  command: ENBR 1
+  handshake: visalib.GPIB
+----------------------------------------

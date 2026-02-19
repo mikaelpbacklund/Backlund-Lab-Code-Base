@@ -517,6 +517,10 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
         
         % Update handshake data
         updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData);
+
+        % if ref ~= 0
+        %    assignin("base","unsortedData",unsortedData)
+        % end
         
     catch ME
         handleDAQError(handshake, ME);

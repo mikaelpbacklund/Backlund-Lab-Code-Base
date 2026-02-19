@@ -92,7 +92,8 @@ if p.collectionDuration == 0
 end
 
 %Load empty parameter structure from template
-[sentParams,~] = XYn_m_template([],[]);
+[sentParams,~] = XYn_m_looped_format([],[]);
+% [sentParams,~] = XYn_m_template([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
@@ -104,7 +105,8 @@ end
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
+[ex.pulseBlaster,scanInfo] = XYn_m_looped_format(ex.pulseBlaster,sentParams);
+% [ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
 
 %Adds x offset to account for extra pulses, swaps bounds to plot to be tau
 p.xOffset = scanInfo.reducedTauTime;
