@@ -7,10 +7,10 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 410]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
+p.scanBounds = [10 210]; %RF duration bounds
+p.scanStepSize = 2; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.286; %on axis
+p.RFResonanceFrequency = 2.244; %on axis
 
 %General
 p.RFAmplitude = 10;
@@ -18,7 +18,7 @@ p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pause
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .25; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = 1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .00002;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 2000;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
@@ -46,7 +46,7 @@ p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = false;
+p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
 p.plotPulseSequence = false;
@@ -69,6 +69,7 @@ p.useOptimizationPercentage = false;
 %post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
-
+tic
 %Runs Rabi using specified parameters
 ex = Rabi(ex,p);
+toc

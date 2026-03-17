@@ -362,17 +362,14 @@ classdef experiment
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
          if isscalar(obj.scan)
-            obj.data.iteration = zeros(1,obj.scan.nSteps);
+            obj.data.iteration = zeros(obj.scan.nSteps,1);
          else
-            obj.data.iteration = zeros([obj.scan.nSteps]);
+            obj.data.iteration = zeros([obj.scan.nSteps])';
          end
 
          %Makes cell array of equivalent size to above
          obj.data.values = num2cell(obj.data.iteration);
-
-         if isscalar(obj.scan)
-             obj.data.values = obj.data.values';
-         end
+         assignin("base","vals",obj.data.values)
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -931,7 +928,7 @@ classdef experiment
                
                   obj.plots.(plotName).axes.XLim = xBounds;
 
-                  obj.plots.(plotName).completedPoints = boolean(zeros(1,obj.scan.nSteps));
+                  obj.plots.(plotName).completedPoints = false(1,obj.scan.nSteps);
                end               
 
                %Change current data point value
@@ -1012,7 +1009,7 @@ classdef experiment
             for ii = 1:numel(obj.scan)
                 stepList(ii) = obj.scan(ii).nSteps;
             end
-            obj.plots.(plotName).completedPoints = boolean(stepList);
+            obj.plots.(plotName).completedPoints = logical(stepList);
             if isfield(obj.plots.(plotName),'minValue')
                 obj.plots.(plotName) = rmfield(obj.plots.(plotName),'minValue');
                 obj.plots.(plotName) = rmfield(obj.plots.(plotName),'maxValue');
@@ -1381,7 +1378,7 @@ classdef experiment
 
          %Boolean for incorporating RF strength
          if nargin >= 4 && ~isempty(varargin{1}) && varargin{1}
-            frequencyAxis = frequencyAxis/(magnetStrength(obj.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
+            frequencyAxis = frequencyAxis/(MagnetStrength(obj.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
          end
       end
    end

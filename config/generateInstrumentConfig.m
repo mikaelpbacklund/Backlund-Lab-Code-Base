@@ -273,7 +273,7 @@ config.sampleRate = 1.25e6;
 %Data collection configuration
 config.scanBufferMultiplier = 100;
 config.minScansAvailable = 5;
-config.maxErrorCount = 1000;
+config.maxErrorCount = 5;
 config.voltageScaleFactor = 1000;
 config.maxDataPoints = 100000;
 
@@ -320,7 +320,7 @@ config.sampleRate = 2e6;
 %Data collection configuration
 config.scanBufferMultiplier = 100;
 config.minScansAvailable = 5;
-config.maxErrorCount = 1000;
+config.maxErrorCount = 5;
 config.voltageScaleFactor = 1000;
 config.maxDataPoints = 100000;
 

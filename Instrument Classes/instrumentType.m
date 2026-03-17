@@ -50,7 +50,6 @@ classdef instrumentType < handle
       defaults  % Default instrument settings
       connected = false  % Connection status
       identifier  % Unique instrument identifier
-      errorLog  % History of errors and states
    end
 
    properties (Constant, Hidden)
@@ -65,7 +64,6 @@ classdef instrumentType < handle
           obj.uncommonProperties.connectionType = [];
           obj.uncommonProperties.bypassPreCheck = false;
           obj.uncommonProperties.bypassPostCheck = false;
-          obj.errorLog = struct('timestamp', {}, 'error', {}, 'state', {});
       end
       
       function printOut(obj,printMessage)
@@ -116,15 +114,9 @@ classdef instrumentType < handle
       
       function checkConnection(obj)
           % Verify instrument is connected before operations
-          
-          try
-              if isempty(obj.connected) || ~obj.connected
-                  error('Connection must be established to instrument to execute this function')
-              end
-          catch connErr
-              currentState = struct('connected', obj.connected);
-              obj.logError(obj,connErr, currentState);
-              rethrow(connErr);
+
+          if isempty(obj.connected) || ~obj.connected
+              error('Connection must be established to instrument to execute this function')
           end
       end
 
@@ -356,87 +348,59 @@ classdef instrumentType < handle
              for ii = numericalFields            
                 for jj = neededInfo
                    if isempty(obj.(strcat(ii{1},'Info')).(jj{1}))
-                      error('Invalid config file. Config must include %s %s',ii{1},jj{1})
+                       error('Invalid config file. Config must include %s %s',ii{1},jj{1})
                    end
                 end
              end
           end
-          
+
       end
-      
+
       function [obj,outputInfo] = readInstrument(obj,varargin)
           % Read data from instrument
           %   Supports different connection types with error recovery
-          
-          try
-              if isempty(obj.uncommonProperties.connectionType)
-                  error('No connection type given (com, serialport')
-              end
 
-              %If there is a second argument given, send a write command to the instrument prior to reading
-              if nargin > 1
-                 queryCommand = varargin{1};
-              end
-
-              %Dependent on connection type and whether query command is given, send commands to instrument to obtain data
-              switch lower(obj.uncommonProperties.connectionType)
-                  case {'com','visadev'}
-                    if nargin > 1
-                       writeline(obj.handshake,queryCommand)
-                    end
-                    outputInfo = readline(obj.handshake);
-                  case 'serialport'
-                     if nargin > 1
-                        fprintf(obj.handshake,queryCommand);
-                     end
-                     outputInfo = fscanf(obj.handshake);
-              end
-              
-          catch readErr
-              % Get current state for error logging
-              currentState = struct(...
-                  'connectionType', obj.uncommonProperties.connectionType, ...
-                  'connected', obj.connected, ...
-                  'handshake', class(obj.handshake));
-              
-              % Log the error
-              obj.logError(obj,readErr, currentState);             
-              
-              rethrow(readErr);
+          if isempty(obj.uncommonProperties.connectionType)
+              error('No connection type given (com, serialport')
           end
+
+          %If there is a second argument given, send a write command to the instrument prior to reading
+          if nargin > 1
+              queryCommand = varargin{1};
+          end
+
+          %Dependent on connection type and whether query command is given, send commands to instrument to obtain data
+          switch lower(obj.uncommonProperties.connectionType)
+              case {'com','visadev'}
+                  if nargin > 1
+                      writeline(obj.handshake,queryCommand)
+                  end
+                  outputInfo = readline(obj.handshake);
+              case 'serialport'
+                  if nargin > 1
+                      fprintf(obj.handshake,queryCommand);
+                  end
+                  outputInfo = fscanf(obj.handshake);
+          end
+
       end
 
       function obj = writeInstrument(obj,commandInput)
           % Write command to instrument
-          %   Supports different connection types with error recovery
-          
-          try
-              if isempty(obj.uncommonProperties.connectionType)
-                  error('No connection type given (com, visadev, serialport)')
-              end
+          %   Supports different connection types
 
-              %Dependent on connection type, send command to instrument
-              switch lower(obj.uncommonProperties.connectionType)
-                  case {'com','visadev'}
-                    writeline(obj.handshake,commandInput)               
-                  case 'serialport'
-                     fprintf(obj.handshake,commandInput);
-              end
-              
-          catch writeErr
-              % Get current state for error logging
-              currentState = struct(...
-                  'connectionType', obj.uncommonProperties.connectionType, ...
-                  'connected', obj.connected, ...
-                  'command', commandInput, ...
-                  'handshake', class(obj.handshake));
-              
-              % Log the error
-              obj.logError(obj,writeErr, currentState);
-              
-              
-              rethrow(writeErr);
+          if isempty(obj.uncommonProperties.connectionType)
+              error('No connection type given (com, visadev, serialport)')
           end
+
+          %Dependent on connection type, send command to instrument
+          switch lower(obj.uncommonProperties.connectionType)
+              case {'com','visadev'}
+                  writeline(obj.handshake,commandInput)
+              case 'serialport'
+                  fprintf(obj.handshake,commandInput);
+          end
+
       end
 
    end
@@ -591,53 +555,6 @@ classdef instrumentType < handle
           %If only one input given, give it back in the form of a character array instead of cell
           if isscalar(properIdentifier)
              properIdentifier = properIdentifier{1};
-          end
-      end
-
-      function logError(obj, errorInfo, currentState)
-          % Log error with device state to file and memory
-          
-          % Create new error entry with timestamp
-          newError = struct(...
-              'timestamp', datetime('now'), ...
-              'error', errorInfo);
-          
-          % Add to memory log with size limit
-          if isempty(obj.errorLog)
-              obj.errorLog = newError;
-          else
-              if length(obj.errorLog) >= obj.maxLogSize
-                  obj.errorLog(1) = []; % Remove oldest entry
-              end
-              obj.errorLog(end+1) = newError;
-          end
-          
-          % Write to log file with detailed state info
-          try
-              logFile = fopen(obj.logFileName, 'a');
-              fprintf(logFile, '[%s] %s - Device: %s\n', ...
-                  char(newError.timestamp), ...
-                  newError.error.message, ...
-                  obj.identifier);
-              fprintf(logFile, 'State at error:\n');
-              
-              % Log each state field with appropriate formatting
-              stateFields = fields(currentState);
-              for ii = 1:numel(stateFields)
-                  field = stateFields{ii};
-                  value = currentState.(field);
-                  if isnumeric(value)
-                      fprintf(logFile, '  %s: %g\n', field, value);
-                  elseif islogical(value)
-                      fprintf(logFile, '  %s: %d\n', field, value);
-                  elseif ischar(value) || isstring(value)
-                      fprintf(logFile, '  %s: %s\n', field, value);
-                  end
-              end
-              fprintf(logFile, '----------------------------------------\n');
-              fclose(logFile);
-          catch failedLog
-              warning(failedLog.identifier, 'Failed to write to error log file: %s', failedLog.message);
           end
       end
 

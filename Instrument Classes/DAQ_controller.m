@@ -46,6 +46,8 @@ classdef DAQ_controller < instrumentType
       channelInfo           % Channel configuration information
       clockPort             % Clock port configuration
       dataChannels          % Available data channels
+      errorLog              % Log of up to past 100 errors
+      timeOfLastErrorReport % Logged time for when a warning was last given during data collection
    end
 
    %% Read-only Properties
@@ -144,6 +146,8 @@ classdef DAQ_controller < instrumentType
          obj.takeData = false;
          obj.toggleChannel = obj.defaults.toggleChannel;
          obj.signalReferenceChannel = obj.defaults.signalReferenceChannel;  
+         obj.errorLog = {};
+         obj.timeOfLastErrorReport = datetime;
 
          %Set data collection callback
          obj.handshake.ScansAvailableFcn = @storeData;
@@ -152,6 +156,14 @@ classdef DAQ_controller < instrumentType
          for ii = 1:numel(obj.channelInfo)
             obj = addChannel(obj,obj.channelInfo(ii));    
          end 
+
+         %Sets variables based on presets by forced get request
+         [~] = obj.maxErrorCount;
+         [~] = obj.voltageScaleFactor;
+         [~] = obj.scanBufferMultiplier;
+         [~] = obj.minScansAvailable;
+         [~] = obj.voltageScaleFactor;
+         [~] = obj.maxDataPoints;
       end
       
       function obj = disconnect(obj)
@@ -319,6 +331,13 @@ classdef DAQ_controller < instrumentType
       end
       function val = getParameter(obj,varName)
          if obj.connected
+             if ~isfield(obj.handshake.UserData,varName) || isempty(obj.handshake.UserData.(varName))
+                 if isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
+                     obj.handshake.UserData.(varName) = obj.presets.(varName);
+                 elseif isfield(obj.defaults,varName)
+                     obj.handshake.UserData.(varName) = obj.defaults.(varName);
+                 end
+             end
             val =  obj.handshake.UserData.(varName);
          elseif isfield(obj.presets,varName) && ~isempty(obj.presets.(varName))
             val = obj.presets.(varName);
@@ -361,6 +380,20 @@ classdef DAQ_controller < instrumentType
       end
       function val = get.maxErrorCount(obj)
          val = getParameter(obj,'maxErrorCount');
+      end
+
+      function set.errorLog(obj,val)
+         obj = setParameter(obj,val,'errorLog'); %#ok<NASGU>
+      end
+      function val = get.errorLog(obj)
+         val = getParameter(obj,'errorLog');
+      end
+
+      function set.timeOfLastErrorReport(obj,val)
+         obj = setParameter(obj,val,'timeOfLastErrorReport'); %#ok<NASGU>
+      end
+      function val = get.timeOfLastErrorReport(obj)
+         val = getParameter(obj,'timeOfLastErrorReport');
       end
 
       function set.scanBufferMultiplier(obj,val)
@@ -495,36 +528,48 @@ function handshake = storeData(handshake,evt) %#ok<INUSD>
     %   Processes data when available and updates accumulated values.
     %   Handles both counter and voltage data types.
 
-    nAvailableAtStart = 0;
-    
-    try
-        % Get collection info and validate data collection state
-        collectionInfo = handshake.UserData;
-        if ~isValidCollectionState(collectionInfo)
-            return;
-        end
+    handshake.UserData.numErrors = 0;
 
-        nAvailableAtStart = handshake.NumScansAvailable;
-        
-        % Read data from DAQ
-        [unsortedData, ~] = readDAQData(handshake);
-        if isempty(unsortedData)
-            return;
-        end
-        
-        % Process data based on type
-        [sig, ref] = processData(unsortedData, collectionInfo);
-        
-        % Update handshake data
-        updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData);
+    while handshake.UserData.numErrors < handshake.UserData.maxErrorCount
+        try
+            % Get collection info and validate data collection state
+            collectionInfo = handshake.UserData;
+            if ~isValidCollectionState(collectionInfo)
+                return;
+            end
 
-        % if ref ~= 0
-        %    assignin("base","unsortedData",unsortedData)
-        % end
-        
-    catch ME
-        handleDAQError(handshake, ME);
-        warning('Number of scans reported available: %d',nAvailableAtStart)
+            % Read data from DAQ
+            [unsortedData, ~] = readDAQData(handshake);
+            if isempty(unsortedData)
+                if handshake.UserData.numErrors > 0 && seconds(datetime-handshake.UserData.timeOfLastErrorReport) > 3
+                    warning('DAQ_controller:ErrorInCollection', ...
+                    ['Error occurred in data collection, followup read attempts resulted in no data available in DAQ buffer\n'...
+                    'Check DAQ_controller error log for details, likely under ex.DAQ.errorLog'])
+                    handshake.UserData.timeOfLastErrorReport = datetime;
+                end
+                return;
+            end
+
+            % Process data based on type
+            [sig, ref] = processData(unsortedData, collectionInfo);
+
+            % Update handshake data
+            updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData);
+
+        catch ME
+            %Log number of errors as well as adding to the overall error log
+            handshake.UserData.numErrors = handshake.UserData.numErrors + 1;
+            if numel(handshake.UserData.errorLog) >= 100
+                handshake.UserData.errorLog(1) = [];
+            end
+            handshake.UserData.errorLog{end+1} = ME;
+        end
+    end
+    if handshake.UserData.numErrors >= handshake.UserData.maxErrorCount && seconds(datetime-handshake.UserData.timeOfLastErrorReport) > 3
+        warning('DAQ_controller:MaxErrorsExceeded', ...
+                    'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
+                    handshake.UserData.maxErrorCount);
+        handshake.UserData.timeOfLastErrorReport = datetime;
     end
 end
 
@@ -575,7 +620,7 @@ function [sig, ref] = processData(unsortedData, collectionInfo)
     %processData Routes data to appropriate processor
     %
     %   Routes data to counter or voltage processor based on type.
-    
+
     if strcmpi(collectionInfo.dataType, 'EdgeCount')
         [sig, ref] = processCounterData(unsortedData, collectionInfo);
     else
@@ -616,7 +661,7 @@ function [sig, ref] = processVoltageData(unsortedData, collectionInfo)
     %   Handles signal/reference differentiation for voltage data.
     %   Returns zero values if no data is available.
     
-    dataOn = boolean(unsortedData(:, collectionInfo.toggleChannel));
+    dataOn = logical(unsortedData(:, collectionInfo.toggleChannel));
     
     if ~any(dataOn)
         sig = 0;
@@ -628,7 +673,7 @@ function [sig, ref] = processVoltageData(unsortedData, collectionInfo)
         ref = sum(unsortedData(dataOn, collectionInfo.dataChannelNumber));
         sig = 0;
     else
-        signalOn = boolean(unsortedData(:, collectionInfo.signalReferenceChannel));
+        signalOn = logical(unsortedData(:, collectionInfo.signalReferenceChannel));
         sig = sum(unsortedData(dataOn & signalOn, collectionInfo.dataChannelNumber));
         ref = sum(unsortedData(dataOn & ~signalOn, collectionInfo.dataChannelNumber));
     end
@@ -644,29 +689,9 @@ function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)
     
     if ref ~= 0
         handshake.UserData.nPoints = handshake.UserData.nPoints + ...
-            sum(boolean(unsortedData(:, collectionInfo.toggleChannel)));
+            sum(logical(unsortedData(:, collectionInfo.toggleChannel)));
+        % assignin("base", "rawDataFromDAQ", unsortedData);
     elseif ~isfield(handshake.UserData, 'nPoints')
         handshake.UserData.nPoints = 0;
     end
-end
-
-function handleDAQError(handshake, ME)
-    %handleDAQError Handles DAQ errors
-    %
-    %   Tracks error count and stops collection if max errors exceeded.
-    
-    if ~isfield(handshake.UserData, 'numErrors')
-        handshake.UserData.numErrors = 1;
-    else
-        handshake.UserData.numErrors = handshake.UserData.numErrors + 1;
-    end
-    
-    % Stop if too many errors
-    if handshake.UserData.numErrors >= 3
-        error('DAQ_controller:MaxErrorsExceeded', ...
-            'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
-            handshake.UserData.maxErrorCount);
-    end
-    
-    rethrow(ME);
 end
