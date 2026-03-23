@@ -2,13 +2,13 @@
 %axisLocations = ex.PIstage.axisSum;
 
 %% User Inputs
-scanBounds = {[20250 20350]};%,[-500 -450]};
+scanBounds = {[10670 10685]};%,[-500 -450]};
 scanAxes = {'z'};%,'y'};
-scanStepSize = {1};%,25};
-sequenceTimePerDataPoint = 0.1;%Before factoring in forced delay and other pauses
+scanStepSize = {0.11};%,25};
+sequenceTimePerDataPoint = 0.5;%Before factoring in forced delay and other pauses
 nIterations = 1;
-contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.492;
+contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+RFfrequency = 2.87;
 baselineSubtraction = 0.0;
 
 %Uncommonly changed parameters

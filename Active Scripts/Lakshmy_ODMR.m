@@ -1,8 +1,8 @@
 clear p
 
 %Required
-p.scanBounds = [2.35 2.55]; %Frequency bounds
-p.scanStepSize = .05; %Step size for RF frequency
+p.scanBounds = [2.2 2.3]; %Frequency bounds
+p.scanStepSize = .001; %Step size for RF frequency
 p.collectionType = 'counter';%analog or counter
 
 %General
@@ -33,11 +33,13 @@ p.invertSignalForSNR = false;
 
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
-p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
-p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationAxes = {'z'}; %The axes which will be optimized over
+% p.optimizationAxes = {'x','y','z'}; %The axes which will be optimized over
+% p.optimizationSteps = {-0.2:0.05:.2, -0.2:0.05:.2, -0.5:0.1:.5}; %Locations the stage will move relative to current location
+p.optimizationSteps = {-0.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
 p.timePerOpimizationPoint = .1; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 30; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 
 %percentageForcedOptimization is a more complex way of deciding when to do an optimization.

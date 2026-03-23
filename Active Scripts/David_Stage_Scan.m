@@ -1,18 +1,19 @@
 %Scans stage across 1 dimension
-%ex.PIstage = absoluteMove(ex.PIstage,'z',19148)
+%ex.PIstage = absoluteMove(ex.PIstage,'z',11310)
 %Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %1;
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
-
+%ex.PIstage = fineReset(ex.PIstage, 'z','mid', true ); To reset fine axis
+%last param there tells stage to compensate using coarse axis
 %% User Inputs
-scanBounds = {[19300 19750]};
+scanBounds = {[11305 11320]};
 scanAxes = {'z'};
-scanStepSize = {1};
-sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
+scanStepSize = {0.5};
+sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
 contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.870;
+RFfrequency = 3.624;
 
 %Uncommonly changed parameters
 dataType = 'counter';%'counter' or 'analog'
@@ -21,17 +22,18 @@ p.timeoutDuration = 5;
 forcedDelayTime = .125;
 
 p.baselineSubtraction = 0;
-p.plotAverageContrast = false;
-p.plotAverageReference = false;
-p.plotAverageSNR = false;
-p.plotCurrentContrast = true;
-p.plotCurrentReference = true;
-p.plotCurrentSNR = true;
+p.plotAverageContrast = true;
+p.plotAverageReference = true;
+p.plotAverageSignal = true;
+p.plotAverageSNR = true;
+p.plotCurrentContrast = false;
+p.plotCurrentReference = false;
+p.plotCurrentSNR = false;
 p.collectionType = 'counter';
 p.boundsToUse = 1;
 p.perSecond = true;
 
-nDataPointDeviationTolerance = .00015;
+nDataPointDeviationTolerance = .0015;
 scanNotes = 'Stage scan';
 
 %% Backend

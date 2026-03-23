@@ -437,6 +437,10 @@ classdef experiment
 
             % Generate and send pulse sequence using helper
             obj.pulseBlaster = obj.createOptimizationSequence(optInfo);
+            % Changed: mark temporary stage-optimization scans explicitly so
+            % getPulseSequenceData() validates them against the temporary
+            % optimization sequence rather than the main scan history. -Div
+            obj.optimizationInfo.isOptimizationScanActive = true;
          end
 
          optInfo.stageAxes = string(optInfo.stageAxes);       
@@ -446,13 +450,18 @@ classdef experiment
 
             axisName = optInfo.stageAxes(ii);
             axisRow = strcmpi(obj.PIstage.axisSum(:,1),axisName);
-            stepLocations = optInfo.steps{ii} + obj.PIstage.axisSum{axisRow,2};
+            %stepLocations = optInfo.steps{ii} + obj.PIstage.axisSum{axisRow,2};
+            currentPosition = obj.PIstage.axisSum{axisRow,2};
+            stepLocations = optInfo.steps{ii} + currentPosition;
 
             % Initial scan and optimization
             [maxVal,maxPosition,rawData] = obj.optimizationScan(stepLocations, axisName, optInfo.acquisitionType, optInfo.rfStatus, optInfo.algorithmType);
+            optimizationMetric = experiment.processOptimizationData(rawData, optInfo.acquisitionType, optInfo.rfStatus); %Added by Div to see how optimization was doing
+            initialRangeText = sprintf('[%.4f, %.4f]',min(stepLocations),max(stepLocations));
+            verificationText = 'verification=none';
 
             % Check if movement is more than 25% of the total range
-            currentPosition = obj.PIstage.axisSum{axisRow,2};
+            %currentPosition = obj.PIstage.axisSum{axisRow,2};
             movementSize = abs(maxPosition - currentPosition);
             scanRange = max(stepLocations) - min(stepLocations);
             
@@ -470,7 +479,8 @@ classdef experiment
                 verificationSteps = linspace(maxPosition - verificationRange/2, ...
                     maxPosition + verificationRange/2, ...
                     ceil(numel(optInfo.steps{ii})/2)); % Use half the number of original steps
-                
+                verificationText = sprintf('verification=[%.4f, %.4f]',min(verificationSteps),max(verificationSteps));
+
                 % Verification scan and optimization
                 [verificationMaxVal,verificationMaxPosition,~] = obj.optimizationScan(verificationSteps, axisName, optInfo.acquisitionType, optInfo.rfStatus, optInfo.algorithmType);
                 
@@ -510,6 +520,14 @@ classdef experiment
            end
 
            %Move to maximum location
+            currentMetricIndex = find(stepLocations == currentPosition,1);
+            if isempty(currentMetricIndex)
+               [~,currentMetricIndex] = min(abs(stepLocations - currentPosition));
+            end
+            currentMetricValue = optimizationMetric(currentMetricIndex);
+            optimizationMetricLabel = experiment.optimizationMetricLabel(optInfo.rfStatus);
+            fprintf('Optimization %s: %.4f->%.4f, %s %.6g->%.6g, range=%s, %s\n',...
+               upper(char(axisName)),currentPosition,maxPosition,optimizationMetricLabel,currentMetricValue,maxVal,initialRangeText,verificationText)
             obj.PIstage = absoluteMove(obj.PIstage,axisName,maxPosition);
          end
 
@@ -518,6 +536,10 @@ classdef experiment
             obj.pulseBlaster.useTotalLoop = oldUseTotalLoop;
             obj.pulseBlaster.userSequence = oldSequence;
             obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+            % Changed: clear the temporary optimization-scan marker after the
+            % original experiment sequence has been restored. -Div
+            obj.optimizationInfo.isOptimizationScanActive = false;
+
          end
 
          %Set current time as time of last optimization
@@ -567,35 +589,6 @@ classdef experiment
          [optVal,optPos] = experiment.optimizationAlgorithm(dataVec, stepLocs, algorithmType);
       end
 
-      % Helper function to process optimization data
-      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
-         %Processes raw data from stage optimization scans into a vector for optimization
-         %Input: rawData - cell array of data points
-         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
-         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
-         %Output: processedData - vector of processed values ready for optimization
-
-         switch acquisitionType
-            case 'pulse sequence'
-               switch rfStatus
-                  case {'off','on',true,false,'ref','sig'}
-                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'con','contrast'}
-                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'snr','signaltonoise','signal to noise','noise'}
-                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     conVector = cell2mat(conVector);
-                     refVector = cell2mat(refVector);
-                     processedData = conVector .* (refVector .^ (1/2));
-               end
-            case 'scmos' %unimplemented
-               processedData = [];
-         end
-      end
-
       function [obj,performOptimization] = checkOptimization(obj)
          %Checks if stage optimization should occur based on time and percentage difference criteria
          %performOptimization is boolean 
@@ -619,6 +612,7 @@ classdef experiment
             'maxLocationRecord',[];...
             'postOptimizationValue',0;...
             'rfStatus','off';...
+            'isOptimizationScanActive',false;...% -Div
             'radius',[]};
 
          %Checks if fields are present and gives default values
@@ -716,6 +710,11 @@ classdef experiment
             pause(obj.forcedCollectionPauseTime)
 
             obj.DAQ.takeData = false;
+            % Changed: added an immediate DAQ stop/flush after each completed point.
+            % Previously the code only flipped takeData off, which left the
+            % background stream running and allowed backlog accumulation between
+            % points, prompts, plotting, and optimization steps. -Div
+            obj.DAQ = stopCollection(obj.DAQ,true);
 
             if strcmpi(obj.DAQ.continuousCollection,'off')
                dataOut = dataOut./n;
@@ -723,9 +722,15 @@ classdef experiment
             end
 
             nPointsTaken = obj.DAQ.dataPointsTaken;
+            % Changed: when a temporary stage-optimization sequence is running,
+            % validate against that sequence's expected point count instead of the
+            % main scan history. The main history only applies when the active pulse
+            % sequence is the same as the one that produced obj.data.nPoints. -Div
+            useOptimizationExpectedPoints = isfield(obj.optimizationInfo,'isOptimizationScanActive') && ...
+               obj.optimizationInfo.isOptimizationScanActive;
 
             %If at least 5 data points to compare to
-            if sum(obj.data.iteration,"all") > 5
+            if ~useOptimizationExpectedPoints && sum(obj.data.iteration,"all") > 5
                temp = obj.data.nPoints(obj.data.nPoints ~= 0);
                validPoints = ~isoutlier(temp);
                expectedDataPoints = mean(temp(validPoints), "all");
@@ -779,7 +784,9 @@ classdef experiment
                end
             else
                obj.forcedCollectionPauseTime = originalPauseTime;
-               stop(obj.DAQ.handshake)
+               % Changed: replaced the raw stop() call with the shared DAQ cleanup
+               % path so failed collections also discard unread buffered scans. -Div
+               obj.DAQ = stopCollection(obj.DAQ,true);
                error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
                   nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
             end
@@ -1101,61 +1108,79 @@ classdef experiment
          end
       end
 
-      function obj = saveData(obj,saveName)
-         %Saves data to file as well as relevant info
-         %UNIMPLEMENTED: save images to tif files
+      % function obj = saveData(obj,saveName)
+      %    %Saves data to file as well as relevant info
+      %    %UNIMPLEMENTED: save images to tif files
+      % 
+      %    %Check if any data exists
+      %    if isempty(obj.data)
+      %       error('No data to save')
+      %    end
+      % 
+      %    %Empty struct that will contain relevant information
+      %    dataInfo = {};
+      %    n = 0;
+      % 
+      %    %Adds RF info
+      %    if ~isempty(obj.SRS_RF)
+      %       n = n+1;
+      %       dataInfo{n,1} = 'RF frequency';
+      %       dataInfo{n,2} = obj.SRS_RF.frequency;
+      %       n = n+1;
+      %       dataInfo{n,1} = 'RF amplitude';
+      %       dataInfo{n,2} = obj.SRS_RF.amplitude;
+      %    end
+      % 
+      %    %Adds pulse sequence
+      %    if ~isempty(obj.pulseBlaster)
+      %       n = n+1;
+      %       dataInfo{n,1} = 'Pulse sequence';
+      %       dataInfo{n,2} = obj.pulseBlaster.sequenceSentToPulseBlaster;
+      %       n = n+1;
+      %       dataInfo{n,1} = 'Number of loops for pulse sequence';
+      %       dataInfo{n,2} = obj.pulseBlaster.nTotalLoops;
+      %    end
+      % 
+      %    %Adds camera info
+      %    if ~isempty(obj.hamm)
+      %       n = n+1;
+      %       dataInfo{n,1} = 'Frames per trigger';
+      %       dataInfo{n,2} = obj.hamm.framesPerTrigger;
+      %       n = n+1;
+      %       dataInfo{n,1} = 'Exposure time';
+      %       dataInfo{n,2} = obj.hamm.exposureTime;
+      %    end
+      % 
+      %    %Adds scan info
+      %    if ~isempty(obj.scan)
+      %       n = n+1;
+      %       dataInfo{n,1} = 'Scan info';
+      %       dataInfo{n,2} = obj.scan;
+      %    end
+      % 
+      %    %Saves data along with found info
+      %    dataToSave = obj.data;
+      %    save(saveName,"dataToSave","dataInfo")
+      % 
+      % end
+      function obj = saveData(obj,saveName,varargin)
+         % Changed: manual saves now go to the shared snapshot writer so
+         % raw data, params, metadata, derived analysis, and the final contrast
+         % PNG all use the same format as automatic checkpoints. -Div
 
-         %Check if any data exists
          if isempty(obj.data)
             error('No data to save')
          end
 
-         %Empty struct that will contain relevant information
-         dataInfo = {};
-         n = 0;
-
-         %Adds RF info
-         if ~isempty(obj.SRS_RF)
-            n = n+1;
-            dataInfo{n,1} = 'RF frequency';
-            dataInfo{n,2} = obj.SRS_RF.frequency;
-            n = n+1;
-            dataInfo{n,1} = 'RF amplitude';
-            dataInfo{n,2} = obj.SRS_RF.amplitude;
+         if nargin >= 3 && isstruct(varargin{1})
+            sentParams = varargin{1};
+         else
+            sentParams = struct;
          end
 
-         %Adds pulse sequence
-         if ~isempty(obj.pulseBlaster)
-            n = n+1;
-            dataInfo{n,1} = 'Pulse sequence';
-            dataInfo{n,2} = obj.pulseBlaster.sequenceSentToPulseBlaster;
-            n = n+1;
-            dataInfo{n,1} = 'Number of loops for pulse sequence';
-            dataInfo{n,2} = obj.pulseBlaster.nTotalLoops;
-         end
-
-         %Adds camera info
-         if ~isempty(obj.hamm)
-            n = n+1;
-            dataInfo{n,1} = 'Frames per trigger';
-            dataInfo{n,2} = obj.hamm.framesPerTrigger;
-            n = n+1;
-            dataInfo{n,1} = 'Exposure time';
-            dataInfo{n,2} = obj.hamm.exposureTime;
-         end
-
-         %Adds scan info
-         if ~isempty(obj.scan)
-            n = n+1;
-            dataInfo{n,1} = 'Scan info';
-            dataInfo{n,2} = obj.scan;
-         end
-
-         %Saves data along with found info
-         dataToSave = obj.data;
-         save(saveName,"dataToSave","dataInfo")
-
+         saveRunSnapshot(obj,saveName,sentParams,'status','manual','saveAverageContrastPNG',true);
       end
+
 
       function obj = overlapAlgorithm(obj,algorithmType,params)
          %Runs one of the overlap algorithms to get stage in position for
@@ -1549,6 +1574,20 @@ classdef experiment
          end
 
       end
+      function metricLabel = optimizationMetricLabel(rfStatus)
+         switch lower(string(rfStatus))
+            case {"off","false","ref"}
+               metricLabel = 'reference';
+            case {"on","true","sig"}
+               metricLabel = 'rf-on reference';
+            case {"con","contrast"}
+               metricLabel = 'contrast';
+            case {"snr","signaltonoise","signal to noise","noise"}
+               metricLabel = 'snr';
+            otherwise
+               metricLabel = 'optimization metric';
+         end
+      end
 
       function newValues = incrementOdometer(oldValues,maxValues)
          oldValues = cell2mat(oldValues);
@@ -1652,6 +1691,36 @@ classdef experiment
                error('Invalid experiment type. Must be "pulse sequence" or "scmos"')
          end
       end
+
+            % Helper function to process optimization data
+      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
+         %Processes raw data from stage optimization scans into a vector for optimization
+         %Input: rawData - cell array of data points
+         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
+         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
+         %Output: processedData - vector of processed values ready for optimization
+
+         switch acquisitionType
+            case 'pulse sequence'
+               switch rfStatus
+                  case {'off','on',true,false,'ref','sig'}
+                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'con','contrast'}
+                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'snr','signaltonoise','signal to noise','noise'}
+                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     conVector = cell2mat(conVector);
+                     refVector = cell2mat(refVector);
+                     processedData = conVector .* (refVector .^ (1/2));
+               end
+            case 'scmos' %unimplemented
+               processedData = [];
+         end
+      end
+
 
    end
 end

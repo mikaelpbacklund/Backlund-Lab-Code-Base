@@ -130,6 +130,13 @@ classdef DAQ_controller < instrumentType
          obj.digitalPortNames = devices.DeviceInfo(~isSimulated).Subsystems(3).ChannelNames;
          obj.counterPortNames = devices.DeviceInfo(~isSimulated).Subsystems(4).ChannelNames;         
          
+         % Changed: capture the config-backed DAQ limits before creating the
+         % handshake so they can be copied into UserData and actually used by the
+         % callback logic at runtime. Before this, several config knobs existed but
+         % were not driving the callback code. -Div
+         runtimeSettings = checkSettings(obj,{'scanBufferMultiplier','minScansAvailable',...
+            'maxErrorCount','voltageScaleFactor','maxDataPoints'});
+
          %Create DAQ connection
          obj.handshake = daq(obj.manufacturer);
          obj.handshake.Rate = obj.sampleRate;
@@ -142,8 +149,20 @@ classdef DAQ_controller < instrumentType
          obj = setContinuousCollection(obj,'on');
          obj = setSignalDifferentiation(obj,'on');
          obj.takeData = false;
+         % Changed: initialize callback/runtime state explicitly in UserData so the
+         % async DAQ callback and recovery helpers can use the configured limits and
+         % track discard/error/overflow state deterministically. -Div
+         obj.scanBufferMultiplier = runtimeSettings.scanBufferMultiplier;
+         obj.minScansAvailable = runtimeSettings.minScansAvailable;
+         obj.maxErrorCount = runtimeSettings.maxErrorCount;
+         obj.voltageScaleFactor = runtimeSettings.voltageScaleFactor;
+         obj.maxDataPoints = runtimeSettings.maxDataPoints;
          obj.toggleChannel = obj.defaults.toggleChannel;
-         obj.signalReferenceChannel = obj.defaults.signalReferenceChannel;  
+         obj.signalReferenceChannel = obj.defaults.signalReferenceChannel;
+         obj.handshake.UserData.numErrors = 0;
+         obj.handshake.UserData.ndiscards = 0;
+         obj.handshake.UserData.bufferOverflows = 0;
+         obj.handshake.UserData.lastFatalDAQError = ''; 
 
          %Set data collection callback
          obj.handshake.ScansAvailableFcn = @storeData;
@@ -273,16 +292,45 @@ classdef DAQ_controller < instrumentType
          %If the DAQ is continuously gathering data (signal vs reference is
          %enabled AND/OR continuous is hard set) 
          if strcmp(obj.continuousCollection,'on') || strcmp(instrumentType.discernOnOff(obj.handshake.UserData.differentiateSignal),'on')
+            % Changed: stop and flush the previous run before re-arming the DAQ.
+            % This prevents unread scans from one point from carrying into the next
+            % acquisition attempt. -Div
+            obj = stopCollection(obj,true);
             %Set the reference and signal to 0
             obj.handshake.UserData.reference = 0;
             obj.handshake.UserData.signal = 0;
             obj.handshake.UserData.nPoints = 0;
-            obj.handshake.UserData.currentCounts = 0;   
+            obj.handshake.UserData.currentCounts = 0;
+            obj.handshake.UserData.numErrors = 0;
+            obj.handshake.UserData.ndiscards = 0;
+            obj.handshake.UserData.lastFatalDAQError = '';
+            resetcounters(obj.handshake)
             %Turn on collection
             if ~obj.handshake.Running, start(obj.handshake,"continuous"), end     
          else
-            if obj.handshake.Running, stop(obj.handshake), end
+            obj = stopCollection(obj,true);
             resetcounters(obj.handshake)
+         end
+      end
+
+      function obj = stopCollection(obj,discardBufferedData)
+         %stopCollection Stops the DAQ task and optionally discards unread samples
+         % Added: shared cleanup helper used instead of raw stop(handshake) calls so
+         % idle/prompt/error paths all leave the DAQ in a known clean state. -Div
+
+         if nargin < 2 || isempty(discardBufferedData)
+            discardBufferedData = true;
+         end
+
+         if ~obj.connected || isempty(obj.handshake)
+            return
+         end
+
+         obj.takeData = false;
+         safeStopHandshake(obj.handshake);
+
+         if discardBufferedData
+            flushBufferedData(obj.handshake);
          end
       end
       
@@ -385,10 +433,12 @@ classdef DAQ_controller < instrumentType
       end
 
       function set.maxDataPoints(obj,val)
-         obj = setParameter(obj,val,'voltageScaleFactor'); %#ok<NASGU>
+         % Changed: fixed a bug where maxDataPoints had incorrectly been
+         % stored under voltageScaleFactor. -Div
+         obj = setParameter(obj,val,'maxDataPoints'); %#ok<NASGU>
       end
       function val = get.maxDataPoints(obj)
-         val = getParameter(obj,'voltageScaleFactor');
+         val = getParameter(obj,'maxDataPoints');
       end
 
       function set.activeDataChannel(obj,val)
@@ -542,19 +592,29 @@ function [unsortedData, scansAvailable] = readDAQData(handshake)
     %
     %   Returns raw data matrix and number of available scans.
     %   Handles buffer overflow conditions.
-    
-    scansAvailable = handshake.NumScansAvailable - 25;
+
+    % Changed: replaced hard-coded thresholds with the config-backed runtime
+    % settings copied into UserData so callback chunking and overflow detection are
+    % driven by the DAQ configuration instead of fixed numbers. -Div
+    minScansAvailable = getHandshakeSetting(handshake,'minScansAvailable',25);
+    scanBufferMultiplier = getHandshakeSetting(handshake,'scanBufferMultiplier',100);
+    scansAvailable = handshake.NumScansAvailable - minScansAvailable;
 
     if ~isfield(handshake.UserData,'ndiscards')
        handshake.UserData.ndiscards = 0;
     end
-    
+
+    overflowThreshold = handshake.ScansAvailableFcnCount * scanBufferMultiplier;
+    if isempty(overflowThreshold) || overflowThreshold <= 0
+        overflowThreshold = inf;
+    end
+
     % Handle buffer overflow
-    if scansAvailable > handshake.ScansAvailableFcnCount * 100
-       multDiscard = 25;
-        [~] = read(handshake, handshake.ScansAvailableFcnCount*multDiscard, "OutputFormat", "Matrix");
+    if scansAvailable > overflowThreshold
+        discardScans = min(handshake.NumScansAvailable,max(minScansAvailable,overflowThreshold));
+        discardBufferedData(handshake,discardScans);
         handshake.UserData.ndiscards = handshake.UserData.ndiscards+1;
-        fprintf('Discarded %d scans\n Number of total discards: %d\n',handshake.ScansAvailableFcnCount*multDiscard,handshake.UserData.ndiscards)
+        fprintf('Discarded %d scans\n Number of total discards: %d\n',discardScans,handshake.UserData.ndiscards)
         unsortedData = [];
         return;
     end
@@ -638,31 +698,127 @@ function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)
     handshake.UserData.reference = handshake.UserData.reference + ref;
     handshake.UserData.signal = handshake.UserData.signal + sig;
     
-    if ref ~= 0
-        handshake.UserData.nPoints = handshake.UserData.nPoints + ...
-            sum(boolean(unsortedData(:, collectionInfo.toggleChannel)));
-    elseif ~isfield(handshake.UserData, 'nPoints')
+    if ~isfield(handshake.UserData, 'nPoints') || isempty(handshake.UserData.nPoints)
         handshake.UserData.nPoints = 0;
     end
+    handshake.UserData.nPoints = handshake.UserData.nPoints + ...
+        sum(boolean(unsortedData(:, collectionInfo.toggleChannel)));
+    %elseif ~isfield(handshake.UserData, 'nPoints')
+     %   handshake.UserData.nPoints = 0;
+    
 end
 
 function handleDAQError(handshake, ME)
     %handleDAQError Handles DAQ errors
     %
     %   Tracks error count and stops collection if max errors exceeded.
-    
+
+    % Changed: added targeted overflow recovery for the NI buffer-overflow failure
+    % seen in logs so the DAQ is stopped, flushed, and reset immediately
+    % instead of repeatedly throwing async callback errors. -Div
+    if isDAQOverflowError(ME)
+        recoverFromOverflow(handshake,ME);
+        warning('DAQ_controller:BufferOverflow', ...
+            'DAQ buffer overflow detected. The task was stopped, flushed, and will restart on the next collection attempt.');
+        return
+    end
+
     if ~isfield(handshake.UserData, 'numErrors')
         handshake.UserData.numErrors = 1;
     else
         handshake.UserData.numErrors = handshake.UserData.numErrors + 1;
     end
-    
+
+    maxErrorCount = getHandshakeSetting(handshake,'maxErrorCount',3);
+
     % Stop if too many errors
-    if handshake.UserData.numErrors >= 3
+    if handshake.UserData.numErrors >= maxErrorCount
+        recoverFromOverflow(handshake,ME);
         error('DAQ_controller:MaxErrorsExceeded', ...
             'Maximum number of errors (%d) exceeded. Stopping data collection.', ...
-            handshake.UserData.maxErrorCount);
+            maxErrorCount);
     end
-    
+
     rethrow(ME);
+end
+
+function val = getHandshakeSetting(handshake,settingName,defaultValue)
+    if isfield(handshake.UserData,settingName) && ~isempty(handshake.UserData.(settingName))
+        val = handshake.UserData.(settingName);
+    else
+        val = defaultValue;
+    end
+end
+
+function safeStopHandshake(handshake)
+    try
+        if handshake.Running
+            stop(handshake)
+        end
+    catch
+    end
+end
+
+function flushBufferedData(handshake)
+    maxChunk = getHandshakeSetting(handshake,'maxDataPoints',100000);
+    if isempty(maxChunk) || maxChunk <= 0
+        maxChunk = 100000;
+    end
+
+    while true
+        try
+            scansAvailable = handshake.NumScansAvailable;
+        catch
+            break
+        end
+
+        if isempty(scansAvailable) || scansAvailable <= 0
+            break
+        end
+
+        discardBufferedData(handshake,min(scansAvailable,maxChunk));
+    end
+end
+
+function discardBufferedData(handshake,nScans)
+    if isempty(nScans) || nScans <= 0
+        return
+    end
+
+    try
+        read(handshake,nScans,"OutputFormat","Matrix");
+    catch
+    end
+end
+
+function recoverFromOverflow(handshake,ME)
+    % Added: centralized overflow recovery helper to stop the task, discard unread
+    % scans, reset counters, and record the last fatal DAQ error message. -Div
+    if ~isfield(handshake.UserData,'bufferOverflows')
+        handshake.UserData.bufferOverflows = 0;
+    end
+
+    handshake.UserData.bufferOverflows = handshake.UserData.bufferOverflows + 1;
+    handshake.UserData.takeData = false;
+    handshake.UserData.lastFatalDAQError = ME.message;
+    handshake.UserData.numErrors = 0;
+
+    safeStopHandshake(handshake);
+    flushBufferedData(handshake);
+
+    try
+        resetcounters(handshake)
+    catch
+    end
+
+    if isfield(handshake.UserData,'reference'), handshake.UserData.reference = 0; end
+    if isfield(handshake.UserData,'signal'), handshake.UserData.signal = 0; end
+    if isfield(handshake.UserData,'nPoints'), handshake.UserData.nPoints = 0; end
+    if isfield(handshake.UserData,'currentCounts'), handshake.UserData.currentCounts = 0; end
+end
+
+function tf = isDAQOverflowError(ME)
+    tf = contains(ME.message,'-200361') || ...
+        contains(lower(ME.message),'memory overflow') || ...
+        contains(lower(ME.message),'could not read data from the device fast enough');
 end

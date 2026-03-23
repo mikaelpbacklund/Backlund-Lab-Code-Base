@@ -3,25 +3,31 @@
 clear p
 
 %Required
-p.scanBounds = [100 4100];
-p.scanStepSize = 250;
+p.scanBounds = [100 2000];
+p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.piTime = 28;
-p.RFResonanceFrequency = 2.1775;
-p.collectionType = 'analog';
-
+p.piTime = 18;
+p.RFResonanceFrequency = 2.118;
+p.collectionType = 'counter';
+%Saving
+p.saveName = "DavidTestingThings";   % optional but recommended
+p.saveDirectory = "C:\Users\User\Desktop\github repositories\Backlund-Lab-Code-Base\Saved Data"; % optional
+p.autoSaveEveryIteration = true; % default
+p.saveAverageContrastPNG = true; % default
+%Use saveData(ex,"317RabiFullRun",p) or ex.saveData("317RabiFullRun",p)
+%for a manual save
 %Other
-p.sequenceTimePerDataPoint = 3;%seconds
-p.collectionDuration = 1500;%0 means overwritten by DAQ
-p.collectionBufferDuration = 100;
+p.sequenceTimePerDataPoint = 10;%seconds
+p.collectionDuration = 1000;%0 means overwritten by DAQ
+p.collectionBufferDuration = 500;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFRampTime = 6;
-p.AOMCompensation = 450;
+p.RFRampTime = 14;
+p.AOMCompensation = 50;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.IQBuffers = [30 30];
-p.nIterations = 1;
+p.IQBuffers = [30 10];
+p.nIterations = 10;
 p.RFAmplitude = 10;
 p.timeoutDuration = 5;
 p.forcedDelayTime = .25;
@@ -30,6 +36,9 @@ p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
 p.perSecond = false;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
+p.nonInteractive = true;
+
+
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -43,9 +52,9 @@ p.plotCurrentContrast = false;
 p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
-p.plotCurrentSignal = false;
+p.plotCurrentSignal = true;
 p.plotAverageSNR = false;
-p.plotCurrentSNR = false;
+p.plotCurrentSNR = true;
 p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;

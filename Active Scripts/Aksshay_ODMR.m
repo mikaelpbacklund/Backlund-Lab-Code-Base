@@ -3,11 +3,11 @@
 %% User Inputs
 %General
 RFamplitude = 10;
-scanBounds = [2.02 2.06];
+scanBounds = [2.8 2.95];
 scanStepSize = .001; %Step size for RF frequency
 scanNotes = 'hyperfine ODMR'; %Notes describing scan (will appear in titles for plots)
 sequenceTimePerDataPoint = 0.100;%Before factoring in forced delay and other pauses
-nIterations = 1; %Number of iterations of scan to perform
+nIterations = 10; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
@@ -79,7 +79,7 @@ ex.SRS_RF.amplitude = RFamplitude;
 %counter
 ex.DAQ.takeData = false;
 ex.DAQ.differentiateSignal = 'on';
-ex.DAQ.activeDataChannel = 'analog';
+ex.DAQ.activeDataChannel = 'counter';
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
