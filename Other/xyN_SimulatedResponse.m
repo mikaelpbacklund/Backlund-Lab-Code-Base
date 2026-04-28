@@ -22,7 +22,7 @@ gamma_n = 40.078;%MHz/T       19F=40.078, 13C=10.705, 1H=42.577
 onaxisfreq=2.286;
 
 %Noise addition
-sigma = 0;%Standard deviation for gaussian distributed noise (approximation)
+sigma = 0.05;%Standard deviation for gaussian distributed noise (approximation)
 
 %% Constants and Conversions
 mu_0=4*pi*10^-7;
@@ -95,7 +95,7 @@ Signalfunction = Signalfunction+noiseArray;
 %% Plotting
 
 figure(1);
-plot(tau,Signalfunction)
+plot(tau*1e9,Signalfunction)
 title('Expected NMR dip post-normalization')
 depthString = compose("%d nm",round(NVDepth.*1e9));
 legend(depthString)
