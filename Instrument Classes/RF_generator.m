@@ -118,11 +118,6 @@ classdef RF_generator < instrumentType
 
           catch connectErr
               % Log error with connection state
-              currentState = struct(...
-                  'vendor', obj.connectionInfo.vendor, ...
-                  'connected', obj.connected, ...
-                  'connectionType', obj.uncommonProperties.connectionType);
-              obj.logError(obj,connectErr, currentState);
               rethrow(connectErr);
           end
       end
@@ -293,7 +288,6 @@ classdef RF_generator < instrumentType
                   case '6'
                       obj.modulationType = 'I/Q';
                   otherwise
-                      obj.modulationType = 'unknown';
                       warning('Unexpected modulation type response: %s', modType);
               end
           catch typeErr
@@ -301,7 +295,6 @@ classdef RF_generator < instrumentType
               currentState = struct(...
                   'modulationType', obj.modulationType, ...
                   'response', modType);
-              obj.logError(obj,typeErr, currentState);
               
               rethrow(typeErr);
           end

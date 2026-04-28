@@ -434,6 +434,10 @@ classdef experiment
 
             % Generate and send pulse sequence using helper
             obj.pulseBlaster = obj.createOptimizationSequence(optInfo);
+
+            %Turn continous collection off for stage optimization
+            obj.DAQ.continuousCollection = false;
+            obj.DAQ = resetDAQ(obj.DAQ);
          end
 
          optInfo.stageAxes = string(optInfo.stageAxes);       
@@ -515,6 +519,8 @@ classdef experiment
             obj.pulseBlaster.useTotalLoop = oldUseTotalLoop;
             obj.pulseBlaster.userSequence = oldSequence;
             obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+            obj.DAQ.continuousCollection = true;
+            obj.DAQ = resetDAQ(obj.DAQ);
          end
 
          %Set current time as time of last optimization
@@ -564,34 +570,7 @@ classdef experiment
          [optVal,optPos] = experiment.optimizationAlgorithm(dataVec, stepLocs, algorithmType);
       end
 
-      % Helper function to process optimization data
-      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
-         %Processes raw data from stage optimization scans into a vector for optimization
-         %Input: rawData - cell array of data points
-         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
-         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
-         %Output: processedData - vector of processed values ready for optimization
-
-         switch acquisitionType
-            case 'pulse sequence'
-               switch rfStatus
-                  case {'off','on',true,false,'ref','sig'}
-                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'con','contrast'}
-                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'snr','signaltonoise','signal to noise','noise'}
-                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     conVector = cell2mat(conVector);
-                     refVector = cell2mat(refVector);
-                     processedData = conVector .* (refVector .^ (1/2));
-               end
-            case 'scmos' %unimplemented
-               processedData = [];
-         end
-      end
+      
 
       function [obj,performOptimization] = checkOptimization(obj)
          %Checks if stage optimization should occur based on time and percentage difference criteria
@@ -1650,6 +1629,35 @@ classdef experiment
                formalName = 'none'; %no data collection
             otherwise
                error('Invalid experiment type. Must be "pulse sequence" or "scmos"')
+         end
+      end
+
+      % Helper function to process optimization data
+      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
+         %Processes raw data from stage optimization scans into a vector for optimization
+         %Input: rawData - cell array of data points
+         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
+         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
+         %Output: processedData - vector of processed values ready for optimization
+
+         switch acquisitionType
+            case 'pulse sequence'
+               switch rfStatus
+                  case {'off','on',true,false,'ref','sig'}
+                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'con','contrast'}
+                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'snr','signaltonoise','signal to noise','noise'}
+                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     conVector = cell2mat(conVector);
+                     refVector = cell2mat(refVector);
+                     processedData = conVector .* (refVector .^ (1/2));
+               end
+            case 'scmos' %unimplemented
+               processedData = [];
          end
       end
 

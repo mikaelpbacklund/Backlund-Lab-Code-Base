@@ -7,32 +7,33 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [100 1000];
-p.scanStepSize = 50;
-p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.178;
-p.piTime = 28;
-p.pulseNotes = 'AOM/DAQ delay compensation';%Exact notes of pulses to scan
+p.scanBounds = [500 10000];
+p.scanStepSize = 500;
+p.collectionType = 'counter';%analog or counter
+p.RFResonanceFrequency = 2.191;
+p.piTime = 66;
+p.pulseNotes = 'τ with-RF time';%Exact notes of pulses to scan
 %'AOM/DAQ delay compensation','Repolarization,{'Reference Data collection','Signal Data collection'}
 %'Intermission between halves'
 
 %General
 p.RFAmplitude = 10;
-p.sequenceTimePerDataPoint = 2;%Before factoring in forced delay and other pauses
-p.nIterations = 1; %Number of iterations of scan to perform
+p.sequenceTimePerDataPoint = 20;%Before factoring in forced delay and other pauses
+p.nIterations = 10; %Number of iterations of scan to perform
 p.timeoutDuration = 5; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = 100;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
-p.collectionBufferDuration = 250;%How long to wait between end of RF pulse and beginning of data collection
-p.AOMCompensation = 600;%How long AOM should be on before DAQ (negative flips to DAQ first)
-p.repolarizationDuration = 10000;
-p.intermissionBufferDuration = 10000;
-p.RFRampTime = 6;%Time to add to each RF pulse due to RF generator reducing pulse duration
+p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
+p.AOMCompensation = 10;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.repolarizationDuration = 8000;
+p.intermissionBufferDuration = 12000;
+p.RFRampTime = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 p.dataOnBuffer = 0;
 p.extraBuffer = 0;
+p.maxFailedCollections = 10;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
