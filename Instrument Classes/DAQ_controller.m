@@ -599,8 +599,8 @@ function [unsortedData, scansAvailable] = readDAQData(handshake)
     end
     
     % Handle buffer overflow
-    if scansAvailable > handshake.ScansAvailableFcnCount * 100
-       multDiscard = 25;
+    if scansAvailable > handshake.ScansAvailableFcnCount * 20
+       multDiscard = 20;
         [~] = read(handshake, handshake.ScansAvailableFcnCount*multDiscard, "OutputFormat", "Matrix");
         handshake.UserData.ndiscards = handshake.UserData.ndiscards+1;
         fprintf('Discarded %d scans\n Number of total discards: %d\n',handshake.ScansAvailableFcnCount*multDiscard,handshake.UserData.ndiscards)
@@ -690,7 +690,7 @@ function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)
     if ref ~= 0
         handshake.UserData.nPoints = handshake.UserData.nPoints + ...
             sum(logical(unsortedData(:, collectionInfo.toggleChannel)));
-        % assignin("base", "rawDataFromDAQ", unsortedData);
+        %assignin("base", "rawDataFromDAQ", unsortedData);
     elseif ~isfield(handshake.UserData, 'nPoints')
         handshake.UserData.nPoints = 0;
     end

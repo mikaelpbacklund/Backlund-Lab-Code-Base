@@ -3,21 +3,21 @@
 clear p
 
 %Required
-p.scanBounds = [100000 5001000];
-p.scanStepSize = 100000;
+p.scanBounds = [10000 1010000];
+p.scanStepSize = 20000;
 p.scanNSteps = [];%will override step size
 %p.piTime = 36;
 p.RFResonanceFrequency = 2.220;
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint =10;%seconds
+p.sequenceTimePerDataPoint =3;%seconds
 p.collectionDuration = 1000;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 5000;
-p.repolarizationDuration = 100000;
+p.repolarizationDuration = 75000;
 % p.extraRF = 4;
-p.AOMCompensation = 1800;
+p.AOMCompensation = 15000;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ1
 % continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
@@ -34,7 +34,7 @@ p.resetData = true;%Resets data of previous scan. If false, continues adding dat
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
-p.SRSRFConfig = 'SRS_RF';
+%p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
 

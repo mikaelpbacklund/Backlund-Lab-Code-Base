@@ -3,33 +3,33 @@
 clear p
 
 %Required
-p.scanBounds = [450 650];
-p.scanStepSize = 20;
+p.scanBounds = [200 1000];
+p.scanStepSize = 10;
 p.scanNSteps = [];%will override step size
-p.piTime = 42;
-p.RFResonanceFrequency = 2.244;
+p.piTime = 48;
+p.RFResonanceFrequency = 2.771;
 p.nXY = 8;%N in XYN-m
 p.setsXYN = 16;%m in XYN-m
-p.collectionType = 'analog';
+p.collectionType = 'counter';
 
 %Other
-p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 2000;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint = 12;%seconds
+p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
 p.RFRampTime = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 450;
+p.AOMCompensation = 10;
 % p.AOMCompensation = 1300;
-p.IQBuffers = [24 10];
-p.nIterations = 2;
+p.IQBuffers = [30 10];
+p.nIterations = 100;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
-p.nDataPointDeviationTolerance = .001;
-p.maxFailedCollections = 5;
+p.nDataPointDeviationTolerance = .0001;
+p.maxFailedCollections = 10;
 p.baselineSubtraction = 0;
 p.perSecond = true;
 
@@ -46,7 +46,7 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
-p.plotAverageSNR = false;
+p.plotAverageSNR = true;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = true;
@@ -54,12 +54,12 @@ p.invertSignalForSNR = false;
 p.plotPulseSequence = true;
 
 %Stage optimization
-p.optimizationEnabled = false; %Set to false to disable stage optimization
+p.optimizationEnabled = true; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
+p.optimizationSteps = {-.5:0.1:.5}; %Locations the stage will move relative to current location
 p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
-p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.timePerOpimizationPoint = .25; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationPercentage = false;

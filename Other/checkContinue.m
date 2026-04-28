@@ -12,6 +12,10 @@ continueStopwatch = tic; %start timer to cancel timeout
 iterationTimer = timer('StartDelay', timeoutDelay, 'TimerFcn', @iterationTimeout);
 start(iterationTimer)
 
+%Create a backup timer for the cases where the first timer is interrupted
+iterationTimerBackup = timer('StartDelay', timeoutDelay*5, 'TimerFcn', @iterationTimeout);
+start(iterationTimerBackup)
+
 %Asks for user input
 continueTrueFalse = input('Continue? 0 or 1\n');
 
@@ -24,4 +28,6 @@ end
 
 stop(iterationTimer)
 delete(iterationTimer)
+stop(iterationTimerBackup)
+delete(iterationTimerBackup)
 end

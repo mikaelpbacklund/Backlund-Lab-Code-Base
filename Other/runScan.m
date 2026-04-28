@@ -2,6 +2,9 @@ function ex = runScan(ex,p)
 %Runs scan using experiment object
 %p is parameter object
 
+warning('off','daq:Session:FlushedAcquiredData')
+warning('off','instrument:interface:FlushedData')
+
 mustContainField(p,'collectionType')
 
 paramsWithDefaults = {'plotAverageContrast',true;...
@@ -35,12 +38,19 @@ if p.resetData
 else
     iterationsForInfo = p.nIterations - size(ex.data.values,2);
 end
-scanStartInfo(ex.scan.nSteps,ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+scanStartInfo(prod([ex.scan.nSteps]),ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+
+%Turn off continous collection for the duration of user input
+ex.DAQ.continuousCollection = false;
+ex.DAQ = resetDAQ(ex.DAQ);
 
 cont = checkContinue(p.timeoutDuration*2);
 if ~cont
    return
 end
+
+ex.DAQ.continuousCollection = true;
+ex.DAQ = resetDAQ(ex.DAQ);
 
 try
 
@@ -97,7 +107,10 @@ for ii = startIteration:p.nIterations
 
       %Checks if stage optimization should be done, then does it if so
       [ex,doOptimization] = checkOptimization(ex);
-      if doOptimization,  ex = stageOptimization(ex);   end
+      if doOptimization
+          ex = stageOptimization(ex);
+          fprintf('Stage optimized to %.1f x, %.1f y, %.1f z\n',ex.PIstage.axisSum{1,2},ex.PIstage.axisSum{2,2},ex.PIstage.axisSum{3,2})
+      end
 
       %Takes the next data point. This includes incrementing the odometer and setting the instrument to the next value
       ex = takeNextDataPoint(ex,'pulse sequence');
@@ -231,7 +244,12 @@ for ii = startIteration:p.nIterations
    end
 
    if ii ~= p.nIterations
+       %Turn off continous collection for the duration of user input
+       ex.DAQ.continuousCollection = false;
+       ex.DAQ = resetDAQ(ex.DAQ);
        cont = checkContinue(p.timeoutDuration);
+       ex.DAQ.continuousCollection = true;
+       ex.DAQ = resetDAQ(ex.DAQ);
        if ~cont
            break
        end

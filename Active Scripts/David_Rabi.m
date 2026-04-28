@@ -8,9 +8,9 @@ clear p
 
 %Required
 p.scanBounds = [10 210]; %RF duration bounds
-p.scanStepSize = 2; %Step size for RF duration
-p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.244; %on axis
+p.scanStepSize = 4; %Step size for RF duration
+p.collectionType = 'counter';%analog or counter
+p.RFResonanceFrequency = 2.771; %on axis
 
 %General
 p.RFAmplitude = 10;
@@ -18,12 +18,12 @@ p.sequenceTimePerDataPoint = 3;%Before factoring in forced delay and other pause
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .25; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = .00002;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.nDataPointDeviationTolerance = .0002;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
-p.collectionDuration = 2000;%How long to collect data for. 0 means overwritten by DAQ rate
+p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 12000;%How long to wait between signal and reference halves of the sequence
-p.AOMCompensation = 400;%How long AOM should be on before DAQ (negative flips to DAQ first)
+p.AOMCompensation = 10;%How long AOM should be on before DAQ (negative flips to DAQ first)
 p.repolarizationDuration = 10000;%Duration of repolarization
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
@@ -44,7 +44,7 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
-p.plotAverageSNR = false;
+p.plotAverageSNR = true;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;
@@ -69,7 +69,6 @@ p.useOptimizationPercentage = false;
 %post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
-tic
+
 %Runs Rabi using specified parameters
 ex = Rabi(ex,p);
-toc
