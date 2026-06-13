@@ -3,15 +3,15 @@
 clear p
 
 %Required
-p.scanBounds = [200 3000];
-p.scanStepSize = 200;
+p.scanBounds = [300 3000];
+p.scanStepSize = 300;
 p.scanNSteps = [];%will override step size
-p.piTime = 48;
-p.RFResonanceFrequency = 2.771;
-p.collectionType = 'counter';
+p.piTime = 34;
+p.RFResonanceFrequency = 2.6365;
+p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 5;%seconds
+p.sequenceTimePerDataPoint = 10;%seconds
 p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
@@ -26,8 +26,8 @@ p.RFAmplitude = 10;
 p.timeoutDuration = 5;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
-p.maxFailedCollections = 3;
-p.baselineSubtraction = 0;
+p.maxFailedCollections = 10;
+p.baselineSubtraction = 0.027;
 p.perSecond = false;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 

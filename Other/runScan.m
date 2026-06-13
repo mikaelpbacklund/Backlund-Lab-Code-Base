@@ -186,7 +186,7 @@ for ii = startIteration:p.nIterations
           else
               SNRVal = sqrt(averageData(1)) * averageContrast^(-1);
           end
-          SNRVal = SNRVal * sqrt(mean(dataPoints,"all"));
+          SNRVal = abs(SNRVal) * sqrt(mean(dataPoints,"all"));
          ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
       end
       if p.plotCurrentSNR
@@ -195,7 +195,7 @@ for ii = startIteration:p.nIterations
               else
               SNRVal = sqrt(currentData(1)) * currentContrast^(-1);
           end
-          SNRVal = SNRVal * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
+          SNRVal = abs(SNRVal) * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
          ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
       end
 
@@ -243,6 +243,9 @@ for ii = startIteration:p.nIterations
       plotLabelInfo{3,2} = storedLabel; %#ok<NASGU>
    end
 
+   %Save current iteration data
+   ex = saveData(ex);
+
    if ii ~= p.nIterations
        %Turn off continous collection for the duration of user input
        ex.DAQ.continuousCollection = false;
@@ -253,6 +256,7 @@ for ii = startIteration:p.nIterations
        if ~cont
            break
        end
+       
        fprintf('Beginning iteration %d\n',ii+1)
    end
 end

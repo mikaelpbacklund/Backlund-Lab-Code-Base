@@ -3,14 +3,14 @@
 %% User Inputs
 %General
 RFamplitude = 10;
-scanBounds = [2.0 3.0];
+scanBounds = [1.0 2.0];
 scanStepSize = .002; %Step size for RF frequency
 scanNotes = 'hyperfine ODMR'; %Notes describing scan (will appear in titles for plots)
-sequenceTimePerDataPoint = 0.8;%Before factoring in forced delay and other pauses
-nIterations = 1; %Number of iterations of scan to perform
+sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
+nIterations = 5; %Number of iterations of scan to perform
 timeoutDuration = 10; %How long before auto-continue occurs
 forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
-nDataPointDeviationTolerance = .001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+nDataPointDeviationTolerance = 0.0005;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
 
 %Plotting
@@ -106,17 +106,17 @@ ex.pulseBlaster = addPulse(ex.pulseBlaster,pulseInfo);
 % ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 
 
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},100000,'Start Buffer');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},5000,'Start Buffer');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM',},50000,'Initialization');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},20000,'Drive Off');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM'},1300,'DAQ Delay Compensation');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM'},300,'AOM Delay');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','Data'},2000,'Reference Data Collection');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},100000,'Middle Buffer');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},5000,'Middle Buffer');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','Signal'},50000,'Initialization');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'RF','Signal'},20000,'RF Drive');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','Signal'},1300,'AOM Delay');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','Signal'},300,'AOM Delay');
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','Signal','Data'},2000,'Signal Data Collection');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},100000,'End Buffer');
+ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},5000,'End Buffer');
 
 %Gets duration of user sequence in order to change number of loops to match desired time for each data point
 ex.pulseBlaster = calculateDuration(ex.pulseBlaster,'user');

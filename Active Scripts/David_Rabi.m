@@ -7,10 +7,10 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 210]; %RF duration bounds
-p.scanStepSize = 4; %Step size for RF duration
-p.collectionType = 'counter';%analog or counter
-p.RFResonanceFrequency = 2.771; %on axis
+p.scanBounds = [10 130]; %RF duration bounds
+p.scanStepSize = 2; %Step size for RF duration
+p.collectionType = 'analog';%analog or counter
+p.RFResonanceFrequency = 2.6365; %on axis
 
 %General
 p.RFAmplitude = 10;
@@ -19,7 +19,7 @@ p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .25; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .0002;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0;%Amount to subtract from both reference and signal collected
+p.baselineSubtraction = 0.102;%Amount to subtract from both reference and signal collected
 p.collectionDuration = 0;%How long to collect data for. 0 means overwritten by DAQ rate
 p.collectionBufferDuration = 100;%How long to wait between end of RF pulse and beginning of data collection
 p.intermissionBufferDuration = 12000;%How long to wait between signal and reference halves of the sequence
@@ -30,6 +30,7 @@ p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before re
 p.RFRampTime = 0;%Time to add to each RF pulse due to RF generator reducing pulse duration
 p.perSecond = true;%convert to counts/s if using counter
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
+p.iqModulation = true;%Turns I/Q modulation on or off
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
@@ -44,7 +45,7 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
-p.plotAverageSNR = true;
+p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = true;
 p.plotAverageDataPoints = false;

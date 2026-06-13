@@ -690,7 +690,7 @@ function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)
     if ref ~= 0
         handshake.UserData.nPoints = handshake.UserData.nPoints + ...
             sum(logical(unsortedData(:, collectionInfo.toggleChannel)));
-        %assignin("base", "rawDataFromDAQ", unsortedData);
+           % assignin("base", "rawDataFromDAQ", unsortedData);
     elseif ~isfield(handshake.UserData, 'nPoints')
         handshake.UserData.nPoints = 0;
     end

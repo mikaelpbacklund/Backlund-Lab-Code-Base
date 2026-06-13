@@ -362,17 +362,14 @@ classdef experiment
          %Squeeze is necessary to remove first dimension if there is a
          %multi-dimensional scan
          if isscalar(obj.scan)
-            obj.data.iteration = zeros(1,obj.scan.nSteps);
+            obj.data.iteration = zeros(obj.scan.nSteps,1);
          else
-            obj.data.iteration = zeros([obj.scan.nSteps]);
+            obj.data.iteration = zeros([obj.scan.nSteps])';
          end
 
          %Makes cell array of equivalent size to above
          obj.data.values = num2cell(obj.data.iteration);
-
-         if isscalar(obj.scan)
-             obj.data.values = obj.data.values';
-         end
+         assignin("base","vals",obj.data.values)
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -398,9 +395,11 @@ classdef experiment
          if isempty(obj.instrumentCells)
             obj.instrumentIdentifiers = [];
             obj.instrumentClasses = [];
+            disp('deleted identifiers')
          else
             obj.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),obj.instrumentCells,'UniformOutput',false);
             obj.instrumentClasses = cellfun(@(x)class(x),obj.instrumentCells,'UniformOutput',false);
+            % disp(numel(obj.instrumentIdentifiers))
          end
       end
 
@@ -435,6 +434,10 @@ classdef experiment
 
             % Generate and send pulse sequence using helper
             obj.pulseBlaster = obj.createOptimizationSequence(optInfo);
+
+            %Turn continous collection off for stage optimization
+            obj.DAQ.continuousCollection = false;
+            obj.DAQ = resetDAQ(obj.DAQ);
          end
 
          optInfo.stageAxes = string(optInfo.stageAxes);       
@@ -516,6 +519,8 @@ classdef experiment
             obj.pulseBlaster.useTotalLoop = oldUseTotalLoop;
             obj.pulseBlaster.userSequence = oldSequence;
             obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+            obj.DAQ.continuousCollection = true;
+            obj.DAQ = resetDAQ(obj.DAQ);
          end
 
          %Set current time as time of last optimization
@@ -565,34 +570,7 @@ classdef experiment
          [optVal,optPos] = experiment.optimizationAlgorithm(dataVec, stepLocs, algorithmType);
       end
 
-      % Helper function to process optimization data
-      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
-         %Processes raw data from stage optimization scans into a vector for optimization
-         %Input: rawData - cell array of data points
-         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
-         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
-         %Output: processedData - vector of processed values ready for optimization
-
-         switch acquisitionType
-            case 'pulse sequence'
-               switch rfStatus
-                  case {'off','on',true,false,'ref','sig'}
-                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'con','contrast'}
-                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     processedData = cell2mat(processedData);
-                  case {'snr','signaltonoise','signal to noise','noise'}
-                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
-                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
-                     conVector = cell2mat(conVector);
-                     refVector = cell2mat(refVector);
-                     processedData = conVector .* (refVector .^ (1/2));
-               end
-            case 'scmos' %unimplemented
-               processedData = [];
-         end
-      end
+      
 
       function [obj,performOptimization] = checkOptimization(obj)
          %Checks if stage optimization should occur based on time and percentage difference criteria
@@ -672,6 +650,9 @@ classdef experiment
          originalPauseTime = obj.forcedCollectionPauseTime;
          dataOut = [];
          nPointsTaken = 0;
+
+         %Stops pulse blaster execution upon forced close
+         cleanupObj = onCleanup(@() stopSequence(obj.pulseBlaster));
 
          %For slightly changing sequence to get better results
          bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
@@ -926,7 +907,7 @@ classdef experiment
                
                   obj.plots.(plotName).axes.XLim = xBounds;
 
-                  obj.plots.(plotName).completedPoints = boolean(zeros(1,obj.scan.nSteps));
+                  obj.plots.(plotName).completedPoints = false(1,obj.scan.nSteps);
                end               
 
                %Change current data point value
@@ -1007,7 +988,7 @@ classdef experiment
             for ii = 1:numel(obj.scan)
                 stepList(ii) = obj.scan(ii).nSteps;
             end
-            obj.plots.(plotName).completedPoints = boolean(stepList);
+            obj.plots.(plotName).completedPoints = logical(stepList);
             if isfield(obj.plots.(plotName),'minValue')
                 obj.plots.(plotName) = rmfield(obj.plots.(plotName),'minValue');
                 obj.plots.(plotName) = rmfield(obj.plots.(plotName),'maxValue');
@@ -1099,7 +1080,7 @@ classdef experiment
          end
       end
 
-      function obj = saveData(obj,saveName)
+      function obj = saveData(obj)
          %Saves data to file as well as relevant info
          %UNIMPLEMENTED: save images to tif files
 
@@ -1107,6 +1088,57 @@ classdef experiment
          if isempty(obj.data)
             error('No data to save')
          end
+
+         targetFolder = 'Saved Data';
+
+         % Determine where "Saved Data" is located
+         if isfolder(targetFolder)
+             % You are currently in the root folder
+             destinationDir = fullfile(pwd, targetFolder);
+         else
+             n = 0;
+             parentDir = fileparts(pwd);
+             while n<5
+                 % You are in a child folder, so check one level up (the parent)
+                 if n~=0
+                    parentDir = fileparts(parentDir);
+                 end
+                 %Check if Save Data folder exists here
+                 destinationDir = fullfile(parentDir, targetFolder);
+                 if exist(destinationDir,"dir")==7 %7 means folder exists
+                     break
+                 end
+                 n=n+1;
+                 if n==5
+                     error('Could not find save path from current directory location')
+                 end
+             end
+         end
+
+         %Find date and create new folder for today if not already present
+         currentDay = string(datetime('today', 'Format', 'yyyy-MM-dd'));
+         destinationDir = fullfile(destinationDir, currentDay);
+         if ~isfolder(destinationDir)
+             [success, message] = mkdir(destinationDir);
+             if ~success
+                 error('Failed to create date folder: %s', message);
+             end
+         end
+
+         %Repeat for scan notes
+         if ~isempty(obj.scan)
+             destinationDir = fullfile(destinationDir, obj.scan.notes);
+         end
+         if ~isfolder(destinationDir)
+             [success, message] = mkdir(destinationDir);
+             if ~success
+                 error('Failed to create date folder: %s', message);
+             end
+         end
+
+         % Define the save name for the data file
+         currentTime = string(datetime("now","Format",'HH-mm-ss'));
+         saveName = fullfile(destinationDir, currentTime,'.mat');
 
          %Empty struct that will contain relevant information
          dataInfo = {};
@@ -1150,8 +1182,9 @@ classdef experiment
          end
 
          %Saves data along with found info
-         dataToSave = obj.data;
-         save(saveName,"dataToSave","dataInfo")
+         savedData = obj.data;
+         assignin("base","saveName",sav)
+         save(saveName,"savedData","dataInfo")
 
       end
 
@@ -1376,7 +1409,7 @@ classdef experiment
 
          %Boolean for incorporating RF strength
          if nargin >= 4 && ~isempty(varargin{1}) && varargin{1}
-            frequencyAxis = frequencyAxis/(magnetStrength(obj.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
+            frequencyAxis = frequencyAxis/(MagnetStrength(obj.SRS_RF.frequency,'strength')*1e-4);%1e4 is gauss to tesla
          end
       end
    end
@@ -1391,7 +1424,7 @@ classdef experiment
          if numel(obj.instrumentIdentifiers) ~= numel(obj.instrumentCells)
             %Ensures up to date list of instruments
             obj = getInstrumentNames(obj);
-            disp('test')
+            
          end
 
          %Obtain proper identifier for the input and compare with instruments present
@@ -1648,6 +1681,35 @@ classdef experiment
                formalName = 'none'; %no data collection
             otherwise
                error('Invalid experiment type. Must be "pulse sequence" or "scmos"')
+         end
+      end
+
+      % Helper function to process optimization data
+      function processedData = processOptimizationData(rawData, acquisitionType, rfStatus)
+         %Processes raw data from stage optimization scans into a vector for optimization
+         %Input: rawData - cell array of data points
+         %       acquisitionType - type of acquisition ('pulse sequence' or 'scmos')
+         %       rfStatus - RF status for pulse sequence data ('on', 'off', 'contrast', etc.)
+         %Output: processedData - vector of processed values ready for optimization
+
+         switch acquisitionType
+            case 'pulse sequence'
+               switch rfStatus
+                  case {'off','on',true,false,'ref','sig'}
+                     processedData = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'con','contrast'}
+                     processedData = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     processedData = cell2mat(processedData);
+                  case {'snr','signaltonoise','signal to noise','noise'}
+                     conVector = cellfun(@(x)(x(1)-x(2))/x(1),rawData,'UniformOutput',false);
+                     refVector = cellfun(@(x)x(1),rawData,'UniformOutput',false);
+                     conVector = cell2mat(conVector);
+                     refVector = cell2mat(refVector);
+                     processedData = conVector .* (refVector .^ (1/2));
+               end
+            case 'scmos' %unimplemented
+               processedData = [];
          end
       end
 

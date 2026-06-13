@@ -1,33 +1,33 @@
 %Scans stage across 1 dimension
-%ex.PIstage = absoluteMove(ex.PIstage,'z',19148)
+%ex.PIstage = absoluteMove(ex.PIstage,'z',24000)
 %Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %1;
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-scanBounds = {[9760 9780]};
+scanBounds = {[19600 19850]};
 scanAxes = {'z'};
-scanStepSize = {.2};
+scanStepSize = {5};
 sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
 contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.87;
+RFfrequency = 2.6365;
 
 %Uncommonly changed parameters
-dataType = 'counter';%'counter' or 'analog'
+dataType = 'analog';%'counter' or 'analog'
 RFamplitude = 10;
 p.timeoutDuration = 5;
 forcedDelayTime = .125;
 
-p.baselineSubtraction = 0;
+p.baselineSubtraction = 0.1;
 p.plotAverageContrast = false;
 p.plotAverageReference = false;
 p.plotAverageSNR = false;
 p.plotCurrentContrast = true;
 p.plotCurrentReference = true;
 p.plotCurrentSNR = true;
-p.collectionType = 'counter';
+p.collectionType = 'analog';
 p.boundsToUse = 1;
 p.perSecond = true;
 

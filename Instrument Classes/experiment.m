@@ -1080,7 +1080,7 @@ classdef experiment
          end
       end
 
-      function obj = saveData(obj,saveName)
+      function obj = saveData(obj)
          %Saves data to file as well as relevant info
          %UNIMPLEMENTED: save images to tif files
 
@@ -1088,6 +1088,57 @@ classdef experiment
          if isempty(obj.data)
             error('No data to save')
          end
+
+         targetFolder = 'Saved Data';
+
+         % Determine where "Saved Data" is located
+         if isfolder(targetFolder)
+             % You are currently in the root folder
+             destinationDir = fullfile(pwd, targetFolder);
+         else
+             n = 0;
+             parentDir = fileparts(pwd);
+             while n<5
+                 % You are in a child folder, so check one level up (the parent)
+                 if n~=0
+                    parentDir = fileparts(parentDir);
+                 end
+                 %Check if Save Data folder exists here
+                 destinationDir = fullfile(parentDir, targetFolder);
+                 if exist(destinationDir,"dir")==7 %7 means folder exists
+                     break
+                 end
+                 n=n+1;
+                 if n==5
+                     error('Could not find save path from current directory location')
+                 end
+             end
+         end
+
+         %Find date and create new folder for today if not already present
+         currentDay = string(datetime('today', 'Format', 'yyyy-MM-dd'));
+         destinationDir = fullfile(destinationDir, currentDay);
+         if ~isfolder(destinationDir)
+             [success, message] = mkdir(destinationDir);
+             if ~success
+                 error('Failed to create date folder: %s', message);
+             end
+         end
+
+         %Repeat for scan notes
+         if ~isempty(obj.scan)
+             destinationDir = fullfile(destinationDir, obj.scan.notes);
+         end
+         if ~isfolder(destinationDir)
+             [success, message] = mkdir(destinationDir);
+             if ~success
+                 error('Failed to create date folder: %s', message);
+             end
+         end
+
+         % Define the save name for the data file
+         currentTime = string(datetime("now","Format",'HH-mm-ss'));
+         saveName = strcat(destinationDir,"/", currentTime,'.mat');
 
          %Empty struct that will contain relevant information
          dataInfo = {};
@@ -1131,8 +1182,9 @@ classdef experiment
          end
 
          %Saves data along with found info
-         dataToSave = obj.data;
-         save(saveName,"dataToSave","dataInfo")
+         savedData = obj.data;
+         assignin("base","saveName",saveName)
+         save(saveName,"savedData","dataInfo")
 
       end
 

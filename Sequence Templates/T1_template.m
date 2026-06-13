@@ -74,12 +74,13 @@ h.useTotalLoop = true;
 %_____________________________________________________________________________________________________________
 
 h = condensedAddPulse(h,{},5000,'intermission buffer 1');
-h = condensedAddPulse(h,{'aom'},(p.repolarizationDuration),'repolarization for reference');
-h = condensedAddPulse(h,{'aom','data'},p.collectionDuration,'reference data collection');
-h = condensedAddPulse(h,{'AOM'},10000,'intermission buffer 2');
+h = condensedAddPulse(h,{'aom'},(p.repolarizationDuration-p.AOMCompensation),'repolarization for reference');
+h = condensedAddPulse(h,{'aom'},(p.AOMCompensation),'AOM Compensation');
+h = condensedAddPulse(h,{'aom','data','RF'},p.collectionDuration,'reference data collection');
+h = condensedAddPulse(h,{},5000,'intermission buffer 2');
 h = condensedAddPulse(h,{'signal'},mean(p.scanBounds),'scanned τ');
 h = condensedAddPulse(h,{'aom','signal'},p.AOMCompensation,'aom compensation');
-h = condensedAddPulse(h,{'aom','data','signal'},p.collectionDuration,'signal data collection');
+h = condensedAddPulse(h,{'aom','data','signal','RF'},p.collectionDuration,'signal data collection');
 h = condensedAddPulse(h,{'aom','signal'},p.repolarizationDuration,'repolarization for reference');
 h = condensedAddPulse(h,{},5000,'intermission buffer 3');
 
