@@ -3,13 +3,13 @@
 clear p
 
 %Required
-p.scanBounds = [1200 1600];
-p.scanStepSize = 4;
+p.scanBounds = [1470 1570];
+p.scanStepSize = 2;
 p.scanNSteps = [];%will override step size
-p.piTime = 34;
-p.RFResonanceFrequency = 2.637;
+p.piTime = 30;
+p.RFResonanceFrequency = 2.6405;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 16;%m in XYN-m
+p.setsXYN = 24;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -24,13 +24,13 @@ p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before re
 p.AOMCompensation = 10;
 % p.AOMCompensation = 1300;
 p.IQBuffers = [30 10];
-p.nIterations = 100;
+p.nIterations = 200;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .0001;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.027;
+p.baselineSubtraction = 0.041;
 p.perSecond = true;
 
 %Config file names
@@ -57,7 +57,7 @@ p.plotPulseSequence = true;
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
 p.optimizationSteps = {-.5:0.2:.5}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
+p.optimizationRFStatus = 'con'; %'off', 'on', 'snr', or 'con'
 p.timePerOpimizationPoint = .25; %Duration of each data point during optimization
 p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;

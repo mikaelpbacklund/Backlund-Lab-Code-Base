@@ -1127,8 +1127,13 @@ classdef experiment
 
          %Repeat for scan notes
          if ~isempty(obj.scan)
-             destinationDir = fullfile(destinationDir, obj.scan.notes);
+             scanNotes = obj.scan.notes;
+             %Replace the invalid characters with an underscore
+             invalidChars = '[<.,>:"/|?*{}()]';
+             scanNotes = regexprep(scanNotes, invalidChars, '_');
+             destinationDir = fullfile(destinationDir, scanNotes);
          end
+         
          if ~isfolder(destinationDir)
              [success, message] = mkdir(destinationDir);
              if ~success

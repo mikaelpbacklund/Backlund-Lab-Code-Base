@@ -258,6 +258,10 @@ for ii = startIteration:p.nIterations
        end
        
        fprintf('Beginning iteration %d\n',ii+1)
+   else
+       %Turn off collection once it is finished
+       ex.DAQ.continuousCollection = false;
+       ex.DAQ = resetDAQ(ex.DAQ);
    end
 end
 fprintf('Scan complete\n')

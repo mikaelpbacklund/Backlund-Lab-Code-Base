@@ -1,5 +1,5 @@
 % clear
-close all
+% close all
 % load("Overnight_Correlation_1-6us_20ns_stepSize_python_comparison.mat")
 
 nPoints = size(data.values,1);
@@ -22,7 +22,7 @@ avgR = mean(r,2);
 
 cFromAverageSR = (avgR-avgS)./avgR;
 
-nScan = 1;
+nScan = 2;
 xax = scanInfo.bounds{nScan}(1):scanInfo.stepSize(nScan):scanInfo.bounds{nScan}(2);
 
 %%
