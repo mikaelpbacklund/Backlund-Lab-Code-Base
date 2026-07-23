@@ -6,31 +6,31 @@ clear p
 p.scanBounds = [1000 6000];
 p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.tauDuration = 616;
-p.piTime = 44;
-p.RFResonanceFrequency = 2.245;
+p.tauDuration = 522;
+p.piTime = 80;
+p.RFResonanceFrequency = 2.2;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 16;%m in XYN-m
+p.setsXYN = 10;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 2000;%0 means overwritten by DAQ
+p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
-p.RFRampTime = 10;
+p.RFRampTime = 6;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 450;
+p.AOMCompensation = 10;
 p.IQBuffers = [30 10];
 p.nIterations = 400;
-p.RFAmplitude = 10;
+p.RFAmplitude = 0;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .001;
-p.maxFailedCollections = 5;
-p.baselineSubtraction = 0;
+p.maxFailedCollections = 10;
+p.baselineSubtraction = 0.041;
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 

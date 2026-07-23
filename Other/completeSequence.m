@@ -26,6 +26,7 @@ end
 
 %Changes number of loops to match desired time
 h = adjustSequence(h);
+disp(p.sequenceTimePerDataPoint)
 h.nTotalLoops = floor(p.sequenceTimePerDataPoint/h.sequenceDurations.adjusted.totalSeconds);
 h = sendToInstrument(h);
 

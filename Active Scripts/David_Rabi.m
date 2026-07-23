@@ -7,10 +7,10 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 130]; %RF duration bounds
-p.scanStepSize = 2; %Step size for RF duration
+p.scanBounds = [10 230]; %RF duration bounds
+p.scanStepSize = 4; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.6405; %on axis
+p.RFResonanceFrequency = 2.484; %on axis
 
 %General
 p.RFAmplitude = 10;
@@ -31,9 +31,10 @@ p.RFRampTime = 0;%Time to add to each RF pulse due to RF generator reducing puls
 p.perSecond = true;%convert to counts/s if using counter
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 p.iqModulation = true;%Turns I/Q modulation on or off
+p.closeFigsEveryIteration = false;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_default';
+p.pulseBlasterConfig = 'pb_swabian';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';

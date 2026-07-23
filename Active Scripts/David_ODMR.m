@@ -3,8 +3,8 @@
 clear p
 
 %Required
-p.scanBounds = [2.6 2.7]; %Frequency bounds
-p.scanStepSize = .002;%Step size for RF frequency
+p.scanBounds = [2.45 2.5]; %Frequency bounds
+p.scanStepSize = .005;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
@@ -18,9 +18,10 @@ p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) col
 p.nDataPointDeviationTolerance = 5e-6;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0.041;%Amount to subtract from both reference and signal collected
 p.perSecond = false;
+p.closeFigsEveryIteration = false;
 
 %Config file names
-p.pulseBlasterConfig = 'pulse_blaster_default';
+p.pulseBlasterConfig = 'pb_swabian';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';

@@ -1,7 +1,7 @@
 function ex = CPMG(ex,p)
 
 requiredParams = {'scanBounds','collectionType','RFResonanceFrequency',...
-   'piTime','nXY','setsXYN'};
+   'piTime','nPiPulses'};
 
 mustContainField(p,requiredParams)
 
@@ -76,7 +76,7 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.modulationEnabled = 'on';
 ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RFAmplitude;
 ex.SRS_RF.frequency = p.RFResonanceFrequency;
@@ -92,7 +92,7 @@ if p.collectionDuration == 0
 end
 
 %Load empty parameter structure from template
-[sentParams,~] = XYn_m_template([],[]);
+[sentParams,~] = CPMG_template([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'
@@ -104,7 +104,15 @@ end
 %Sends parameters to template
 %Creates and sends pulse sequence to pulse blaster
 %Gets scan information
-[ex.pulseBlaster,scanInfo] = XYn_m_template(ex.pulseBlaster,sentParams);
+[ex.pulseBlaster,scanInfo] = CPMG_template(ex.pulseBlaster,sentParams);
+
+%Adds x offset to account for extra pulses, swaps bounds to plot to be tau
+if p.nPiPulses ~= 1
+    p.xOffset = scanInfo.reducedTauTime;
+else
+    p.xOffset = scanInfo.reducedTauByTwoTime;
+end
+p.boundsToUse = 2;
 
 %Deletes any pre-existing scan
 ex.scan = [];

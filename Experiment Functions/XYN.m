@@ -92,8 +92,8 @@ if p.collectionDuration == 0
 end
 
 %Load empty parameter structure from template
-[sentParams,~] = XYn_m_looped_format([],[]);
-% [sentParams,~] = XYn_m_template([],[]);
+% [sentParams,~] = XYn_m_looped_format([],[]);
+[sentParams,~] = XYn_m_template([],[]);
 
 %Replaces values in sentParams with values in params if they aren't empty
 for paramName = fieldnames(sentParams)'

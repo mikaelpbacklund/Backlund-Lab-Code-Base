@@ -104,6 +104,10 @@ end
 %Gets scan information
 [ex.pulseBlaster,scanInfo] = SpinEcho_template(ex.pulseBlaster,sentParams);
 
+%Adds x offset to account for extra pulses, swaps bounds to plot to be tau
+p.xOffset = scanInfo.reducedTauTime;
+p.boundsToUse = 2;
+
 %Deletes any pre-existing scan
 ex.scan = [];
 

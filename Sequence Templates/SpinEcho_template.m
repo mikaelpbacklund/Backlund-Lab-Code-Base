@@ -48,7 +48,8 @@ if isempty(p.scanNSteps)
 end
 
 %Calculates the duration of the τ pulse that will be sent to pulse blaster
-exportedTau = p.scanBounds - (sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime);
+scanInfo.reducedTauTime = sum(p.IQBuffers)+(3/4)*p.piTime+p.RFRampTime;
+exportedTau = p.scanBounds - scanInfo.reducedTauTime;
 
 %Error check for τ duration
 if min(exportedTau) <= 0

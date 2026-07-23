@@ -44,6 +44,7 @@ classdef instrumentType < handle
       uncommonProperties  % Rarely accessed properties to reduce clutter
       notifications = false  % Enable/disable status messages
       presets  % User-defined instrument settings
+      instrumentNameMap % Name mapping for ease of use when referencing instrument
    end
 
    properties (SetAccess = protected, GetAccess = public)
@@ -520,43 +521,7 @@ classdef instrumentType < handle
 
           %Adds new value
           s(indexToAdd) = valuesToAdd;         
-      end
-
-      function properIdentifier = giveProperIdentifier(userIdentifier)
-          % Convert user-friendly names to standardized identifiers
-          
-          %Checks for multiple inputs and creates empty cell array
-          userIdentifier = c2s(userIdentifier);
-          properIdentifier = cell(1,numel(userIdentifier));
-
-          for ii = 1:numel(userIdentifier)
-             switch lower(userIdentifier(ii))
-                case {'srs','srs_rf','srs rf','srsrf'}
-                   properIdentifier{ii} = 'SRS RF';
-                case {'wf','windfreak','wind freak','wind_freak','wf rf','wf_rf'}
-                   properIdentifier{ii} = 'WF RF';
-                case {'pulse_blaster','pulse blaster','pb','pulseblaster','spincore'}
-                   properIdentifier{ii} = 'Pulse Blaster';
-                case {'stage','pi','pistage','pi_stage','pi stage'}
-                   properIdentifier{ii} = 'PI Stage';
-                case {'daq','data','data acquisition','data_acquisition','dataacquisition','ni','ni daq','ni_daq','nidaq'}
-                   properIdentifier{ii} = 'NI DAQ';
-                case {'hamm','ham','hamamatsu','hammcam','hamcam','cam','camera'}
-                   properIdentifier{ii} = 'Hamamatsu';
-                case {'ddl','dynamic delay line','dynamicdelayline','dynamic_delay_line'}
-                   properIdentifier{ii} = 'DDL';
-                case {'ndyag','ndyov','532','532 nm','532nm','green laser','nv laser','laser532','laser 532','532 nm laser'}
-                   properIdentifier{ii} = '532 nm Laser';
-                otherwise
-                   properIdentifier{ii} = [];
-             end
-          end
-
-          %If only one input given, give it back in the form of a character array instead of cell
-          if isscalar(properIdentifier)
-             properIdentifier = properIdentifier{1};
-          end
-      end
+      end      
 
    end
 end

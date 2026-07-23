@@ -1,18 +1,18 @@
 %Scans stage across 1 dimension
-%ex.PIstage = absoluteMove(ex.PIstage,'z',24000)
+%0
 %Reminders on functions to move stage or get location
 %stageLocations = ex.PIstage.axisSum;
 %1;
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-scanBounds = {[19800 19850]};
+scanBounds = {[20100 20600]};
 scanAxes = {'z'};
-scanStepSize = {2};
+scanStepSize = {10};
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
 contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.641;
+RFfrequency = 2.87;
 
 %Uncommonly changed parameters
 dataType = 'analog';%'counter' or 'analog'
@@ -20,7 +20,7 @@ RFamplitude = 10;
 p.timeoutDuration = 5;
 forcedDelayTime = .125;
 
-p.baselineSubtraction = 0.041;
+p.baselineSubtraction = 0;
 p.plotAverageContrast = false;
 p.plotAverageReference = false;
 p.plotAverageSNR = false;
@@ -42,7 +42,7 @@ end
 
 if isempty(ex.pulseBlaster)
     fprintf('Connecting to pulse blaster...\n')
-   ex.pulseBlaster = pulse_blaster('pulse_blaster_DEER');
+   ex.pulseBlaster = pulse_blaster('pb_swabian');
    ex.pulseBlaster = connect(ex.pulseBlaster);
    fprintf('Pulse blaster connected\n')
 end

@@ -1,39 +1,41 @@
-%Example Spin Echo using template
+%Example XYN-m using template
 
 clear p
 
 %Required
 p.scanBounds = [300 800];
-p.scanStepSize = 20;
+p.scanStepSize = 10;
 p.scanNSteps = [];%will override step size
 p.piTime = 48;
-p.RFResonanceFrequency = 2.484;
+p.RFResonanceFrequency = 2.21;
+p.nPiPulses = 128;
 p.collectionType = 'analog';
 
 %Other
-p.sequenceTimePerDataPoint = 3;%seconds
-p.collectionDuration = 1500;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint = 10;%seconds
+p.collectionDuration = 1500;%0 means overwritten by DAQ %
 p.collectionBufferDuration = 100;
 p.intermissionBufferDuration = 12000;
 p.repolarizationDuration = 10000;
 p.RFRampTime = 8;
-p.AOMCompensation = 10;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
+p.AOMCompensation = 10;
 p.IQBuffers = [30 10];
-p.nIterations = 1;
+p.AOMCompensation = 10;
+p.nIterations = 100;
 p.RFAmplitude = 0;
-p.timeoutDuration = 5;
+p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 10;
 p.baselineSubtraction = 0.041;
-p.perSecond = false;
-p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
-p.closeFigsEveryIteration = true;
+p.perSecond = true;
+p.closeFigsEveryIteration = false;
+p.plotEveryNIterations = 1;
 
 %Config file names
-p.pulseBlasterConfig = 'pb_swabian';
+p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
 p.DAQConfig = 'daq_6361';
 p.stageConfig = 'PI_stage';
@@ -42,7 +44,7 @@ p.stageConfig = 'PI_stage';
 p.plotAverageContrast = true;
 p.plotCurrentContrast = false;
 p.plotAverageReference = false;
-p.plotCurrentReference = true;
+p.plotCurrentReference = false;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
@@ -55,10 +57,10 @@ p.plotPulseSequence = false;
 %Stage optimization
 p.optimizationEnabled = false; %Set to false to disable stage optimization
 p.optimizationAxes = {'z'}; %The axes which will be optimized over
-p.optimizationSteps = {-.5:0.5:.5}; %Locations the stage will move relative to current location
-p.optimizationRFStatus = 'off'; %'off', 'on', 'snr', or 'con'
-p.timePerOpimizationPoint = .5; %Duration of each data point during optimization
-p.timeBetweenOptimizations = 120; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.optimizationSteps = {-.5:0.2:.5}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'con'; %'off', 'on', 'snr', or 'con'
+p.timePerOpimizationPoint = .25; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
 p.useOptimizationTimer = true;
 p.percentageForcedOptimization = .75; %see below (0 to disable)
 p.useOptimizationPercentage = false;
@@ -71,7 +73,5 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-tic
-%Runs Spin Echo
-ex = SpinEcho(ex,p);
-toc
+%Runs CPMG
+ex = CPMG(ex,p);

@@ -228,8 +228,6 @@ classdef pulse_blaster < instrumentType
          %Adjustment is only necessary for spin core pulse blaster
          if ~strcmp(obj.manufacturer,'spinCore')
              obj = calculateDuration(obj,'user');
-             obj = calculateDuration(obj,'adjusted');
-             obj = calculateDuration(obj,'sent');
              return
          end
 
@@ -351,8 +349,6 @@ classdef pulse_blaster < instrumentType
                   [~] = calllib(obj.commands.name,'pb_stop_programming');
               case 'swabian'
                   obj = calculateDuration(obj,'user');
-                  %piggyback off user
-                  obj = calculateDuration(obj,'adjusted');
                   obj = calculateDuration(obj,'sent');
                   obj.handshake.reset();
                   obj.sequenceSentToPulseBlaster = obj.handshake.createSequence();
@@ -519,8 +515,7 @@ classdef pulse_blaster < instrumentType
 
          switch obj.manufacturer
              case 'swabian'
-                 totalDuration = obj.nTotalLoops*sum(durations);
-                 dataDuration = obj.nTotalLoops*sum(durations(dataOn));
+                 totalDuration = obj.nsum(durations);
              case 'spinCore'
 
                  % Precompute opCodes for all pulses
@@ -557,6 +552,10 @@ classdef pulse_blaster < instrumentType
                  totalDuration = sum(durations .* multipliers);
                  dataDuration = sum(durations(dataOn) .* multipliers(dataOn));
          end
+
+         
+
+
 
          obj.sequenceDurations.(sequenceType).totalNanoseconds = totalDuration;
          obj.sequenceDurations.(sequenceType).totalSeconds = totalDuration * 1e-9;

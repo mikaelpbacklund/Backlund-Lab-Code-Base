@@ -522,7 +522,7 @@ classdef DAQ_controller < instrumentType
 
 end
 
-function storeData(handshake,evt) %#ok<INUSD> 
+function handshake = storeData(handshake,evt) %#ok<INUSD> 
     %storeData Callback function for processing DAQ data
     %
     %   Processes data when available and updates accumulated values.
@@ -677,7 +677,6 @@ function [sig, ref] = processVoltageData(unsortedData, collectionInfo)
         sig = sum(unsortedData(dataOn & signalOn, collectionInfo.dataChannelNumber));
         ref = sum(unsortedData(dataOn & ~signalOn, collectionInfo.dataChannelNumber));
     end
-    assignin("base","unsortedData",unsortedData)
 end
 
 function updateHandshakeData(handshake, sig, ref, collectionInfo, unsortedData)

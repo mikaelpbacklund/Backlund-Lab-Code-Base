@@ -220,7 +220,7 @@ classdef experiment
          end
 
          %Sets identifier to proper name
-         scanInfo.identifier = giveProperIdentifier(obj,scanInfo.identifier);
+         scanInfo.identifier = instrumentType.giveProperIdentifier(scanInfo.identifier);
 
          %If you are using a manual scan, much of the scan addition process
          %is different
@@ -423,7 +423,7 @@ classdef experiment
             obj.instrumentClasses = [];
             disp('deleted identifiers')
          else
-            obj.instrumentIdentifiers = cellfun(@(x)giveProperIdentifier(obj,x.identifier),obj.instrumentCells,'UniformOutput',false);
+            obj.instrumentIdentifiers = cellfun(@(x)instrumentType.giveProperIdentifier(x.identifier),obj.instrumentCells,'UniformOutput',false);
             obj.instrumentClasses = cellfun(@(x)class(x),obj.instrumentCells,'UniformOutput',false);
             % disp(numel(obj.instrumentIdentifiers))
          end
@@ -1463,7 +1463,7 @@ classdef experiment
 
               % Lookup in the map
               if isKey(obj.instrumentNameMap, currentID)
-                  properIdentifier{ii} = obj.instrumentNameMap(currentID);
+                  properIdentifier{ii} = idMap(currentID);
               else
                   properIdentifier{ii} = [];
               end

@@ -28,7 +28,9 @@ paramsWithDefaults = {'plotAverageContrast',true;...
    'perSecond',true;...
    'nIterations',1;...
    'xOffset',0;...
-   'resetData',true};
+   'resetData',true;...
+   'closeFigsEveryIteration',false;...
+   'plotEveryNIterations',1};
 
 p = mustContainField(p,paramsWithDefaults(:,1),paramsWithDefaults(:,2));
 
@@ -97,14 +99,19 @@ else
    end
 end
 
+profile -memory on
+
 for ii = startIteration:p.nIterations
 
    %Reset current scan each iteration
    ex = resetScan(ex);
 
+   nDataPoint = 0;
+
    %While the odometer is not at its max value
    while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
+       nDataPoint = nDataPoint+1;
       %Checks if stage optimization should be done, then does it if so
       [ex,doOptimization] = checkOptimization(ex);
       if doOptimization
@@ -129,6 +136,14 @@ for ii = startIteration:p.nIterations
          else
             ex = convertToRate(ex);
          end         
+      end
+
+      %Everything below this in the while loop is for data plotting
+
+      %If this is not the first iteration and the iteration is not a
+      %multiple of parameter plotEveryNIterations, skip plotting
+      if ii~= 1 && mod(ii,p.plotEveryNIterations) ~= 0
+          continue
       end
 
       %Create matrix where first row is ref, second is sig, and columns indicate iteration
@@ -211,7 +226,26 @@ for ii = startIteration:p.nIterations
       if ex.optimizationInfo.enableOptimization && ex.optimizationInfo.needNewValue
          ex.optimizationInfo.postOptimizationValue = currentData(1);
          ex.optimizationInfo.needNewValue = false;
-      end     
+      end    
+
+      %Adds iteration to plot title if plotting periodically
+      if p.plotEveryNIterations > 1 && nDataPoint == 1
+          fn = fieldnames(ex.plots);
+          for jj = 1:numel(fn)
+              if ~isgraphics(ex.plots.(fn{jj}).figure)
+                  continue
+              end
+              oldString = ex.plots.(fn{jj}).axes.Title.String;
+              if ii == 1
+                  newString = strcat(oldString,sprintf(', Iteration %d',ii));
+              else
+                  %Replaces the digits starting at the end of the string with
+                  %the current iteration
+                  newString = regexprep(oldString, '\d+$', num2str(ii));
+              end
+              ex.plots.(fn{jj}).axes.Title.String = newString;
+          end
+      end
    end
 
    plotLabelInfo = cell(3,2);
@@ -251,11 +285,17 @@ for ii = startIteration:p.nIterations
        ex.DAQ.continuousCollection = false;
        ex.DAQ = resetDAQ(ex.DAQ);
        cont = checkContinue(p.timeoutDuration);
-       ex.DAQ.continuousCollection = true;
-       ex.DAQ = resetDAQ(ex.DAQ);
        if ~cont
            break
        end
+
+       if p.closeFigsEveryIteration
+           close('all')
+           ex.plots = [];
+           pause(.1)%give time to reclaim ram
+       end
+       ex.DAQ.continuousCollection = true;
+       ex.DAQ = resetDAQ(ex.DAQ);       
        
        fprintf('Beginning iteration %d\n',ii+1)
    else
@@ -265,6 +305,8 @@ for ii = startIteration:p.nIterations
    end
 end
 fprintf('Scan complete\n')
+fprintf('%d graphics objects',numel(findall(0)));
+profile viewer
 catch ME   
     assignin("base","ex",ex)
     stop(ex.DAQ.handshake)
