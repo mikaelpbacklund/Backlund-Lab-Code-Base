@@ -77,9 +77,9 @@ end
 ex.DAQ.takeData = false;
 ex.DAQ.activeDataChannel = p.collectionType;
 if strcmpi(p.parameterOfInterest,'con')
-   ex.DAQ.differentiateSignal = 'on';
+   ex.DAQ.differentiateSignal = true;
 else
-   ex.DAQ.differentiateSignal = 'off';
+   ex.DAQ.differentiateSignal = false;
    ex.DAQ.continuousCollection = true;
 end
 

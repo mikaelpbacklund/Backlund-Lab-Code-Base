@@ -170,7 +170,6 @@ classdef experiment
                   case {'duration','dur'}
                      %For each pulse address, modify the duration based on
                      %the new values
-                     assignin("base","currentScan",currentScan)
                      for ii = 1:numel(currentScan.address)
                         relevantInstrument = modifyPulse(relevantInstrument,currentScan.address(ii),'duration',newValue(ii),false);
                      end
@@ -463,7 +462,7 @@ classdef experiment
 
             %Turn continous collection off for stage optimization
             obj.DAQ.continuousCollection = false;
-            obj.DAQ = resetDAQ(obj.DAQ);
+            resetDAQ(obj.DAQ);
          end
 
          optInfo.stageAxes = string(optInfo.stageAxes);       
@@ -546,7 +545,7 @@ classdef experiment
             obj.pulseBlaster.userSequence = oldSequence;
             obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
             obj.DAQ.continuousCollection = true;
-            obj.DAQ = resetDAQ(obj.DAQ);
+            resetDAQ(obj.DAQ);
          end
 
          %Set current time as time of last optimization
@@ -688,7 +687,7 @@ classdef experiment
 
          while true
             %Reset DAQ in preparation for measurement
-            obj.DAQ = resetDAQ(obj.DAQ);
+            resetDAQ(obj.DAQ);
             obj.DAQ.takeData = true;
 
             pause(obj.forcedCollectionPauseTime/2)
@@ -697,17 +696,15 @@ classdef experiment
             runSequence(obj.pulseBlaster)
 
             n = 0;
-            %Perform check prior to repeated while loop
-            contCollection = strcmpi(obj.DAQ.continuousCollection,'off');
 
             %Wait until pulse blaster says it is done running
             while pbRunning(obj.pulseBlaster)
-               if contCollection                        
+               if ~obj.DAQ.continuousCollection                        
                   n = n+1;
                   if n == 1
                      dataOut = readDAQData(obj.DAQ);
                   else
-                     dataOut = dataOut + readDAQData(obj.DAQ);
+                     dataOut = dataOut + readDAQData(obj.DAQ);                     
                   end
                else
                   pause(.001)
@@ -722,12 +719,12 @@ classdef experiment
 
             obj.DAQ.takeData = false;
 
-            if strcmpi(obj.DAQ.continuousCollection,'off')
+            if ~obj.DAQ.continuousCollection
                dataOut = dataOut./n;
                break
             end
 
-            nPointsTaken = obj.DAQ.dataPointsTaken;
+            nPointsTaken = obj.DAQ.nPoints;
 
             %If at least 5 data points to compare to
             if sum(obj.data.iteration,"all") > 5
@@ -790,24 +787,30 @@ classdef experiment
             end
          end
 
-         if strcmpi(obj.DAQ.continuousCollection,'on')
-            [obj,dataOut] = finishContinuousCollectionProcessing(obj,dataOut);
+         if obj.DAQ.continuousCollection
+            [obj,dataOut] = finishContinuousCollectionProcessing(obj);
          end
       end
 
-      function [obj,dataOut] = finishContinuousCollectionProcessing(obj,dataOut)
-         dataOut(1) = obj.DAQ.handshake.UserData.reference;
-            dataOut(2) = obj.DAQ.handshake.UserData.signal;
+      function [obj,dataOut] = finishContinuousCollectionProcessing(obj)
+         dataOut(1) = obj.DAQ.reference;
+            dataOut(2) = obj.DAQ.signal;
+            assignin("base","dataOut",dataOut)
+            assignin("base","nPoints",obj.DAQ.nPoints)
+            % dataOut(1) = obj.DAQ.handshake.UserData.reference;
+            % dataOut(2) = obj.DAQ.handshake.UserData.signal;
             %FIX THIS**** Should be dividing by signal data points or
             %reference data points, not total/2
-            if strcmp(obj.DAQ.dataAcquirementMethod,'Voltage')
+            if strcmp(obj.DAQ.dataType,'Voltage')
                if strcmpi(obj.DAQ.differentiateSignal,'on')
-                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken/2);
+                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.nPoints/2);
                else
-                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.dataPointsTaken);
+                  dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.nPoints);
                end
             end
-            if obj.DAQ.handshake.UserData.currentCounts > 3e9
+            assignin("base","finalDataOut",dataOut)
+            if obj.DAQ.currentCounts > 3e9
+                % if obj.DAQ.handshake.UserData.currentCounts > 3e9
                printOut(obj.DAQ,'Counts nearing max value. Resetting counter')
                stop(obj.DAQ.handshake)
                resetcounters(obj.DAQ.handshake)
@@ -1215,7 +1218,6 @@ classdef experiment
 
          %Saves data along with found info
          savedData = obj.data;
-         assignin("base","saveName",saveName)
          save(saveName,"savedData","dataInfo")
 
       end

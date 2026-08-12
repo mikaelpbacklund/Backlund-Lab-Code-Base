@@ -68,7 +68,7 @@ ex.SRS_RF.amplitude = p.RFAmplitude;
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
 ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
+ex.DAQ.differentiateSignal = true;
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed

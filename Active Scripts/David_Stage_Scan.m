@@ -11,7 +11,7 @@ scanAxes = {'z'};
 scanStepSize = {10};
 sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
-contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
 RFfrequency = 2.87;
 
 %Uncommonly changed parameters

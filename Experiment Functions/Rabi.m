@@ -78,9 +78,9 @@ ex.optimizationInfo.usePercentageDifference = p.useOptimizationPercentage;
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
 if p.iqModulation
-    ex.SRS_RF.modulationEnabled = 'on';
+    ex.SRS_RF.modulationEnabled = true;
 else
-    ex.SRS_RF.modulationEnabled = 'off';
+    ex.SRS_RF.modulationEnabled = false;
 end
 ex.SRS_RF.modulationType = 'iq';
 ex.SRS_RF.amplitude = p.RFAmplitude;
@@ -88,7 +88,7 @@ ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
+ex.DAQ.differentiateSignal = true;
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets collectionDuration to inverse of sample rate in nanoseconds

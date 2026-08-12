@@ -7,7 +7,7 @@ p.scanBounds = [300 800];
 p.scanStepSize = 20;
 p.scanNSteps = [];%will override step size
 p.piTime = 48;
-p.RFResonanceFrequency = 2.484;
+p.RFResonanceFrequency = 2.253;
 p.collectionType = 'analog';
 
 %Other
@@ -27,7 +27,7 @@ p.timeoutDuration = 5;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.041;
+p.baselineSubtraction = 0.035;
 p.perSecond = false;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 p.closeFigsEveryIteration = true;

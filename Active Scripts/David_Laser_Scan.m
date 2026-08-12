@@ -3,8 +3,8 @@
 clear p
 
 %Required
-p.scanBounds = [.01 .25]; %Intensity bounds
-p.scanStepSize = .01; %Step size for intensity
+p.scanBounds = [.4 1.2]; %Intensity bounds
+p.scanStepSize = .1; %Step size for intensity
 
 %General
 p.collectionType = 'analog';%analog or counter data collection
@@ -15,13 +15,13 @@ p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0.041;%Amount to subtract from both reference and signal collected
+p.baselineSubtraction = 0.035;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
 
 %RF settings (only relevant if parameter set to con)
 p.RFAmplitude = 10;
-p.RFFrequency = 2.197;
+p.RFFrequency = 2.4;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

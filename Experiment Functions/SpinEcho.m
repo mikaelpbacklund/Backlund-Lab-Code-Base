@@ -81,7 +81,7 @@ ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
 ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
+ex.DAQ.differentiateSignal = true;
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets collectionDuration to inverse of sample rate in nanoseconds

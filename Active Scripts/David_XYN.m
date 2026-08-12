@@ -4,12 +4,12 @@ clear p
 
 %Required
 p.scanBounds = [300 700];
-p.scanStepSize = 20;
+p.scanStepSize = 4;
 p.scanNSteps = [];%will override step size
 p.piTime = 48;
-p.RFResonanceFrequency = 2.484;
+p.RFResonanceFrequency = 2.253;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 24;%m in XYN-m
+p.setsXYN = 8;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -30,10 +30,10 @@ p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .0001;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.041;
+p.baselineSubtraction = 0.035;
 p.perSecond = true;
 p.closeFigsEveryIteration = false;
-p.plotEveryNIterations = 1;
+p.plotEveryNIterations = 10;
 
 %Config file names
 p.pulseBlasterConfig = 'pb_swabian';

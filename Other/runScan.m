@@ -44,7 +44,7 @@ scanStartInfo(prod([ex.scan.nSteps]),ex.pulseBlaster.sequenceDurations.sent.tota
 
 %Turn off continous collection for the duration of user input
 ex.DAQ.continuousCollection = false;
-ex.DAQ = resetDAQ(ex.DAQ);
+resetDAQ(ex.DAQ);
 
 cont = checkContinue(p.timeoutDuration*2);
 if ~cont
@@ -52,7 +52,7 @@ if ~cont
 end
 
 ex.DAQ.continuousCollection = true;
-ex.DAQ = resetDAQ(ex.DAQ);
+resetDAQ(ex.DAQ);
 
 try
 
@@ -98,8 +98,6 @@ else
       error('Scan not reset and number of iterations complete equals number of iterations desired')
    end
 end
-
-profile -memory on
 
 for ii = startIteration:p.nIterations
 
@@ -283,7 +281,7 @@ for ii = startIteration:p.nIterations
    if ii ~= p.nIterations
        %Turn off continous collection for the duration of user input
        ex.DAQ.continuousCollection = false;
-       ex.DAQ = resetDAQ(ex.DAQ);
+       resetDAQ(ex.DAQ);
        cont = checkContinue(p.timeoutDuration);
        if ~cont
            break
@@ -295,18 +293,16 @@ for ii = startIteration:p.nIterations
            pause(.1)%give time to reclaim ram
        end
        ex.DAQ.continuousCollection = true;
-       ex.DAQ = resetDAQ(ex.DAQ);       
+       resetDAQ(ex.DAQ);       
        
        fprintf('Beginning iteration %d\n',ii+1)
    else
        %Turn off collection once it is finished
        ex.DAQ.continuousCollection = false;
-       ex.DAQ = resetDAQ(ex.DAQ);
+       resetDAQ(ex.DAQ);
    end
 end
 fprintf('Scan complete\n')
-fprintf('%d graphics objects',numel(findall(0)));
-profile viewer
 catch ME   
     assignin("base","ex",ex)
     stop(ex.DAQ.handshake)
