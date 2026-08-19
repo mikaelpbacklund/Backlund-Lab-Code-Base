@@ -42,58 +42,31 @@ else
 end
 scanStartInfo(prod([ex.scan.nSteps]),ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
 
-
-if ~ex.asynchronousCollection
 %Turn off continous collection for the duration of user input
-ex.DAQ.continuousCollection = false;
-resetDAQ(ex.DAQ);
+if ~ex.asynchronousCollection
+   ex.DAQ.continuousCollection = false;
+   resetDAQ(ex.DAQ);
 end
 
+%Asks user whether scan should start
 cont = checkContinue(p.timeoutDuration*2);
 if ~cont
    return
 end
 
 if ~ex.asynchronousCollection
-ex.DAQ.continuousCollection = true;
-resetDAQ(ex.DAQ);
+   ex.DAQ.continuousCollection = true;
+   resetDAQ(ex.DAQ);
 end
 
 try
-
     close('all')
 
-    if p.resetData
-       %Resets current data. [0,0] is for reference and signal counts
-       ex = resetAllData(ex,[0,0]);
-    end
+    %Resets current data. [0,0] is for reference and signal counts
+    if p.resetData;      ex = resetAllData(ex,[0,0]);    end
 
 %Plots the pulse sequence on the first iteration if desired
-if p.plotPulseSequence
-   seq = ex.pulseBlaster.userSequence;
-   yax = [];
-   xax = 0;
-   nBin = sum(~isspace(seq(1).channelsBinary));   
-
-   for kk = 1:numel(seq)
-      binChannels = seq(kk).channelsBinary;
-      binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
-
-      xax = [xax,xax(end)+seq(kk).duration]; %#ok<*AGROW>
-      for jj = 1:nBin
-         yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
-      end
-   end
-
-   ySize = size(yax,1);
-   for jj = 1:nBin
-      yax(ySize+1,jj) = yax(numel(seq),jj); %#ok<*SAGROW>
-   end
-
-   pulseSequenceFig = figure(51);
-   pulseSequenceAxes = axes(pulseSequenceFig);
-   stairs(pulseSequenceAxes,xax,yax)
-end
+if p.plotPulseSequence;   ex = plotPulseSequence(ex);  end
 
 if p.resetData
    startIteration = 1;
@@ -104,8 +77,9 @@ else
    end
 end
 
-for ii = startIteration:p.nIterations
+for iterationNumber = startIteration:p.nIterations
 
+   %Set samples to reset data point based on expected samples per data toggle on
     if ex.asynchronousCollection
         secondsPerLoop = ex.pulseBlaster.sequenceDurations.user.totalSeconds ./ ex.pulseBlaster.nTotalLoops;
         samplesPerLoop = ex.DAQ.handshake.Rate .*  secondsPerLoop;
@@ -121,16 +95,13 @@ for ii = startIteration:p.nIterations
    ex = resetScan(ex);
 
    if ex.asynchronousCollection
-       ex.sto
+       ex.storedOdometer = {};
        startDAQ(ex.DAQ);
-    end
-
-   nDataPoint = 0;
+   end
 
    %While the odometer is not at its max value
    while ~all(cell2mat(ex.odometer) == [ex.scan.nSteps]) %While odometer does not match max number of steps
 
-       nDataPoint = nDataPoint+1;
       %Checks if stage optimization should be done, then does it if so
       [ex,doOptimization] = checkOptimization(ex);
       if doOptimization
@@ -142,205 +113,57 @@ for ii = startIteration:p.nIterations
       ex = takeNextDataPoint(ex,'pulse sequence');
 
       if ex.asynchronousCollection
-          %For each new point:
-          %Subtract baseline
-          %Convert to rate
-          while numel(ex.freshPoints) ~= 0
-              currentLocation = ex.freshPoints{1};
-              ex = subtractBaseline(ex,p.baselineSubtraction,currentLocation);
-              %CONVERT TO RATE
+           n = n+1;
+           %Checks for any new data from the DAQ
+           ex = checkAsynchronousData(ex);
+
+           %For each new point, finish it based on parameters then plot
+           while numel(ex.freshPoints) ~= 0
+              ex = finishAndPlot(ex,p,ex.freshPoints{1},iterationNumber);
               ex.freshPoints(1) = [];
-
-              %Cease plotting if not designated iteration to do so
-              if ii~= 1 && mod(ii,p.plotEveryNIterations) ~= 0
-                  continue
-              end
-
-              ex = plotAll(ex,p,currentLocation);
-
-          end
-          continue
-      end
-      %Subtract baseline from ref and sig
-      ex = subtractBaseline(ex,p.baselineSubtraction);
-
-      %If using counter, convert counts to counts/s
-      if strcmpi(p.collectionType,'counter') && p.perSecond
-
-         %If dataonbuffer isn't 0, actual collection time will be time of data collection/(time of data
-         %collection+buffer)
-         if isfield(p,'dataOnBuffer') && isfield(p,'collectionDuration') && p.dataOnBuffer ~= 0 && p.collectionDuration ~= 0
-            actualCollectionTime = p.collectionDuration ./ (p.collectionDuration + p.dataOnBuffer);
-            ex = convertToRate(ex,actualCollectionTime);
-         else
-            ex = convertToRate(ex);
-         end         
-      end
-
-      %Everything below this in the while loop is for data plotting
-
-      %If this is not the first iteration and the iteration is not a
-      %multiple of parameter plotEveryNIterations, skip plotting
-      if ii~= 1 && mod(ii,p.plotEveryNIterations) ~= 0
-          continue
-      end
-
-      %Should be able to simplify to what is below
-      % currentLocation = ex.odometer;
-      % ex = plotAll(ex,p,currentLocation);
-
-      %Create matrix where first row is ref, second is sig, and columns indicate iteration
-      data = createDataMatrixWithIterations(ex);
-      %Find average data across iterations by taking mean across all columns
-      averageData = mean(data,2);
-      %Current data is last column
-      currentData = data(:,end);
-      %Gets data points
-      dataPoints = ex.data.nPoints(ex.odometer{:},:);
-
-      if isscalar(averageData)
-         averageData(2) = 0;
-      end
-      if isscalar(currentData)
-         currentData(2) = 0;
-      end
-      averageContrast = (averageData(1) - averageData(2)) / averageData(1);
-      currentContrast = (currentData(1) - currentData(2)) / currentData(1);
-
-      %Find and plot data with current and average figures
-
-      yAxisLabel = 'Contrast';
-      if p.plotAverageContrast
-         ex = plotData(ex,averageContrast,'Average Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-      if p.plotCurrentContrast
-         ex = plotData(ex,currentContrast,'Current Contrast',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-      if strcmpi(p.collectionType,'analog')
-         yAxisLabel = 'Reference (V)';
-      elseif strcmpi(p.collectionType,'counter') && p.perSecond
-         yAxisLabel = 'Reference (counts/s)';
+           end
       else
-          yAxisLabel = 'Reference (counts)';
-      end
-
-      if p.plotAverageReference
-         ex = plotData(ex,averageData(1),'Average Reference',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
-      end
-      if p.plotCurrentReference
-         ex = plotData(ex,currentData(1),'Current Reference',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-      if p.plotAverageSignal
-         ex = plotData(ex,averageData(2),'Average Signal',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
-      end
-      if p.plotCurrentSignal
-         ex = plotData(ex,currentData(2),'Current Signal',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-
-      yAxisLabel = 'SNR (arbitrary units)';
-      if p.plotAverageSNR
-          if ~p.invertSignalForSNR
-              SNRVal = sqrt(averageData(1)) * averageContrast;
-          else
-              SNRVal = sqrt(averageData(1)) * averageContrast^(-1);
-          end
-          SNRVal = abs(SNRVal) * sqrt(mean(dataPoints,"all"));
-         ex = plotData(ex,SNRVal,'Average SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
-      end
-      if p.plotCurrentSNR
-          if ~p.invertSignalForSNR
-              SNRVal = sqrt(currentData(1)) * currentContrast;
-              else
-              SNRVal = sqrt(currentData(1)) * currentContrast^(-1);
-          end
-          SNRVal = abs(SNRVal) * sqrt(dataPoints(ex.data.iteration(ex.odometer{:})));
-         ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-
-      yAxisLabel = 'Number of Data Points';
-      if p.plotAverageDataPoints
-         ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset); 
-      end
-      if p.plotCurrentDataPoints
-         ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],[],p.xOffset);
-      end
-
-      %If a new post-optimization value is needed, record current data
-      if ex.optimizationInfo.enableOptimization && ex.optimizationInfo.needNewValue
-         ex.optimizationInfo.postOptimizationValue = currentData(1);
-         ex.optimizationInfo.needNewValue = false;
-      end    
-
-      %Adds iteration to plot title if plotting periodically
-      if p.plotEveryNIterations > 1 && nDataPoint == 1
-          fn = fieldnames(ex.plots);
-          for jj = 1:numel(fn)
-              if ~isgraphics(ex.plots.(fn{jj}).figure)
-                  continue
-              end
-              oldString = ex.plots.(fn{jj}).axes.Title.String;
-              if ii == 1
-                  newString = strcat(oldString,sprintf(', Iteration %d',ii));
-              else
-                  %Replaces the digits starting at the end of the string with
-                  %the current iteration
-                  newString = regexprep(oldString, '\d+$', num2str(ii));
-              end
-              ex.plots.(fn{jj}).axes.Title.String = newString;
-          end
+         %Should be able to simplify to what is below
+         ex = finishAndPlot(ex,p,ex.odometer,iterationNumber);
       end
    end
 
    if ex.asynchronousCollection
        %Wait for all data to come in
-       pause(p.pollInterval*1.2)%temp fix
-       while true
-           %Logic for checking number of data points
-           break
-       end
-       stopDAQ(ex.DAQ);
-   else
-       plotLabelInfo = cell(3,2);
-       if p.normalizeFFTByMagnet
-           plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
-       else
-           plotLabelInfo(1,:) = {'x label','Frequency (MHz)'};
-       end
-       plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
-       if isfield(p,'tauDuration')
-           plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d ns)',p.tauDuration)};
-       else
-           plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT')};
-       end
-       if p.plotAverageContrastFFT
-           [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:ii,'contrast',p.normalizeFFTByMagnet);
-           frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
-           storedLabel = plotLabelInfo{3,2};
-           plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
-           ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
-           plotLabelInfo{3,2} = storedLabel;
-       end
-       if p.plotCurrentContrastFFT
-           [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,ii,'contrast',p.normalizeFFTByMagnet);
-           frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
-           storedLabel = plotLabelInfo{3,2};
-           plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
-           ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
-           plotLabelInfo{3,2} = storedLabel; %#ok<NASGU>
-       end
-   end
+       n = 0;
+       while ~isempty(ex.storedOdometer)
+           n = n+1;
+           %Checks for any new data from the DAQ
+           ex = checkAsynchronousData(ex);
 
-   
+           %For each new point, finish it based on parameters then plot
+           while numel(ex.freshPoints) ~= 0
+              ex = finishAndPlot(ex,p,ex.freshPoints{1},iterationNumber);
+              ex.freshPoints(1) = [];
+           end
+
+           pause(.05)
+           if n > ((p.pollInterval/.05)*2)
+               warning('Not all data points matched')
+               break
+           end
+       end
+       stopDAQ(ex.DAQ);       
+   end   
+
+   %Plot fourier transforms
+   ex = plotFTs(ex,p);
 
    %Save current iteration data
    ex = saveData(ex);
 
-   if ii ~= p.nIterations
+   if iterationNumber ~= p.nIterations
        if ~ex.asynchronousCollection
        %Turn off continous collection for the duration of user input
        ex.DAQ.continuousCollection = false;
        resetDAQ(ex.DAQ);
        end
+
        cont = checkContinue(p.timeoutDuration);
        if ~cont
            break
@@ -351,18 +174,23 @@ for ii = startIteration:p.nIterations
            ex.plots = [];
            pause(.1)%give time to reclaim ram
        end
-       if ~ex.asynchronousCollection
-       ex.DAQ.continuousCollection = true;
-       resetDAQ(ex.DAQ);     
-       end
+
        
-       fprintf('Beginning iteration %d\n',ii+1)
+       
+       fprintf('Beginning iteration %d\n',iterationNumber+1)
    elseif ~ex.asynchronousCollection
-       %Turn off collection once it is finished
+       
        ex.DAQ.continuousCollection = false;
        resetDAQ(ex.DAQ);
    end
+
+   %Turn off collection once it is finished
+   if ~ex.asynchronousCollection
+      ex.DAQ.continuousCollection = true;
+      resetDAQ(ex.DAQ);
+   end
 end
+
 fprintf('Scan complete\n')
 catch ME   
     assignin("base","ex",ex)
@@ -376,4 +204,90 @@ catch ME
     rethrow(ME)
 end
 stop(ex.DAQ.handshake)
+
+   function ex = finishAndPlot(ex,p,pointLocation,iterationNumber)
+
+              ex = subtractBaseline(ex,p.baselineSubtraction,pointLocation);
+
+              %If using counter, convert counts to counts/s
+              if strcmpi(p.collectionType,'counter') && p.perSecond
+                 %If dataonbuffer isn't 0, actual collection time will be time of data collection/(time of data
+                 %collection+buffer)
+                 if isfield(p,'dataOnBuffer') && isfield(p,'collectionDuration') && p.dataOnBuffer ~= 0 && p.collectionDuration ~= 0
+                    actualCollectionTime = p.collectionDuration ./ (p.collectionDuration + p.dataOnBuffer);
+                    ex = convertToRate(ex,actualCollectionTime,pointLocation);
+                 else
+                    ex = convertToRate(ex,[],pointLocation);
+                 end
+              end
+
+              %Cease plotting if not designated iteration to do so
+              if iterationNumber~= 1 && mod(iterationNumber,p.plotEveryNIterations) ~= 0
+                  return
+              end
+
+              ex = plotAll(ex,p,pointLocation);
+   end
+
+   function ex = plotPulseSequence(ex)
+      seq = ex.pulseBlaster.userSequence;
+      yax = [];
+      xax = 0;
+      nBin = sum(~isspace(seq(1).channelsBinary));
+
+      for kk = 1:numel(seq)
+         binChannels = seq(kk).channelsBinary;
+         binChannels = binChannels(~isspace(binChannels));%Removes spaces from channel binary
+
+         xax = [xax,xax(end)+seq(kk).duration]; %#ok<*AGROW>
+         for jj = 1:nBin
+            yax(kk,jj) = str2double(binChannels(jj))+(nBin-(jj-1))*2+.5; %#ok<*SAGROW>
+         end
+      end
+
+      ySize = size(yax,1);
+      for jj = 1:nBin
+         yax(ySize+1,jj) = yax(numel(seq),jj); %#ok<*SAGROW>
+      end
+
+      pulseSequenceFig = figure(51);
+      pulseSequenceAxes = axes(pulseSequenceFig);
+      stairs(pulseSequenceAxes,xax,yax)
+   end
+
+   function ex = plotFTs(ex,p,iterationNumber)
+
+      if ~p.plotAverageContrastFFT && ~p.plotCurrentContrastFFT
+         return
+      end
+
+      plotLabelInfo = cell(3,2);
+      if p.normalizeFFTByMagnet
+         plotLabelInfo(1,:) = {'x label','γ/2π (MHz/T)'};
+      else
+         plotLabelInfo(1,:) = {'x label','Frequency (MHz)'};
+      end
+      plotLabelInfo(2,:) = {'y label','Intensity (a.u.)'};
+      if isfield(p,'tauDuration')
+         plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT (tau=%d ns)',p.tauDuration)};
+      else
+         plotLabelInfo(3,:) = {'title',sprintf('Contrast FFT')};
+      end
+      if p.plotAverageContrastFFT
+         [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,1:iterationNumber,'contrast',p.normalizeFFTByMagnet);
+         frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+         storedLabel = plotLabelInfo{3,2};
+         plotLabelInfo{3,2} = ['Average ',plotLabelInfo{3,2}];
+         ex = plotFullDataSet(ex,'Average Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
+         plotLabelInfo{3,2} = storedLabel;
+      end
+      if p.plotCurrentContrastFFT
+         [ex,fftOut,frequencyAxis] = dataFourierTransform(ex,iterationNumber,'contrast',p.normalizeFFTByMagnet);
+         frequencyAxis = frequencyAxis * 1e-6;%Conversion to MHz
+         storedLabel = plotLabelInfo{3,2};
+         plotLabelInfo{3,2} = ['Current ',plotLabelInfo{3,2}];
+         ex = plotFullDataSet(ex,'Current Contrast FFT',frequencyAxis,fftOut,plotLabelInfo,p.verticalLineInfo);
+         plotLabelInfo{3,2} = storedLabel; %#ok<NASGU>
+      end
+   end
 end

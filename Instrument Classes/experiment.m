@@ -16,6 +16,7 @@ classdef experiment
       asynchronousCollection = false;
       storedOdometer = {};
       freshPoints = {};
+      scanStartTime
    end
 
    properties (Hidden)
@@ -399,6 +400,8 @@ classdef experiment
              end
          end
 
+         obj.scanStartTime = string(datetime("now","Format",'HH-mm-ss'));
+
       end
 
       function obj = resetAllData(obj,resetValue)
@@ -707,8 +710,13 @@ classdef experiment
       function obj = asynchronousDAQCollection(obj)
           tic
           runSequence(obj.pulseBlaster)
+          if strcmpi(obj.pulseBlaster.manufacturer,'swabian')
+             pauseTime = .001;
+          else
+             pauseTime = .01;
+          end
           while pbRunning(obj.pulseBlaster)
-              pause(.01)
+              pause(pauseTime)
           end
           toc
           %Stop sequence. This allows pulse blaster to run the same
@@ -1192,6 +1200,7 @@ classdef experiment
 
       function obj = saveData(obj)
          %Saves data to file as well as relevant info
+         %Note: will overwrite file if all inputs are identical e.g. scanStartTime, scanNotes
          %UNIMPLEMENTED: save images to tif files
 
          %Check if any data exists
@@ -1251,9 +1260,8 @@ classdef experiment
              end
          end
 
-         % Define the save name for the data file
-         currentTime = string(datetime("now","Format",'HH-mm-ss'));
-         saveName = strcat(destinationDir,"/", currentTime,'.mat');
+         %Append the scan starting time
+         saveName = strcat(destinationDir,"/",obj.scanStartTime,'.mat');
 
          %Empty struct that will contain relevant information
          dataInfo = {};
@@ -1484,11 +1492,18 @@ classdef experiment
 
          %If custom ratio of data time is given, multiple found data time by that
          dataTime = obj.pulseBlaster.sequenceDurations.sent.dataNanoseconds/2;
-         if nargin > 1
+         if nargin > 1 && ~isempty(varargin{1})
             dataTime = dataTime .* varargin{1};
          end
 
-         obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} = obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})}...
+         %If no location input given, default to current odometer position
+         if nargin > 2
+            pointLocation = varargin{2};
+         else
+            pointLocation = obj.odometer;
+         end
+
+         obj.data.values{pointLocation{:},obj.data.iteration(pointLocation{:})} = obj.data.values{pointLocation{:},obj.data.iteration(pointLocation{:})}...
             ./ (dataTime * 1e-9);
       end
    
