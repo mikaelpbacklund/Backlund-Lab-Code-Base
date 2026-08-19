@@ -48,9 +48,17 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster, srs rf, and daq with given configs
-instrumentNames = ["pulse blaster","srs rf","daq"];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
-ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+if strcmpi(p.DAQConfig,'daq_testing')
+    instrumentNames = ["pulse blaster","srs rf","testdaq"];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),p.DAQConfig];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+    ex.asynchronousCollection = true;
+else
+    instrumentNames = ["pulse blaster","srs rf","daq"];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);    
+end
+
 
 ex.optimizationInfo.enableOptimization = p.optimizationEnabled;
 
@@ -67,8 +75,12 @@ ex.SRS_RF.amplitude = p.RFAmplitude;
 
 %Temporarily disables taking data, differentiates signal and reference (to get contrast), and sets data channel to
 %counter
-ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = true;
+if ~strcmpi(p.DAQConfig,'daq_testing')
+    ex.DAQ.takeData = false;
+    ex.DAQ.differentiateSignal = true;
+else
+    ex.DAQ.pollInterval = p.pollInterval;
+end
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed

@@ -32,6 +32,9 @@ for ii = 1:numel(instrumentNames)
       case {'daq','nidaq','ni daq','ni_daq','data','data acquisition'}
          ex = connectToInstrument(ex,'DAQ','DAQ_controller');
 
+       case {'testdaq'}
+           ex = connectToInstrument(ex,'DAQ','DAQ_controller_test');
+
       case {'ndyag','nd yag','nd yov','ndyov','532','532 nm','532nm','green laser','nv laser'}
          ex = connectToInstrument(ex,'ndYAG','laser');
       otherwise

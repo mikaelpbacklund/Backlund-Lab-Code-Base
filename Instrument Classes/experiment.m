@@ -13,6 +13,9 @@ classdef experiment
       data
       optimizationInfo
       randomizeScanPoints = false;
+      asynchronousCollection = false;
+      storedOdometer = {};
+      freshPoints = {};
    end
 
    properties (Hidden)
@@ -45,6 +48,15 @@ classdef experiment
 
    methods
 
+       %% CHANGES FROM NEW DAQ*****
+       %takeNextDataPoint now performs a check to see if data acquisition
+       %is asynchronous
+            %if it is asynchronous, it does not update the new data itself
+            %Another function called updateDAQData updates the data that
+            %has been acquired by the DAQ and resets its counters to 0
+       %displayNewData (new function) now updates the data display based on
+       %newly acquired data
+
        function obj = experiment
            %Initialization
 
@@ -69,7 +81,6 @@ classdef experiment
            end
        end
        
-
       function obj = takeNextDataPoint(obj,acquisitionType)
          %Check if valid configuration (always need PB and DAQ, sometimes
          %needs RF or stage, rarely needs laser)
@@ -97,17 +108,26 @@ classdef experiment
             obj = setInstrument(obj,ii);
          end
 
+         if obj.asynchronousCollection
+            obj.storedOdometer(end+1) = obj.odometer;
+         end
          %Actually takes the data using selected acquisition type
-         [obj,dataOut,nPoints] = getData(obj,acquisitionType);
+         [obj,dataOut,nPoints] = getData(obj,acquisitionType);         
 
-         %Increments number of data points taken by 1
-         obj.data.iteration(obj.odometer{:}) = obj.data.iteration(obj.odometer{:}) + 1;
+         if ~obj.asynchronousCollection
 
-         %Takes data and puts it in the current iteration spot for this
-         %data point
-         currentIteration = obj.data.iteration(obj.odometer{:});
-         obj.data.values{obj.odometer{:},currentIteration} = dataOut;
-         obj.data.nPoints(obj.odometer{:},currentIteration) = nPoints;
+             %Increments number of data points taken by 1
+             obj.data.iteration(obj.odometer{:}) = obj.data.iteration(obj.odometer{:}) + 1;
+
+             %Takes data and puts it in the current iteration spot for this
+             %data point
+             currentIteration = obj.data.iteration(obj.odometer{:});
+             obj.data.values{obj.odometer{:},currentIteration} = dataOut;
+             obj.data.nPoints(obj.odometer{:},currentIteration) = nPoints;
+         else
+             %Stores odometer location for use when data comes in
+             obj = checkAsynchronousData(obj);
+         end
       end
 
       function obj = setInstrument(obj,scanToChange)
@@ -394,7 +414,6 @@ classdef experiment
 
          %Makes cell array of equivalent size to above
          obj.data.values = num2cell(obj.data.iteration);
-         assignin("base","vals",obj.data.values)
 
          %This sets every cell to be the value resetValue in the way one
          %might expect the following to do so:
@@ -420,21 +439,22 @@ classdef experiment
          if isempty(obj.instrumentCells)
             obj.instrumentIdentifiers = [];
             obj.instrumentClasses = [];
-            disp('deleted identifiers')
          else
             obj.instrumentIdentifiers = cellfun(@(x)giveProperIdentifier(obj,x.identifier),obj.instrumentCells,'UniformOutput',false);
             obj.instrumentClasses = cellfun(@(x)class(x),obj.instrumentCells,'UniformOutput',false);
-            % disp(numel(obj.instrumentIdentifiers))
          end
       end
 
       function obj = stageOptimization(obj)
 
+          % warning("Stage optimization not currently enabled")
+          % return
+
          %Steps input should be cell array with number of elements equivalent to number of axes in sequence.axes
          %Each element should be a vector of relative positions that should be tested
          %e.g. {[-1,-.75,-.5,-.25,0,.25,.5,.75,1],[-2,-1.5,-1,-.5,0,.25,.5]} for {'x','y'}
 
-         optInfo = obj.optimizationInfo;%shorthand
+         optInfo = obj.optimizationInfo;
 
          optInfo.acquisitionType = experiment.discernExperimentType(optInfo.acquisitionType);
 
@@ -595,8 +615,6 @@ classdef experiment
          [optVal,optPos] = experiment.optimizationAlgorithm(dataVec, stepLocs, algorithmType);
       end
 
-      
-
       function [obj,performOptimization] = checkOptimization(obj)
          %Checks if stage optimization should occur based on time and percentage difference criteria
          %performOptimization is boolean 
@@ -671,143 +689,199 @@ classdef experiment
 
       function [obj,dataOut,nPointsTaken] = getPulseSequenceData(obj)
          % Helper method for pulse sequence data acquisition
-         nPauseIncreases = 0;
-         originalPauseTime = obj.forcedCollectionPauseTime;
+         
          dataOut = [];
          nPointsTaken = 0;
 
          %Stops pulse blaster execution upon forced close
-         cleanupObj = onCleanup(@() stopSequence(obj.pulseBlaster));
-
-         %For slightly changing sequence to get better results
-         bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
-         if numel(bufferPulses) > 0
-            bufferDuration = obj.pulseBlaster.userSequence(bufferPulses(1)).duration;
+         cleanupObj = onCleanup(@() stopSequence(obj.pulseBlaster));     
+        
+         if ~obj.asynchronousCollection
+             [obj,dataOut,nPointsTaken] = synchronousDAQCollection(obj);
+         else
+             obj = asynchronousDAQCollection(obj);
          end
+         
+      end
 
-         while true
-            %Reset DAQ in preparation for measurement
-            resetDAQ(obj.DAQ);
-            obj.DAQ.takeData = true;
-
-            pause(obj.forcedCollectionPauseTime/2)
-
-            %Start sequence
-            runSequence(obj.pulseBlaster)
-
-            n = 0;
-
-            %Wait until pulse blaster says it is done running
-            while pbRunning(obj.pulseBlaster)
-               if ~obj.DAQ.continuousCollection                        
-                  n = n+1;
-                  if n == 1
-                     dataOut = readDAQData(obj.DAQ);
-                  else
-                     dataOut = dataOut + readDAQData(obj.DAQ);                     
-                  end
-               else
-                  pause(.001)
-               end                     
-            end
-
-            %Stop sequence. This allows pulse blaster to run the same
-            %sequence again by calling the runSequence function
+      function obj = asynchronousDAQCollection(obj)
+          tic
+          runSequence(obj.pulseBlaster)
+          while pbRunning(obj.pulseBlaster)
+              pause(.01)
+          end
+          toc
+          %Stop sequence. This allows pulse blaster to run the same
+          %sequence again by calling the runSequence function
+          if ~strcmpi(obj.pulseBlaster.manufacturer,'swabian')
             stopSequence(obj.pulseBlaster)
+          end
+          
 
-            pause(obj.forcedCollectionPauseTime)
+          pause(obj.forcedCollectionPauseTime)
+      end
 
-            obj.DAQ.takeData = false;
+      function obj = checkAsynchronousData(obj)
+          %Checks for any new data points from asynchronous processing
+          %Add new points to data matrix based on stored odometer
+          while ~isempty(obj.DAQ.reference)
+              if numel(obj.storedOdometer) < 1
+                  warning("More stored data than stored odometer locations to pair it with")
+                  break
+              end
 
-            if ~obj.DAQ.continuousCollection
-               dataOut = dataOut./n;
-               break
-            end
+              currentOdometer = obj.storedOdometer(1);%pull oldest stored odometer location
+              % disp(currentOdometer{1})
+              %Increment iteration value
+              obj.data.iteration(currentOdometer{:}) = obj.data.iteration(currentOdometer{:}) + 1;
+              currentIteration = obj.data.iteration(currentOdometer{:});
+              %Set data and nPoints
+              % disp(obj.DAQ.reference(1))
+              obj.data.values{currentOdometer{:},currentIteration} = [obj.DAQ.reference(1),obj.DAQ.signal(1)];
+              obj.data.nPoints(currentOdometer{:},currentIteration) = obj.DAQ.referencePoints(1)+obj.DAQ.signalPoints(1);
+              %Store current iteration as the newest point to update
+              obj.freshPoints(end+1) = currentOdometer;
 
-            nPointsTaken = obj.DAQ.nPoints;
+              %Delete current lookup
+              obj.DAQ.reference(1) = [];
+              obj.DAQ.referencePoints(1) = [];
+              obj.DAQ.signal(1) = [];
+              obj.DAQ.signalPoints(1) = [];
+              obj.storedOdometer(1) = [];
+          end
 
-            %If at least 5 data points to compare to
-            if sum(obj.data.iteration,"all") > 5
-               temp = obj.data.nPoints(obj.data.nPoints ~= 0);
-               validPoints = ~isoutlier(temp);
-               expectedDataPoints = mean(temp(validPoints), "all");
-               if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
-                     nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
-                  successfulCollection = false;
-               else
-                  successfulCollection = true;
-               end
-            else
-               expectedDataPoints = obj.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
-               expectedDataPoints = (expectedDataPoints/1e9) * obj.DAQ.sampleRate;
-               if nPointsTaken > expectedDataPoints*1.05 || nPointsTaken < expectedDataPoints*.95
-                  successfulCollection = false;
-               else
-                  successfulCollection = true;
-               end
-            end
+      end
 
-            if successfulCollection
-               if ~all(cell2mat(obj.odometer) == 0)
-                  obj.data.failedPoints(obj.odometer{:},obj.data.iteration(obj.odometer{:})+1) = nPauseIncreases;
-               end
-               if nPauseIncreases ~= 0
-                  obj.forcedCollectionPauseTime = originalPauseTime;
+      function [obj,dataOut,nPointsTaken] = synchronousDAQCollection(obj)
+          nPauseIncreases = 0;
+          originalPauseTime = obj.forcedCollectionPauseTime;
+          %For slightly changing sequence to get better results
+          bufferPulses = findPulses(obj.pulseBlaster,'notes','intermission','contains');
+          if numel(bufferPulses) > 0
+              bufferDuration = obj.pulseBlaster.userSequence(bufferPulses(1)).duration;
+          end
+          while true
+              %Reset DAQ in preparation for measurement
+              resetDAQ(obj.DAQ);
+              obj.DAQ.takeData = true;
+
+              pause(obj.forcedCollectionPauseTime/2)
+
+              %Start sequence
+              runSequence(obj.pulseBlaster)
+
+              n = 0;
+
+              %Wait until pulse blaster says it is done running
+              while pbRunning(obj.pulseBlaster)
+                  if ~obj.DAQ.continuousCollection
+                      n = n+1;
+                      if n == 1
+                          dataOut = readDAQData(obj.DAQ);
+                      else
+                          dataOut = dataOut + readDAQData(obj.DAQ);
+                      end
+                  else
+                      pause(.001)
+                  end
+              end
+
+              %Stop sequence. This allows pulse blaster to run the same
+              %sequence again by calling the runSequence function
+              stopSequence(obj.pulseBlaster)
+
+              pause(obj.forcedCollectionPauseTime)
+
+              obj.DAQ.takeData = false;
+
+              if ~obj.DAQ.continuousCollection
+                  dataOut = dataOut./n;
+                  break
+              end
+
+              nPointsTaken = obj.DAQ.nPoints;
+
+              %If at least 5 data points to compare to
+              if sum(obj.data.iteration,"all") > 5
+                  temp = obj.data.nPoints(obj.data.nPoints ~= 0);
+                  validPoints = ~isoutlier(temp);
+                  expectedDataPoints = mean(temp(validPoints), "all");
+                  if nPointsTaken > expectedDataPoints*(1+obj.nPointsTolerance) ||...
+                          nPointsTaken < expectedDataPoints*(1-obj.nPointsTolerance)
+                      successfulCollection = false;
+                  else
+                      successfulCollection = true;
+                  end
+              else
+                  expectedDataPoints = obj.pulseBlaster.sequenceDurations.sent.dataNanoseconds;
+                  expectedDataPoints = (expectedDataPoints/1e9) * obj.DAQ.sampleRate;
+                  if nPointsTaken > expectedDataPoints*1.05 || nPointsTaken < expectedDataPoints*.95
+                      successfulCollection = false;
+                  else
+                      successfulCollection = true;
+                  end
+              end
+
+              if successfulCollection
+                  if ~all(cell2mat(obj.odometer) == 0)
+                      obj.data.failedPoints(obj.odometer{:},obj.data.iteration(obj.odometer{:})+1) = nPauseIncreases;
+                  end
+                  if nPauseIncreases ~= 0
+                      obj.forcedCollectionPauseTime = originalPauseTime;
+                      for ii = 1:numel(bufferPulses)
+                          obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                      end
+                      obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
+                  end
+                  break
+
+              elseif nPauseIncreases < obj.maxFailedCollections
+                  nPauseIncreases = nPauseIncreases + 1;
+                  if obj.notifications
+                      warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
+                          (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
+                  end
+                  obj.forcedCollectionPauseTime = obj.forcedCollectionPauseTime + originalPauseTime;
+                  %Increases intermission buffer duration by 2 * number
+                  %of failed collections
                   for ii = 1:numel(bufferPulses)
-                     obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration,false);
+                      obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration+(2*nPauseIncreases),false);
                   end
                   obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
-               end
-               break
-
-            elseif nPauseIncreases < obj.maxFailedCollections
-               nPauseIncreases = nPauseIncreases + 1;
-               if obj.notifications
-                  warning('Obtained %.4f percent of expected data points\nIncreasing forced pause time temporarily (%d times)',...
-                     (100*nPointsTaken)/expectedDataPoints,nPauseIncreases)
-               end
-               obj.forcedCollectionPauseTime = obj.forcedCollectionPauseTime + originalPauseTime;
-               %Increases intermission buffer duration by 2 * number
-               %of failed collections
-               for ii = 1:numel(bufferPulses)
-                  obj.pulseBlaster = modifyPulse(obj.pulseBlaster,bufferPulses(ii),'duration',bufferDuration+(2*nPauseIncreases),false);
-               end
-               obj.pulseBlaster = sendToInstrument(obj.pulseBlaster);
-               pause(.1)%For next data point to come in before discarding the read
-               %Discards any data that might have "carried
-               %over" from the previous data point
-               if obj.DAQ.handshake.NumScansAvailable > 10
-                  [~] = read(obj.DAQ.handshake,obj.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
-               end
-            else
-               obj.forcedCollectionPauseTime = originalPauseTime;
-               stop(obj.DAQ.handshake)
-               error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
-                  nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
-            end
-         end
-
-         if obj.DAQ.continuousCollection
+                  pause(.1)%For next data point to come in before discarding the read
+                  %Discards any data that might have "carried
+                  %over" from the previous data point
+                  if obj.DAQ.handshake.NumScansAvailable > 10
+                      [~] = read(obj.DAQ.handshake,obj.DAQ.handshake.NumScansAvailable,"OutputFormat","Matrix");
+                  end
+              else
+                  obj.forcedCollectionPauseTime = originalPauseTime;
+                  stop(obj.DAQ.handshake)
+                  error('Failed %d times to obtain correct number of data points. Latest percentage: %.4f',...
+                      nPauseIncreases,(100*nPointsTaken)/expectedDataPoints)
+              end
+          end
+          if obj.DAQ.continuousCollection
             [obj,dataOut] = finishContinuousCollectionProcessing(obj);
          end
       end
 
       function [obj,dataOut] = finishContinuousCollectionProcessing(obj)
-         dataOut(1) = obj.DAQ.reference;
-            dataOut(2) = obj.DAQ.signal;
-            assignin("base","dataOut",dataOut)
-            assignin("base","nPoints",obj.DAQ.nPoints)
-            % dataOut(1) = obj.DAQ.handshake.UserData.reference;
-            % dataOut(2) = obj.DAQ.handshake.UserData.signal;
-            %FIX THIS**** Should be dividing by signal data points or
-            %reference data points, not total/2
-            if strcmp(obj.DAQ.dataType,'Voltage')
-               if strcmpi(obj.DAQ.differentiateSignal,'on')
+          dataOut(1) = obj.DAQ.reference;
+          dataOut(2) = obj.DAQ.signal;
+          % assignin("base","dataOut",dataOut)
+          % assignin("base","nPoints",obj.DAQ.nPoints)
+          % dataOut(1) = obj.DAQ.handshake.UserData.reference;
+          % dataOut(2) = obj.DAQ.handshake.UserData.signal;
+          %FIX THIS**** Should be dividing by signal data points or
+          %reference data points, not total/2
+          if strcmp(obj.DAQ.dataType,'Voltage')
+              if strcmpi(obj.DAQ.differentiateSignal,'on')
                   dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.nPoints/2);
-               else
+              else
                   dataOut(1:2) = dataOut(1:2) ./ (obj.DAQ.nPoints);
-               end
-            end
+              end
+          end
             assignin("base","finalDataOut",dataOut)
             if obj.DAQ.currentCounts > 3e9
                 % if obj.DAQ.handshake.UserData.currentCounts > 3e9
@@ -895,6 +969,12 @@ classdef experiment
                stepSize = obj.scan.stepSize;
             end
 
+            if nargin >= 7 && ~isempty(varargin{4})
+                odoLocation = varargin(4);
+            else
+                odoLocation = obj.odometer;
+            end
+
             %Adds x offset to bounds if given as argument
             if nargin >= 8 && ~isempty(varargin{5})
                xBounds = xBounds + varargin{5};
@@ -941,10 +1021,10 @@ classdef experiment
                end               
 
                %Change current data point value
-               obj.plots.(plotName).dataDisplay.YData(obj.odometer{1}) = dataIn;   
+               obj.plots.(plotName).dataDisplay.YData(odoLocation{1}) = dataIn;   
 
                %Set current data point to being completed
-               obj.plots.(plotName).completedPoints(obj.odometer{1}) = true;
+               obj.plots.(plotName).completedPoints(odoLocation{1}) = true;
 
                %Replace value of all incomplete data points
                completePoints = obj.plots.(plotName).completedPoints;
@@ -1386,10 +1466,16 @@ classdef experiment
 
       end
 
-      function obj = subtractBaseline(obj,baseline)
+      function obj = subtractBaseline(obj,baseline,varargin)
          %Subtracts baseline value from all data within current scan value
 
-         obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} = obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} - baseline;
+         if nargin < 3
+             obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} = obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} - baseline;
+         else %location input given
+             odoLocation = varargin(1);
+             obj.data.values{odoLocation{:},obj.data.iteration(odoLocation{:})} = obj.data.values{odoLocation{:},obj.data.iteration(odoLocation{:})} - baseline;
+         end
+         
       end
 
       function obj = convertToRate(obj,varargin)
@@ -1513,7 +1599,7 @@ classdef experiment
       function obj = setInstrumentVal(obj,instrumentName,val)
          instrumentLocation = findInstrument(obj,instrumentName);
          if sum(instrumentLocation) == 0
-            if ~any(strcmp({'RF_generator','stage','pulse_blaster','laser','kinesis_piezo','deformable_mirror','DAQ_controller','cam'},class(val)))
+            if ~any(strcmp({'RF_generator','stage','pulse_blaster','laser','kinesis_piezo','deformable_mirror','DAQ_controller','cam','DAQ_controller_test'},class(val)))
                error('Cannot set %s as it does not exist',instrumentName)
             end
             obj.instrumentCells{end+1} = val;

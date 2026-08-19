@@ -6,10 +6,10 @@
 
 %% User Inputs
 p.scanBounds = [10 210];%ns
-p.scanStepSize = 2;
+p.scanStepSize = 6;
 p.scanNotes = 'Rabi'; %Notes describing scan (will appear in titles for plots)
 p.nIterations = 1;
-p.RFResonanceFrequency = 2.1775;
+p.RFResonanceFrequency = 2.87;
 p.sequenceTimePerDataPoint = 5;%Before factoring in forced delay and other pauses
 p.timeoutDuration = 10;
 p.forcedDelayTime = .2;
@@ -47,7 +47,7 @@ end
 
 %Sends RF settings
 ex.SRS_RF.enabled = 'on';
-ex.SRS_RF.modulationEnabled = 'off';
+ex.SRS_RF.modulationEnabled = 'on';
 ex.SRS_RF.amplitude = p.RFAmplitude;
 ex.SRS_RF.frequency = p.RFResonanceFrequency;
 

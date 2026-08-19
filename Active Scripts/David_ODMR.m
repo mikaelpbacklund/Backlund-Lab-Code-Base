@@ -10,20 +10,22 @@ p.collectionType = 'analog';%analog or counter
 %General    
 p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .25;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
 p.maxFailedCollections = 5;
-p.nIterations = 1; %Number of iterations of scan to perform
+p.nIterations = 100; %Number of iterations of scan to perform
 p.timeoutDuration = 2; %How long besfore auto-continue occurs
-p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
+p.forcedDelayTime = .05; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = 5e-6;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
 p.baselineSubtraction = 0.035;%Amount to subtract from both reference and signal collected
 p.perSecond = false;
+p.pollInterval = 1;
 p.closeFigsEveryIteration = false;
 
 %Config file names
 p.pulseBlasterConfig = 'pb_swabian';
 p.SRSRFConfig = 'SRS_RF';
-p.DAQConfig = 'daq_6361';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
 p.stageConfig = 'PI_stage';
 
 %Plotting
@@ -61,4 +63,4 @@ if ~exist('ex','var') || isempty(ex),ex = []; end
 
 
 %Runs ODMR using specified parameters
-% ex = ODMR(ex,p);
+ex = ODMR(ex,p);

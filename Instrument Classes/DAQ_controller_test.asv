@@ -10,10 +10,6 @@ classdef DAQ_controller_test < instrumentType
         takeData
         pollInterval
         samplesToReset %How many samples are needed before the data collection finalizes
-        signal
-        reference
-        referencePoints
-        signalPoints
     end
 
     %% Internal Properties
@@ -28,6 +24,10 @@ classdef DAQ_controller_test < instrumentType
         channelInfo           % Channel configuration information
         dataChannels          % Available data channels
         sampleRate            % Current sample rate
+        signal
+        reference
+        referencePoints
+        signalPoints
         runningPointValues
         dataType
         procTimer        % timer to pull+process buffer
@@ -446,7 +446,7 @@ classdef DAQ_controller_test < instrumentType
 
             try
             %Don't finalize if there are no points
-            if obj.runningPointValues.nRef == 0
+            if obj.runningPointValues.nRef == 0 && obj.runningPointValues.nSig == 0
                 return
             end
 
@@ -460,8 +460,8 @@ classdef DAQ_controller_test < instrumentType
                 return
             end
 
-            if isempty(obj.runningPointValues.ref)
-                error('No active data channel selected')
+            if numel(obj.runningPointValues.nRef) > 1
+                error
             end
 
             obj.referencePoints(end+1) = obj.runningPointValues.nRef;
@@ -479,7 +479,6 @@ classdef DAQ_controller_test < instrumentType
             resetRunningValues(obj)
             catch ME                
                 warning('error in finalizing')
-                assignin("base","ME",ME)
                 rethrow(ME)                
             end
         end

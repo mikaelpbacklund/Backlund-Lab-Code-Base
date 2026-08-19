@@ -121,7 +121,7 @@ for ii = startIteration:p.nIterations
    ex = resetScan(ex);
 
    if ex.asynchronousCollection
-       ex.storedOdometer = {};
+       ex.sto
        startDAQ(ex.DAQ);
     end
 
@@ -147,7 +147,7 @@ for ii = startIteration:p.nIterations
           %Convert to rate
           while numel(ex.freshPoints) ~= 0
               currentLocation = ex.freshPoints{1};
-              % ex = subtractBaseline(ex,p.baselineSubtraction,currentLocation);
+              ex = subtractBaseline(ex,p.baselineSubtraction,currentLocation);
               %CONVERT TO RATE
               ex.freshPoints(1) = [];
 
@@ -293,29 +293,10 @@ for ii = startIteration:p.nIterations
 
    if ex.asynchronousCollection
        %Wait for all data to come in
-       n = 0;
-       while ~isempty(ex.storedOdometer)
-           n = n+1;
-           ex = checkAsynchronousData(ex);
-           while numel(ex.freshPoints) ~= 0
-              currentLocation = ex.freshPoints{1};
-              % ex = subtractBaseline(ex,p.baselineSubtraction,currentLocation);
-              %CONVERT TO RATE
-              ex.freshPoints(1) = [];
-
-              %Cease plotting if not designated iteration to do so
-              if ii~= 1 && mod(ii,p.plotEveryNIterations) ~= 0
-                  continue
-              end
-
-              ex = plotAll(ex,p,currentLocation);
-
-          end
-           pause(.05)
-           if n > ((p.pollInterval/.05)*2)
-               warning('Not all data points matched')
-               break
-           end
+       pause(p.pollInterval*1.2)%temp fix
+       while true
+           %Logic for checking number of data points
+           break
        end
        stopDAQ(ex.DAQ);
    else
