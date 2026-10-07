@@ -90,7 +90,7 @@ for rs = 1:2 %singal half and reference half
       for n = 1:p.nXY/2
           %for 4: x-y-x-y
           %for 8: x-y-x-y-y-x-y-x
-         if mod(n,4) == 0 || mod(n,4) == 1
+         if mod(n,4) == 1 || mod(n,4) == 2
             h = condensedAddPulse(h,{'RF',addedSignal},totalPiTime,'π x');
             h = condensedAddPulse(h,{addedSignal},mean(exportedTau),'Scanned τ');
             h = condensedAddPulse(h,{'RF','I',addedSignal},totalPiTime,'π y');

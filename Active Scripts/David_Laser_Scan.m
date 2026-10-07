@@ -3,30 +3,32 @@
 clear p
 
 %Required
-p.scanBounds = [.4 1.2]; %Intensity bounds
+p.scanBounds = [.1 .5]; %Intensity bounds
 p.scanStepSize = .1; %Step size for intensity
 
 %General
 p.collectionType = 'analog';%analog or counter data collection
 p.parameterOfInterest = 'con';%ref or con
 p.scanNotes = 'Laser intensity scan'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 20;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
 p.nDataPointDeviationTolerance = .0001;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0.035;%Amount to subtract from both reference and signal collected
+p.baselineSubtraction = 0.025;%Amount to subtract from both reference and signal collected
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
+p.pollInterval = 5;
 
 %RF settings (only relevant if parameter set to con)
 p.RFAmplitude = 10;
-p.RFFrequency = 2.4;
+p.RFFrequency = 2.135;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
-p.DAQConfig = 'daq_6361';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
 p.stageConfig = 'PI_stage';
 p.laserConfig = 'laser_532';
 p.laserPropertyName = 'ndYAG';

@@ -361,6 +361,7 @@ classdef pulse_blaster < instrumentType
                   durationVector = [obj.userSequence.duration];
                   binaryArray = zeros(numel(obj.userSequence),obj.nChannels);                  
                   for ii = 1:numel(obj.userSequence)
+                      durationVector(ii) = round(durationVector(ii));
                       channelBinary = fliplr(erase(obj.userSequence(ii).channelsBinary," "));
                       binaryArray(ii,:) = channelBinary - '0';%Convert to double
                   end

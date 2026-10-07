@@ -110,7 +110,7 @@ classdef experiment
          end
 
          if obj.asynchronousCollection
-            obj.storedOdometer(end+1) = obj.odometer;
+            obj.storedOdometer{end+1} = obj.odometer;
          end
          %Actually takes the data using selected acquisition type
          [obj,dataOut,nPoints] = getData(obj,acquisitionType);         
@@ -274,7 +274,7 @@ classdef experiment
             if isscalar(n)
                n = n(1) ./ s;
             elseif numel(s) == numel(b)
-               n = n ./s;
+               n = abs(n ./s);
                if any(n~=n(1)) %Check if all nSteps are the same as the first
                   error('Computed number of steps not equivalent for every scan dimension')
                end
@@ -331,7 +331,7 @@ classdef experiment
          %2nd argument is cell corresponding to the specific data point
          %within the scan
          if nargin > 1 && ~isempty(varargin{1})
-            dataPoint = num2cell(varargin{1});
+            dataPoint = varargin{1};
          else
             dataPoint = obj.odometer;
          end
@@ -387,6 +387,9 @@ classdef experiment
             obj = setInstrument(obj,ii);
          end
          obj.odometer{end} = 0;
+
+         obj.freshPoints = {};
+         obj.storedOdometer = {};
 
          %Reset which points are completed for only current plots
          if ~isempty(obj.plots)
@@ -708,7 +711,7 @@ classdef experiment
       end
 
       function obj = asynchronousDAQCollection(obj)
-          tic
+       
           runSequence(obj.pulseBlaster)
           if strcmpi(obj.pulseBlaster.manufacturer,'swabian')
              pauseTime = .001;
@@ -718,7 +721,6 @@ classdef experiment
           while pbRunning(obj.pulseBlaster)
               pause(pauseTime)
           end
-          toc
           %Stop sequence. This allows pulse blaster to run the same
           %sequence again by calling the runSequence function
           if ~strcmpi(obj.pulseBlaster.manufacturer,'swabian')
@@ -738,17 +740,16 @@ classdef experiment
                   break
               end
 
-              currentOdometer = obj.storedOdometer(1);%pull oldest stored odometer location
-              % disp(currentOdometer{1})
+              currentOdometer = obj.storedOdometer{1};%pull oldest stored odometer location
               %Increment iteration value
               obj.data.iteration(currentOdometer{:}) = obj.data.iteration(currentOdometer{:}) + 1;
               currentIteration = obj.data.iteration(currentOdometer{:});
               %Set data and nPoints
-              % disp(obj.DAQ.reference(1))
               obj.data.values{currentOdometer{:},currentIteration} = [obj.DAQ.reference(1),obj.DAQ.signal(1)];
               obj.data.nPoints(currentOdometer{:},currentIteration) = obj.DAQ.referencePoints(1)+obj.DAQ.signalPoints(1);
               %Store current iteration as the newest point to update
-              obj.freshPoints(end+1) = currentOdometer;
+              obj.freshPoints{end+1} = currentOdometer;
+
 
               %Delete current lookup
               obj.DAQ.reference(1) = [];
@@ -978,7 +979,7 @@ classdef experiment
             end
 
             if nargin >= 7 && ~isempty(varargin{4})
-                odoLocation = varargin(4);
+                odoLocation = varargin{4};
             else
                 odoLocation = obj.odometer;
             end
@@ -1480,7 +1481,7 @@ classdef experiment
          if nargin < 3
              obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} = obj.data.values{obj.odometer{:},obj.data.iteration(obj.odometer{:})} - baseline;
          else %location input given
-             odoLocation = varargin(1);
+             odoLocation = varargin{1};
              obj.data.values{odoLocation{:},obj.data.iteration(odoLocation{:})} = obj.data.values{odoLocation{:},obj.data.iteration(odoLocation{:})} - baseline;
          end
          

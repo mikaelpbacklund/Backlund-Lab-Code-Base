@@ -50,7 +50,7 @@ if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 %Loads pulse blaster, srs rf, and daq with given configs
 if strcmpi(p.DAQConfig,'daq_testing')
     instrumentNames = ["pulse blaster","srs rf","testdaq"];
-    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),p.DAQConfig];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
     ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
     ex.asynchronousCollection = true;
 else

@@ -118,9 +118,18 @@ scanInfo.bounds = cell(1,numel(scanInfo.address));
 scanInfo.stepSize = ones(1,numel(scanInfo.address));
 scanInfo.stepSize(:) = p.scanStepSize;
 scanInfo.nSteps = [];
+
+
 for ii = 1:numel(tauAddresses)
-    ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauAddresses(ii),'duration',p.uncorrectedTauTime);
+    if strcmp(p.pulseNotes,'I/Q buffer')
+        scanInfo.bounds{end+1} = [p.uncorrectedTauTime+(p.scanBounds(2)-p.scanBounds(1))*2,p.uncorrectedTauTime];
+        scanInfo.address(end+1) = tauAddresses(ii);
+        scanInfo.stepSize(end+1) = -2*p.scanStepSize;
+    else
+        ex.pulseBlaster = modifyPulse(ex.pulseBlaster,tauAddresses(ii),'duration',p.uncorrectedTauTime);
+    end
 end
+
 
 %Adds scan to experiment based on template output
 ex = addScans(ex,scanInfo);

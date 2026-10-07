@@ -1,51 +1,56 @@
 %Example XYN-m using template
 
+%NOTE TO SELF: add rigol function generator as new object class. Make a
+%scan sitting on the dip for amplitude, see where it starts to fall below
+%the noise
 clear p
 
 %Required
-p.scanBounds = [300 700];
-p.scanStepSize = 4;
+p.scanBounds = [360 520];
+p.scanStepSize = 2;
 p.scanNSteps = [];%will override step size
-p.piTime = 48;
-p.RFResonanceFrequency = 2.253;
-p.nXY = 8;%N in XYN-m
+p.piTime = 44;
+p.RFResonanceFrequency = 2.136;
+p.nXY = 8;%N in XYN-m1
 p.setsXYN = 8;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 10;%seconds
-p.collectionDuration = 1500;%0 means overwritten by DAQ %
+p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
-p.RFRampTime = 8;
+p.intermissionBufferDuration = 4000;
+p.repolarizationDuration = 15000;
+p.RFRampTime = 10;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 10;
+p.AOMCompensation = 480;
 % p.AOMCompensation = 1300;
-p.IQBuffers = [50 30];
-p.nIterations = 300;
-p.RFAmplitude = 0;
+p.IQBuffers = [30 30];
+p.nIterations = 400;
+p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .0001;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.035;
+p.baselineSubtraction = 0.0135;
 p.perSecond = true;
 p.closeFigsEveryIteration = false;
-p.plotEveryNIterations = 10;
+p.plotEveryNIterations = 1;
+p.pollInterval = 5;
 
 %Config file names
 p.pulseBlasterConfig = 'pb_swabian';
 p.SRSRFConfig = 'SRS_RF';
-p.DAQConfig = 'daq_6361';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
 p.stageConfig = 'PI_stage';
 
 %Plotting
 p.plotAverageContrast = true;
-p.plotCurrentContrast = false;
+p.plotCurrentContrast = true;
 p.plotAverageReference = false;
-p.plotCurrentReference = false;
+p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
@@ -75,4 +80,6 @@ p.useOptimizationPercentage = false;
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Runs XYN-m
+tic
 ex = XYN(ex,p);
+toc

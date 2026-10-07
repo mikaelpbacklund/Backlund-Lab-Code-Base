@@ -439,6 +439,7 @@ classdef DAQ_controller_test < instrumentType
                 end
             end
 
+
         end
 
         function finalizePoint(obj)

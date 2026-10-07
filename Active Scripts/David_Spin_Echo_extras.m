@@ -1,29 +1,29 @@
 %Example Spin Echo extras using template
 
 %Required
-p.scanBounds = [10 50];
-p.scanStepSize = 2;
-p.piTime = 34;
-p.uncorrectedTauTime = 100;%Before taking into account pi pulses or IQ buffers
-p.RFResonanceFrequency = 2.0355;
+p.scanBounds = [10 200];
+p.scanStepSize = 10;
+p.piTime = 48;
+p.uncorrectedTauTime = 250;%Before taking into account pi pulses or IQ buffers
+p.RFResonanceFrequency = 2.132;
 p.collectionType = 'analog';
 p.pulseNotes = 'I/Q buffer';%Exact notes of pulses to scan
 
 %Other
-p.sequenceTimePerDataPoint = 4;%seconds
-p.collectionDuration = 0;%0 means overwritten by DAQ
+p.sequenceTimePerDataPoint = 10;%seconds
+p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
-p.intermissionBufferDuration = 2000;
-p.repolarizationDuration = 10000;
-p.RFRampTime = 4;
+p.intermissionBufferDuration = 4000;
+p.repolarizationDuration = 15000;
+p.RFRampTime = 10;
 p.AOMCompensation = 480;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [10 10];
-p.nIterations = 1;
+p.nIterations = 5;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
-p.forcedDelayTime = .25;
+p.forcedDelayTime = 0;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 3;
 p.baselineSubtraction = 0;
@@ -42,7 +42,7 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
-p.plotAverageSNR = false;
+p.plotAverageSNR = true;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;

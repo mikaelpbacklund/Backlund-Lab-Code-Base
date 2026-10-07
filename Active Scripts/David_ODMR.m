@@ -3,22 +3,22 @@
 clear p
 
 %Required
-p.scanBounds = [2.2 2.3]; %Frequency bounds
+p.scanBounds = [2.12 2.15]; %Frequency bounds
 p.scanStepSize = .001;%Step size for RF frequency
 p.collectionType = 'analog';%analog or counter
 
 %General    
 p.RFAmplitude = 10;
 p.scanNotes = 'ODMR'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = .1;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
 p.maxFailedCollections = 5;
-p.nIterations = 100; %Number of iterations of scan to perform
+p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 2; %How long besfore auto-continue occurs
-p.forcedDelayTime = .05; %Time to force pause before (1/2) and after (full) collecting data
-p.nDataPointDeviationTolerance = 5e-6;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
-p.baselineSubtraction = 0.035;%Amount to subtract from both reference and signal collected
+p.forcedDelayTime = 0; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = 5e-1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.baselineSubtraction = 0.0135;% .069 Amount to subtract from both reference and signal collected
 p.perSecond = false;
-p.pollInterval = 1;
+p.pollInterval = 5;
 p.closeFigsEveryIteration = false;
 
 %Config file names
@@ -35,7 +35,7 @@ p.plotAverageReference = false;
 p.plotCurrentReference = true;
 p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
-p.plotAverageSNR = true;
+p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
 p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
@@ -61,6 +61,8 @@ p.percentageForcedOptimization = .5; %see below (0 to disable)
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-
+tic
 %Runs ODMR using specified parameters
 ex = ODMR(ex,p);
+
+toc

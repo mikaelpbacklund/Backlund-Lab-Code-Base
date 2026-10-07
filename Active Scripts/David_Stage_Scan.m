@@ -6,13 +6,16 @@
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
 %% User Inputs
-scanBounds = {[20100 20600]};
+scanBounds = {[20200,20400]};
 scanAxes = {'z'};
-scanStepSize = {10};
-sequenceTimePerDataPoint = .5;%Before factoring in forced delay and other pauses
+scanStepSize = {1};
+% scanBounds = {[1700,1900],[2800,3000]};
+% scanAxes = {'y','x'};
+% scanStepSize = {10,10};
+sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
 p.nIterations = 1;
-contrastVSReference = 'ref';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.87;
+contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
+RFfrequency = 2.135;
 
 %Uncommonly changed parameters
 dataType = 'analog';%'counter' or 'analog'
@@ -84,7 +87,7 @@ if strcmpi(contrastVSReference,'con')
    ex.SRS_RF.frequency = RFfrequency;
 
    ex.DAQ.differentiateSignal = true;
-   ex.DAQ.continuousCollection = true;
+   % ex.DAQ.continuousCollection = true;
 
 %Condensed version below puts this on one line
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Initial buffer signal off');
@@ -95,7 +98,7 @@ ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},
 ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
 else
    ex.DAQ.differentiateSignal = false;
-   ex.DAQ.continuousCollection = false;
+   % ex.DAQ.continuousCollection = false;
 
    ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM'},500,'Initial buffer');
    ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Taking data');

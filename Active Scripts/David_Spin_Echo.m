@@ -3,39 +3,41 @@
 clear p
 
 %Required
-p.scanBounds = [300 800];
-p.scanStepSize = 20;
+p.scanBounds = [250 5000];
+p.scanStepSize = 250;
 p.scanNSteps = [];%will override step size
 p.piTime = 48;
-p.RFResonanceFrequency = 2.253;
+p.RFResonanceFrequency = 2.132;
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 3;%seconds
 p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 100;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
-p.RFRampTime = 8;
-p.AOMCompensation = 10;
+p.intermissionBufferDuration = 4000;
+p.repolarizationDuration = 15000;
+p.RFRampTime = 10;
+p.AOMCompensation = 320;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.IQBuffers = [30 10];
+p.IQBuffers = [30 30];
 p.nIterations = 1;
-p.RFAmplitude = 0;
+p.RFAmplitude = 10;
 p.timeoutDuration = 5;
-p.forcedDelayTime = .25;
+p.forcedDelayTime = 0;
 p.nDataPointDeviationTolerance = .1;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.035;
+p.baselineSubtraction = 0.0135;
 p.perSecond = false;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
-p.closeFigsEveryIteration = true;
+p.closeFigsEveryIteration = false;
+p.pollInterval = 5;
 
 %Config file names
 p.pulseBlasterConfig = 'pb_swabian';
 p.SRSRFConfig = 'SRS_RF';
-p.DAQConfig = 'daq_6361';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
 p.stageConfig = 'PI_stage';
 
 %Plotting
@@ -71,7 +73,6 @@ p.useOptimizationPercentage = false;
 
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
-tic
+
 %Runs Spin Echo
 ex = SpinEcho(ex,p);
-toc
