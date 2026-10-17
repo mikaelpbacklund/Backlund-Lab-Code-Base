@@ -6,13 +6,13 @@
 clear p
 
 %Required
-p.scanBounds = [360 520];
+p.scanBounds = [400 550];
 p.scanStepSize = 2;
 p.scanNSteps = [];%will override step size
-p.piTime = 44;
-p.RFResonanceFrequency = 2.136;
+p.piTime = 60;
+p.RFResonanceFrequency = 2.1845;
 p.nXY = 8;%N in XYN-m1
-p.setsXYN = 8;%m in XYN-m
+p.setsXYN = 128;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
@@ -27,7 +27,7 @@ p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before re
 p.AOMCompensation = 480;
 % p.AOMCompensation = 1300;
 p.IQBuffers = [30 30];
-p.nIterations = 400;
+p.nIterations = 100;
 p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;

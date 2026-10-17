@@ -7,10 +7,10 @@ clear p
 %resulting in failed and/or erroneous points
 
 %Required
-p.scanBounds = [10 130]; %RF duration bounds
+p.scanBounds = [10 330]; %RF duration bounds
 p.scanStepSize = 4; %Step size for RF duration
 p.collectionType = 'analog';%analog or counter
-p.RFResonanceFrequency = 2.136; %on axis
+p.RFResonanceFrequency = 2.1845; %on axis
 
 %General
 p.RFAmplitude = 10;

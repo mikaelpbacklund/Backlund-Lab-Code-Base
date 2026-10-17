@@ -3,14 +3,14 @@
 clear p
 
 %Required
-p.scanBounds = [.1 .5]; %Intensity bounds
-p.scanStepSize = .1; %Step size for intensity
+p.scanBounds = [.05 .3]; %Intensity bounds
+p.scanStepSize = .05; %Step size for intensity
 
 %General
 p.collectionType = 'analog';%analog or counter data collection
 p.parameterOfInterest = 'con';%ref or con
 p.scanNotes = 'Laser intensity scan'; %Notes describing scan (will appear in titles for plots)
-p.sequenceTimePerDataPoint = 1;%Before factoring in forced delay and other pauses
+p.sequenceTimePerDataPoint = 10;%Before factoring in forced delay and other pauses
 p.nIterations = 1; %Number of iterations of scan to perform
 p.timeoutDuration = 10; %How long before auto-continue occurs
 p.forcedDelayTime = .125; %Time to force pause before (1/2) and after (full) collecting data
@@ -22,7 +22,7 @@ p.pollInterval = 5;
 
 %RF settings (only relevant if parameter set to con)
 p.RFAmplitude = 10;
-p.RFFrequency = 2.135;
+p.RFFrequency = 2.177;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';

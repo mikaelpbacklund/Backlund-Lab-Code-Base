@@ -5,142 +5,78 @@
 %1;
 %ex.PIstage = relativeMove(ex.PIstage,'z',-50);
 
-%% User Inputs
-scanBounds = {[20200,20400]};
-scanAxes = {'z'};
-scanStepSize = {1};
-% scanBounds = {[1700,1900],[2800,3000]};
-% scanAxes = {'y','x'};
-% scanStepSize = {10,10};
-sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
-p.nIterations = 1;
-contrastVSReference = 'con';%'ref' or 'con'. If con, applies ODMR sequence but shows ref and con; if ref, uses fast sequence and only shows ref
-RFfrequency = 2.135;
+%Default ODMR script example
 
-%Uncommonly changed parameters
-dataType = 'analog';%'counter' or 'analog'
-RFamplitude = 10;
-p.timeoutDuration = 5;
-forcedDelayTime = .125;
+clear p
 
-p.baselineSubtraction = 0;
-p.plotAverageContrast = false;
-p.plotAverageReference = false;
-p.plotAverageSNR = false;
-p.plotCurrentContrast = true;
-p.plotCurrentReference = true;
-p.plotCurrentSNR = true;
-p.collectionType = 'analog';
-p.boundsToUse = 1;
-p.perSecond = true;
+%Required
+p.scanBounds = {[19900,20000]};
+p.scanAxes = {'z'};
+p.scanStepSize = {5};
+% p.scanBounds = {[1550,1650],[2400,2500]};
+% p.scanAxes = {'y','x'};
+% p.scanStepSize = {10,10};
+p.collectionType = 'analog';%analog or counter
+p.contrastVSReference = 'con';
 
-nDataPointDeviationTolerance = .00015;
-scanNotes = 'Stage scan';
-
-%% Backend
-
-if ~exist('ex','var')
-   ex = experiment;
+%General    
+p.RFFrequency = 2.87;
+p.RFAmplitude = 10;
+p.scanNotes = ' Stage Scan'; %Notes describing scan (will appear in titles for plots)
+for ii = 1:numel(p.scanAxes)
+    p.scanNotes = [p.scanAxes{ii},p.scanNotes];
 end
+p.sequenceTimePerDataPoint = .2;%Before factoring in forced delay and other pauses
+p.maxFailedCollections = 5;
+p.nIterations = 1; %Number of iterations of scan to perform
+p.timeoutDuration = 2; %How long besfore auto-continue occurs
+p.forcedDelayTime = 0; %Time to force pause before (1/2) and after (full) collecting data
+p.nDataPointDeviationTolerance = 5e-1;%How precies measurement is. Lower number means more exacting values, could lead to repeated failures
+p.baselineSubtraction = 0.045;% .069 Amount to subtract from both reference and signal collected
+p.perSecond = false;
+p.pollInterval = 3;
+p.closeFigsEveryIteration = false;
+p.intermissionBufferDuration = 1000;%ns
 
-if isempty(ex.pulseBlaster)
-    fprintf('Connecting to pulse blaster...\n')
-   ex.pulseBlaster = pulse_blaster('pb_swabian');
-   ex.pulseBlaster = connect(ex.pulseBlaster);
-   fprintf('Pulse blaster connected\n')
-end
-if isempty(ex.SRS_RF) && strcmp(contrastVSReference,'con')
-    fprintf('Connecting to SRS...\n')
-   ex.SRS_RF = RF_generator('SRS_RF');
-   ex.SRS_RF = connect(ex.SRS_RF);
-   fprintf('SRS connected\n')
-end
-if isempty(ex.DAQ)
-    fprintf('Connecting to DAQ...\n')
-   ex.DAQ = DAQ_controller('daq_6361');
-   ex.DAQ = connect(ex.DAQ);
-   fprintf('DAQ connected\n')
-end
-if isempty(ex.PIstage)
-    fprintf('Connecting to PI stage...\n')
-   ex.PIstage = stage('PI_stage');
-   ex.PIstage = connect(ex.PIstage);
-   fprintf('PI stage connected\n')
-end
+%Config file names
+p.pulseBlasterConfig = 'pb_swabian';
+p.SRSRFConfig = 'SRS_RF';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
+p.stageConfig = 'PI_stage';
 
-ex.DAQ.takeData = false;
-ex.DAQ.activeDataChannel = dataType;
+%Plotting
+p.plotAverageContrast = true;
+p.plotCurrentContrast = false;
+p.plotAverageReference = true;
+p.plotCurrentReference = false;
+p.plotAverageSignal = false;
+p.plotCurrentSignal = false;
+p.plotAverageSNR = true;
+p.plotCurrentSNR = false;
+p.plotCurrentDataPoints = false;
+p.plotAverageDataPoints = false;
+p.invertSignalForSNR = false;
+p.plotPulseSequence = false;
+p.plotAverageContrastFFT = false;
+p.plotCurrentContrastFFT = false;
 
-ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
-ex.pulseBlaster.useTotalLoop = true;
-ex.pulseBlaster = deleteSequence(ex.pulseBlaster);
+%Stage optimization
+p.optimizationEnabled = false; %Set to false to disable stage optimization
+p.optimizationAxes = {'z'}; %The axes which will be optimized over
+p.optimizationSteps = {-1:0.2:1}; %Locations the stage will move relative to current location
+p.optimizationRFStatus = 'off'; %'off', 'on', or 'con' 
+p.timePerOpimizationPoint = .2; %Duration of each data point during optimization
+p.timeBetweenOptimizations = 180; %Seconds between optimizations (Inf to disable, 0 for optimization after every point)
+p.percentageForcedOptimization = .5; %see below (0 to disable)
 
-if strcmpi(contrastVSReference,'con')
-   if isempty(ex.SRS_RF) %#ok<*UNRCH>
-      ex.SRS_RF = RF_generator('SRS_RF');
-      ex.SRS_RF = connect(ex.SRS_RF);
-   end
+%percentageForcedOptimization is a more complex way of deciding when to do an optimization.
+%After every optimization, the reference value of the next data point is recorded. After every data point, if the
+%reference value is lower than X percent of that post-optimization value, a new optimization will be performed. This
+%means setting the value to 1 corresponds to running an optimization if the value obtained is lower at all than the
+%post-optimization value, .75 means running optimization if less than 3/4 post-optimization value etc.
 
-   ex.SRS_RF.enabled = 'on';
-   ex.SRS_RF.modulationEnabled = 'off';
-   ex.SRS_RF.amplitude = RFamplitude;
-   ex.SRS_RF.frequency = RFfrequency;
+if ~exist('ex','var') || isempty(ex),ex = []; end
 
-   ex.DAQ.differentiateSignal = true;
-   % ex.DAQ.continuousCollection = true;
-
-%Condensed version below puts this on one line
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Initial buffer signal off');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Reference');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{},2500,'Middle buffer signal off');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Middle buffer signal on');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ','RF','Signal'},1e6,'Signal');
-ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'Signal'},2500,'Final buffer');
-else
-   ex.DAQ.differentiateSignal = false;
-   % ex.DAQ.continuousCollection = false;
-
-   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM'},500,'Initial buffer');
-   ex.pulseBlaster = condensedAddPulse(ex.pulseBlaster,{'AOM','DAQ'},1e6,'Taking data');
-end
-
-ex.pulseBlaster = calculateDuration(ex.pulseBlaster,'user');
-
-%Changes number of loops to match desired time for each data point
-ex.pulseBlaster.nTotalLoops = floor(sequenceTimePerDataPoint/ex.pulseBlaster.sequenceDurations.user.totalSeconds);
-
-ex.pulseBlaster = sendToInstrument(ex.pulseBlaster);
-
-ex.scan = [];
-
-%Adds each scan
-for ii = 1:numel(scanBounds)
-   scan.bounds = scanBounds{ii};
-   scan.stepSize = scanStepSize{ii};
-   scan.parameter = scanAxes{ii};
-   scan.identifier = 'stage';
-   scan.notes = scanNotes;
-
-   ex = addScans(ex,scan);
-end
-
-%Adds time (in seconds) after pulse blaster has stopped running before continuing to execute code
-ex.forcedCollectionPauseTime = forcedDelayTime;
-
-ex.maxFailedCollections = 10;
-
-ex.nPointsTolerance = nDataPointDeviationTolerance;
-
-%Sends information to command window
-% scanStartInfo(ex.scan.nSteps,...
-%     ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,p.nIterations,.28)
-
-% cont = checkContinue(timeoutDuration*2);
-% if ~cont
-%     return
-% end
-
-
-ex.optimizationInfo.enableOptimization = false;
-
-ex = runScan(ex,p);
+%Runs ODMR using specified parameters
+ex = Stage_Scan(ex,p);
