@@ -214,18 +214,35 @@ classdef DAQ_controller_test < instrumentType
                         error("Channel count changed between writes.");
                     end
 
-                    overwritten = 0;
-                    for r = 1:m
-                        buf(head, :) = data(r, :);
-                        head = head + 1;
-                        if head > capacity, head = 1; end
-                        if count < capacity
-                            count = count + 1;
+                    if m >= capacity
+                        % Only the last capacity rows survive. Lay them out
+                        % from row 1 so the next pop is a single segment.
+                        overwritten = m - capacity + count;
+                        buf(:, :) = data(end-capacity+1:end, :);
+                        head = 1;
+                        tail = 1;
+                        count = capacity;
+                    else
+                        nToEnd = capacity - head + 1;
+                        if m <= nToEnd
+                            buf(head:head+m-1, :) = data;
                         else
-                            % buffer full: advance tail (overwrite oldest)
-                            tail = tail + 1;
-                            if tail > capacity, tail = 1; end
-                            overwritten = overwritten + 1;
+                            buf(head:capacity, :) = data(1:nToEnd, :);
+                            buf(1:m-nToEnd, :) = data(nToEnd+1:end, :);
+                        end
+                        head = head + m;
+                        if head > capacity
+                            head = head - capacity;
+                        end
+                        free = capacity - count;
+                        if m <= free
+                            count = count + m;
+                            overwritten = 0;
+                        else
+                            % buffer full: oldest remaining row is the next write
+                            overwritten = m - free;
+                            count = capacity;
+                            tail = head;
                         end
                     end
                     out = overwritten;
@@ -245,13 +262,20 @@ classdef DAQ_controller_test < instrumentType
                         out = [];
                         return
                     end
-                    maxRows = capacity;%mine
-                    n = min(maxRows, count);
-                    out = zeros(n, nChannels);
-                    for k = 1:n
-                        out(k, :) = buf(tail, :);
-                        tail = tail + 1;
-                        if tail > capacity, tail = 1; end
+                    % Drain every stored row, oldest first. The occupied
+                    % range is one contiguous segment, or two if it wraps.
+                    n = count;
+                    nToEnd = capacity - tail + 1;
+                    if n <= nToEnd
+                        out = buf(tail:tail+n-1, :);
+                        tail = tail + n;
+                        if tail > capacity
+                            tail = 1;
+                        end
+                    else
+                        n2 = n - nToEnd;
+                        out = [buf(tail:capacity, :); buf(1:n2, :)];
+                        tail = n2 + 1;
                     end
                     count = count - n;
                     % keep head/tail invariants when empty
