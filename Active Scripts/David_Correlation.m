@@ -3,41 +3,45 @@
 clear p
 
 %Required
-p.scanBounds = [1000 6000];
+p.scanBounds = [100 6000];
 p.scanStepSize = 100;
 p.scanNSteps = [];%will override step size
-p.tauDuration = 522;
-p.piTime = 80;
-p.RFResonanceFrequency = 2.2;
+p.tauDuration = 474;
+p.piTime = 60;
+p.RFResonanceFrequency = 2.1845;
 p.nXY = 8;%N in XYN-m
-p.setsXYN = 10;%m in XYN-m
+p.setsXYN = 16;%m in XYN-m
 p.collectionType = 'analog';
 
 %Other
 p.sequenceTimePerDataPoint = 10;%seconds
 p.collectionDuration = 1500;%0 means overwritten by DAQ
 p.collectionBufferDuration = 200;
-p.intermissionBufferDuration = 12000;
-p.repolarizationDuration = 10000;
-p.RFRampTime = 6;
+p.intermissionBufferDuration = 4000;
+p.repolarizationDuration = 15000;
+p.RFRampTime = 10;
 p.dataOnBuffer = 0;%Time after AOM is on where DAQ continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
-p.AOMCompensation = 10;
-p.IQBuffers = [30 10];
+p.AOMCompensation = 480;
+p.IQBuffers = [30 30];
 p.nIterations = 400;
-p.RFAmplitude = 0;
+p.RFAmplitude = 10;
 p.timeoutDuration = 3;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .001;
 p.maxFailedCollections = 10;
-p.baselineSubtraction = 0.041;
+p.baselineSubtraction = 0.045;
 p.perSecond = true;
 p.resetData = true;%Resets data of previous scan. If false, continues adding data to previous scan
+p.closeFigsEveryIteration = false;
+p.plotEveryNIterations = 1;
+p.pollInterval = 5;
 
 %Config file names
 p.pulseBlasterConfig = 'pulse_blaster_default';
 p.SRSRFConfig = 'SRS_RF';
-p.DAQConfig = 'daq_6361';
+% p.DAQConfig = 'daq_6361';
+p.DAQConfig = 'daq_testing';
 p.stageConfig = 'PI_stage';
 
 %Plotting
@@ -49,13 +53,13 @@ p.plotAverageSignal = false;
 p.plotCurrentSignal = false;
 p.plotAverageSNR = false;
 p.plotCurrentSNR = false;
-p.plotCurrentDataPoints = true;
+p.plotCurrentDataPoints = false;
 p.plotAverageDataPoints = false;
 p.invertSignalForSNR = false;
-p.plotPulseSequence = true;
-p.plotAverageContrastFFT = true;
-p.plotCurrentContrastFFT = true;
-p.verticalLineInfo = {10.705,'13C';42.576,'1H';40.05,'19F'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H
+p.plotPulseSequence = false;
+p.plotAverageContrastFFT = false;
+p.plotCurrentContrastFFT = false;
+p.verticalLineInfo = {42.576,'1H'};%ex: {42.576,'1H'} to get vertical line at 42.576 labeled 1H{10.705,'13C';42.576,'1H';40.05,'19F'}
 p.normalizeFFTByMagnet = true;
 
 %Stage optimization

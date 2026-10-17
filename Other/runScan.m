@@ -40,7 +40,7 @@ if p.resetData
 else
     iterationsForInfo = p.nIterations - size(ex.data.values,2);
 end
-scanStartInfo(prod([ex.scan.nSteps]),ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.28)
+scanStartInfo(prod([ex.scan.nSteps]),ex.pulseBlaster.sequenceDurations.sent.totalSeconds + ex.forcedCollectionPauseTime*1.5,iterationsForInfo,.5)
 
 if ~checkUserInput(ex,p);   return;   end
 
@@ -69,6 +69,10 @@ for iterationNumber = startIteration:p.nIterations
 
    %Set samples to reset data point based on expected samples per data toggle on
     if ex.asynchronousCollection
+        if p.pollInterval > 5
+            warning("Poll interval for DAQ collection should not be greater than 5 seconds. Setting to 5")
+            p.pollInterval = 5;
+        end
         secondsPerLoop = ex.pulseBlaster.sequenceDurations.user.totalSeconds ./ ex.pulseBlaster.nTotalLoops;
         samplesPerLoop = ex.DAQ.handshake.Rate .*  secondsPerLoop;
         if ex.pulseBlaster.sequenceDurations.user.dataFraction > .1
@@ -95,7 +99,6 @@ for iterationNumber = startIteration:p.nIterations
       ex = takeNextDataPoint(ex,'pulse sequence');
 
       if ex.asynchronousCollection
-           n = n+1;
            %Checks for any new data from the DAQ
            ex = checkAsynchronousData(ex);
 
@@ -115,6 +118,7 @@ for iterationNumber = startIteration:p.nIterations
        n = 0;
        while ~isempty(ex.storedOdometer)
            n = n+1;
+           % pullAndProcess(ex.DAQ)%Forces pull regardless of timer
            %Checks for any new data from the DAQ
            ex = checkAsynchronousData(ex);
 

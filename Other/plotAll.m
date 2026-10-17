@@ -1,6 +1,5 @@
 function ex = plotAll(ex,p,currentLocation)
-disp(currentLocation)
-
+assignin("base","currentLocation",currentLocation)
 %Create matrix where first row is ref, second is sig, and columns indicate iteration
 data = createDataMatrixWithIterations(ex,currentLocation);
 %Find average data across iterations by taking mean across all columns
@@ -8,7 +7,7 @@ averageData = mean(data,2);
 %Current data is last column
 currentData = data(:,end);
 %Gets data points
-dataPoints = ex.data.nPoints(currentLocation,:);
+dataPoints = ex.data.nPoints(currentLocation{:},:);
 
 if isscalar(averageData)
     averageData(2) = 0;
@@ -63,7 +62,7 @@ if p.plotCurrentSNR
     else
         SNRVal = sqrt(currentData(1)) * currentContrast^(-1);
     end
-    SNRVal = abs(SNRVal) * sqrt(dataPoints(ex.data.iteration(currentLocation)));
+    SNRVal = abs(SNRVal) * sqrt(dataPoints(ex.data.iteration(currentLocation{:})));
     ex = plotData(ex,SNRVal,'Current SNR',yAxisLabel,p.boundsToUse,[],currentLocation,p.xOffset);
 end
 
@@ -72,7 +71,7 @@ if p.plotAverageDataPoints
     ex = plotData(ex,mean(dataPoints,"all"),'Average Data Points',yAxisLabel,p.boundsToUse,[],currentLocation,p.xOffset);
 end
 if p.plotCurrentDataPoints
-    ex = plotData(ex,dataPoints(ex.data.iteration(ex.odometer{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],currentLocation,p.xOffset);
+    ex = plotData(ex,dataPoints(ex.data.iteration(currentLocation{:})),'Current Data Points',yAxisLabel,p.boundsToUse,[],currentLocation,p.xOffset);
 end
 
 %If a new post-optimization value is needed, record current data

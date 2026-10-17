@@ -49,9 +49,16 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),ex = []; end
 
 %Loads pulse blaster, srs rf, and daq with given configs
-instrumentNames = ["pulse blaster","srs rf","daq"];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
-ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+if strcmpi(p.DAQConfig,'daq_testing')
+    instrumentNames = ["pulse blaster","srs rf","testdaq"];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),p.DAQConfig];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+    ex.asynchronousCollection = true;
+else
+    instrumentNames = ["pulse blaster","srs rf","daq"];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.SRSRFConfig),c2s(p.DAQConfig)];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);    
+end
 
 %Loads stage if optimization is enabled
 if p.optimizationEnabled
@@ -76,8 +83,12 @@ ex.SRS_RF.amplitude = p.RFAmplitude;
 ex.SRS_RF.frequency = p.RFResonanceFrequency;
 
 %Sends DAQ settings
-ex.DAQ.takeData = false;
-ex.DAQ.differentiateSignal = 'on';
+if ~strcmpi(p.DAQConfig,'daq_testing')
+    ex.DAQ.takeData = false;
+    ex.DAQ.differentiateSignal = true;
+else
+    ex.DAQ.pollInterval = p.pollInterval;
+end
 ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets collectionDuration to inverse of sample rate in nanoseconds

@@ -5,7 +5,7 @@ clear p
 %Required
 %% 
 p.scanBounds = [5000 2005000];
-p.scanStepSize = 40000;
+p.scanStepSize = 400000;
 p.scanNSteps = [];%will override step size
 %p.piTime = 36;
 p.RFResonanceFrequency = 2.87;
@@ -22,9 +22,9 @@ p.dataOnBuffer = 0;%Time after AOM is on where DAQ
 % continues readout but AOM is shut off
 p.extraBuffer = 0;%Pulse after dataOnBuffer where AOM and DAQ are off, before repolarization
 p.IQBuffers = [30 0];
-p.nIterations = 40;
+p.nIterations = 101;
 p.RFAmplitude = 0;
-p.timeoutDuration = 5;
+p.timeoutDuration = .5;
 p.forcedDelayTime = .25;
 p.nDataPointDeviationTolerance = .001;
 p.maxFailedCollections = 5;

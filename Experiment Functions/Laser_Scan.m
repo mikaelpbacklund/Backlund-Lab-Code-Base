@@ -50,9 +50,16 @@ warning('off','MATLAB:subscripting:noSubscriptsSpecified');
 if ~exist('ex','var') || isempty(ex),   ex = experiment;   end
 
 %Loads pulse blaster and daq with given configs
-instrumentNames = ["pulse blaster","daq",c2s(p.laserPropertyName)];
-instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.laserConfig)];
-ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+if strcmpi(p.DAQConfig,'daq_testing')
+    instrumentNames = ["pulse blaster","testdaq",c2s(p.laserPropertyName)];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.laserConfig)];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+    ex.asynchronousCollection = true;
+else
+    instrumentNames = ["pulse blaster","daq",c2s(p.laserPropertyName)];
+    instrumentConfigs = [c2s(p.pulseBlasterConfig),c2s(p.DAQConfig),c2s(p.laserConfig)];
+    ex = loadInstruments(ex,instrumentNames,instrumentConfigs,false);
+end
 
 %Loads SRS if measuring contrast
 if strcmpi(p.parameterOfInterest,'con')
@@ -74,14 +81,20 @@ if p.optimizationEnabled
 end
 
 %Temporarily disables taking data, set data channel, and turn signal differentiation on if needed
-ex.DAQ.takeData = false;
-ex.DAQ.activeDataChannel = p.collectionType;
-if strcmpi(p.parameterOfInterest,'con')
-   ex.DAQ.differentiateSignal = true;
+if ~strcmpi(p.DAQConfig,'daq_testing')
+    ex.DAQ.takeData = false;
+    if strcmpi(p.parameterOfInterest,'con')
+        ex.DAQ.differentiateSignal = true;
+    else
+        ex.DAQ.differentiateSignal = false;
+        ex.DAQ.continuousCollection = true;
+    end
+    ex.DAQ.takeData = false;
+    ex.DAQ.differentiateSignal = true;
 else
-   ex.DAQ.differentiateSignal = false;
-   ex.DAQ.continuousCollection = true;
+    ex.DAQ.pollInterval = p.pollInterval;
 end
+ex.DAQ.activeDataChannel = p.collectionType;
 
 %Sets loops for entire sequence to "on". Deletes previous sequence if any existed
 ex.pulseBlaster.nTotalLoops = 1;%will be overwritten later, used to find time for 1 loop
